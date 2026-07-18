@@ -1,0 +1,10 @@
+# build
+build
+
+# apple
+.DS_Store
+__MACOSX/
+.AppleDouble
+.LSOverride
+Icon[]
+._*
