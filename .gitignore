@@ -1,7 +1,18 @@
-# build
-build
+# editor files
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
 
-# apple
+# build dirs
+build/
+
+# cmake files
+compile_commands.json
+
+# caches
+.cache
+
+# os files
 .DS_Store
 __MACOSX/
 .AppleDouble

@@ -1,0 +1,32 @@
+set(SDL_SHARED
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_STATIC
+    ON
+    CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_TESTS
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_AUDIO
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_CAMERA
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_SENSOR
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_RENDER
+    OFF
+    CACHE BOOL "" FORCE)
+set(SDL_GPU
+    OFF
+    CACHE BOOL "" FORCE)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/SDL)
