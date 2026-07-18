@@ -4,11 +4,17 @@
 
 namespace ume {
 
+struct WindowConfig {
+    const char *title = "Ume Engine";
+    uint32_t width = 1920;
+    uint32_t height = 1080;
+};
+
 class WindowImpl;
 
 class Window {
 public:
-    Window();
+    explicit Window(const WindowConfig &config = {});
     ~Window();
 
     Window(Window &&) noexcept;

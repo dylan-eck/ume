@@ -2,4 +2,9 @@
 
 #include "test_game.hpp"
 
-int main() { return ume::Application::run<TestGame>(); }
+int main() {
+    ume::ApplicationConfig config{
+        .window{.title = "Test Game", .width = 1080, .height = 720}};
+
+    return ume::Application::run<TestGame>(config);
+}

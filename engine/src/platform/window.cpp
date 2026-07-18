@@ -10,10 +10,12 @@ public:
     bool closeRequested = false;
 };
 
-Window::Window() : impl(std::make_unique<WindowImpl>()) {
+Window::Window(const WindowConfig &config)
+    : impl(std::make_unique<WindowImpl>()) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    impl->window = SDL_CreateWindow("Ume Engine", 800, 800, 0);
+    impl->window =
+        SDL_CreateWindow(config.title, config.width, config.height, 0);
 }
 
 Window::~Window() {

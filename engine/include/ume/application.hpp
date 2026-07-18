@@ -1,30 +1,33 @@
 #pragma once
 
-#include <iostream>
-
 #include <ume/game.hpp>
 #include <ume/window.hpp>
 
 namespace ume {
+
+struct ApplicationConfig {
+    WindowConfig window;
+};
+
 class Application {
 public:
-    template <typename TGame> static int run() {
-        std::cout << "Hello from ume::Application::run()!" << std::endl;
-
+    template <typename TGame>
+    static int run(const ApplicationConfig &config = {}) {
         static_assert(std::is_base_of_v<ume::Game, TGame>,
                       "TGame must derive from ume::Game");
 
         TGame game;
+        game.initialize();
 
-        Window window;
+        Window window(config.window);
 
         while (!window.shouldClose()) {
             window.pollEvents();
+
+            game.update();
         }
 
-        // game.initialize();
-        // game.update();
-        // game.shutdown();
+        game.shutdown();
 
         return 0;
     }
