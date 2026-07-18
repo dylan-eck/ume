@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <ume/game.hpp>
+#include <ume/window.hpp>
 
 namespace ume {
 class Application {
@@ -15,9 +16,15 @@ public:
 
         TGame game;
 
-        game.initialize();
-        game.update();
-        game.shutdown();
+        Window window;
+
+        while (!window.shouldClose()) {
+            window.pollEvents();
+        }
+
+        // game.initialize();
+        // game.update();
+        // game.shutdown();
 
         return 0;
     }

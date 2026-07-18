@@ -16,15 +16,6 @@
       "program": "${workspaceFolder}/build/release/sandbox",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build Release"
-    },
-    {
-      "name": "Run",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/debug/sandbox",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Build Debug",
-      "noDebug": true
     }
   ]
 }
