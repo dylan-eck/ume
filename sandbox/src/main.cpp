@@ -1,11 +1,5 @@
-#include <cstdlib>
-
 #include <ume/application.hpp>
 
-int main() {
-    ume::Application app;
+#include "test_game.hpp"
 
-    app.run();
-
-    return EXIT_SUCCESS;
-}
+int main() { return ume::Application::run<TestGame>(); }
