@@ -21,7 +21,7 @@ public:
     void run();
 
 private:
-    Window window;
+    Window window_;
 };
 
 std::unique_ptr<Application> createApplication();
