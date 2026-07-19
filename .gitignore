@@ -19,3 +19,6 @@ __MACOSX/
 .LSOverride
 Icon[]
 ._*
+
+# misc
+tmp.*

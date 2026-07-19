@@ -1,16 +1,14 @@
 #pragma once
 
-#include <memory>
+#include <string>
 
 namespace ume {
 
 struct WindowConfig {
-    const char *title = "Ume Engine";
+    std::string title = "Ume Engine";
     uint32_t width = 1920;
     uint32_t height = 1080;
 };
-
-class WindowImpl;
 
 class Window {
 public:
@@ -27,6 +25,8 @@ public:
     bool shouldClose() const;
 
 private:
-    std::unique_ptr<WindowImpl> impl;
+    struct SDL_Window *window;
+
+    bool closeRequested = false;
 };
 } // namespace ume

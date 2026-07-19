@@ -1,26 +1,19 @@
-#include <ume/window.hpp>
-
 #include <SDL3/SDL.h>
+
+#include "./window.hpp"
 
 namespace ume {
 
-class WindowImpl {
-public:
-    SDL_Window *window = nullptr;
-    bool closeRequested = false;
-};
-
-Window::Window(const WindowConfig &config)
-    : impl(std::make_unique<WindowImpl>()) {
+Window::Window(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    impl->window =
-        SDL_CreateWindow(config.title, config.width, config.height, 0);
+    window =
+        SDL_CreateWindow(config.title.c_str(), config.width, config.height, 0);
 }
 
 Window::~Window() {
-    if (impl->window) {
-        SDL_DestroyWindow(impl->window);
+    if (window) {
+        SDL_DestroyWindow(window);
     }
 
     SDL_Quit();
@@ -35,12 +28,12 @@ bool Window::pollEvents() {
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
-            impl->closeRequested = true;
+            closeRequested = true;
         }
     }
 
-    return !impl->closeRequested;
+    return !closeRequested;
 }
 
-bool Window::shouldClose() const { return impl->closeRequested; }
+bool Window::shouldClose() const { return closeRequested; }
 } // namespace ume
