@@ -4,3 +4,10 @@
 [submodule "vendor/glaze"]
 	path = vendor/glaze
 	url = https://github.com/stephenberry/glaze.git
+[submodule "vendor/sol2"]
+	path = vendor/sol2
+	url = https://github.com/ThePhD/sol2
+[submodule "vendor/lua"]
+	path = vendor/lua
+	url = https://github.com/lua/lua.git
+	branch = v5.4

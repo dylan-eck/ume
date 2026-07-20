@@ -1,12 +1,23 @@
 #pragma once
 
+#include <string>
+
 struct SDL_Window;
 
 namespace ume {
 
+struct Project {
+    std::string name;
+    std::string main_script;
+};
+
+struct ApplicationConfig {
+    std::string working_dir;
+};
+
 class Application {
 public:
-    explicit Application();
+    explicit Application(ApplicationConfig &config);
     ~Application();
 
     void run();

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 project(
   ume
   VERSION 0.1.0
-  LANGUAGES CXX)
+  LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,4 +17,4 @@ target_sources(ume PRIVATE src/main.cpp src/ume/application.cpp)
 
 target_include_directories(ume PRIVATE src)
 
-target_link_libraries(ume PRIVATE SDL3::SDL3-static)
+target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze sol2::sol2 lua)
