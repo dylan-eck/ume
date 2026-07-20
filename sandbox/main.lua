@@ -1,0 +1,5 @@
+function start()
+end
+
+function update(dt)
+end
