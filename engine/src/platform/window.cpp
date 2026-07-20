@@ -7,13 +7,13 @@ namespace ume {
 Window::Window(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    window =
+    window_ =
         SDL_CreateWindow(config.title.c_str(), config.width, config.height, 0);
 }
 
 Window::~Window() {
-    if (window) {
-        SDL_DestroyWindow(window);
+    if (window_ != nullptr) {
+        SDL_DestroyWindow(window_);
     }
 
     SDL_Quit();
@@ -28,12 +28,12 @@ bool Window::pollEvents() {
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
-            closeRequested = true;
+            close_requested_ = true;
         }
     }
 
-    return !closeRequested;
+    return !close_requested_;
 }
 
-bool Window::shouldClose() const { return closeRequested; }
+bool Window::shouldClose() const { return close_requested_; }
 } // namespace ume

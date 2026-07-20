@@ -3,6 +3,10 @@ Checks: >
   bugprone-*,
   performance-*,
   readability-*,
+  -readability-magic-numbers,
+  -readability-uppercase-literal-suffix,
+  -readability-identifier-length,
+  -cppcoreguidelines-avoid-magic-numbers,
   modernize-*,
   -modernize-use-trailing-return-type
 

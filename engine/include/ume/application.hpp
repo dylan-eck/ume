@@ -9,19 +9,23 @@ namespace ume {
 
 struct ApplicationConfig {
     std::string name;
-    uint32_t width;
-    uint32_t height;
+    int width;
+    int height;
 };
 
 class Application {
 public:
     explicit Application(const ApplicationConfig &config);
-    virtual ~Application();
+    virtual ~Application() = default;
 
     void run();
 
-private:
-    Window window_;
+protected:
+    virtual void onStart() {}
+    virtual void onUpdate(float delta_time) {}
+    virtual void onShutdown() {}
+
+    std::unique_ptr<Window> window_;
 };
 
 std::unique_ptr<Application> createApplication();

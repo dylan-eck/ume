@@ -6,8 +6,8 @@ namespace ume {
 
 struct WindowConfig {
     std::string title = "Ume Engine";
-    uint32_t width = 1920;
-    uint32_t height = 1080;
+    int width = 1920;
+    int height = 1080;
 };
 
 class Window {
@@ -25,8 +25,8 @@ public:
     bool shouldClose() const;
 
 private:
-    struct SDL_Window *window;
+    struct SDL_Window *window_;
 
-    bool closeRequested = false;
+    bool close_requested_ = false;
 };
 } // namespace ume
