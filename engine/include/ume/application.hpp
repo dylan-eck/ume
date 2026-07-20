@@ -3,9 +3,11 @@
 #include <memory>
 #include <string>
 
-#include "../../src/window.hpp"
-
 namespace ume {
+
+// forward declarations
+class Window;
+class Renderer;
 
 struct ApplicationConfig {
     std::string name;
@@ -16,7 +18,7 @@ struct ApplicationConfig {
 class Application {
 public:
     explicit Application(const ApplicationConfig &config);
-    virtual ~Application() = default;
+    virtual ~Application();
 
     void run();
 
@@ -25,7 +27,9 @@ protected:
     virtual void onUpdate(float delta_time) {}
     virtual void onShutdown() {}
 
+private:
     std::unique_ptr<Window> window_;
+    std::unique_ptr<Renderer> renderer_;
 };
 
 std::unique_ptr<Application> createApplication();
