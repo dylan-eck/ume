@@ -1,6 +1,7 @@
 add_library(ume_engine STATIC)
 add_library(ume::engine ALIAS ume_engine)
-target_sources(ume_engine PRIVATE src/application.cpp src/platform/window.cpp)
+target_sources(ume_engine PRIVATE src/application.cpp src/window.cpp
+                                  src/renderer.cpp)
 target_include_directories(ume_engine PUBLIC include)
 target_link_libraries(ume_engine PRIVATE SDL3::SDL3-static)
 

@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "../../src/platform/window.hpp"
+#include "../../src/window.hpp"
 
 namespace ume {
 

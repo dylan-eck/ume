@@ -1,6 +1,6 @@
 #include <SDL3/SDL.h>
 
-#include "./window.hpp"
+#include "window.hpp"
 
 namespace ume {
 
