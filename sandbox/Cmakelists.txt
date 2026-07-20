@@ -2,4 +2,4 @@ add_executable(sandbox)
 
 target_sources(sandbox PRIVATE src/test_app.cpp)
 
-target_link_libraries(sandbox PRIVATE ume::main)
+target_link_libraries(sandbox PRIVATE ume::entry)
