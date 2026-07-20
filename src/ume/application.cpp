@@ -29,9 +29,12 @@ Application::Application(ApplicationConfig &config) {
 
     std::cout << "lua test:\n";
     sol::state lua_state;
-    lua_state.open_libraries(sol::lib::base, sol::lib::package);
-    lua_state.script("print('bark bark bark!')");
-    std::cout << '\n';
+    lua_state.open_libraries(sol::lib::base);
+
+    lua_state.script_file(config.working_dir + "/main.lua");
+    sol::table main = lua_state["main"];
+    sol::function init = main["init"];
+    init();
 
     SDL_Init(SDL_INIT_VIDEO);
     window_ =
