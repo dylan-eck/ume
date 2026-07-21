@@ -1,6 +1,5 @@
 #include "application.hpp"
 
-#include <SDL3/SDL.h>
 #include <glaze/toml.hpp>
 
 #include <iostream>
@@ -8,11 +7,38 @@
 
 namespace ume {
 
-Application::Application(ApplicationConfig &config) {
-    Project project{};
+Application::Application(const ApplicationConfig &config)
+    : project_(loadProject(config.working_dir)),
+      window_(getWindowConfig(project_)) {
+
+    std::cout << "lua test:\n";
+    lua_state_.open_libraries(sol::lib::base);
+
+    lua_state_.script_file(config.working_dir + "/main.lua");
+    sol::table main = lua_state_["main"];
+    init_ = main["init"];
+    init_();
+    update_ = main["update"];
+}
+
+Application::~Application() {}
+
+void Application::run() {
+    std::cout << "Hello from ume::Application::run()\n";
+    while (window_.pollEvents()) {
+        // update_();
+
+        renderer_.beginFrame();
+
+        renderer_.endFrame();
+    }
+}
+
+ProjectDescription Application::loadProject(const std::string &working_dir) {
+    ProjectDescription project;
 
     glz::error_ctx err = glz::read_file_toml(
-        project, config.working_dir + "/project.toml", std::string{});
+        project, working_dir + "/project.toml", std::string{});
 
     if (err) {
         std::string err_str =
@@ -25,44 +51,13 @@ Application::Application(ApplicationConfig &config) {
     std::cout << "         name: " << project.name << "\n";
     std::cout << "  main_script: " << project.main_script << "\n";
 
-    std::cout << "lua test:\n";
-    lua_state_.open_libraries(sol::lib::base);
-
-    lua_state_.script_file(config.working_dir + "/main.lua");
-    sol::table main = lua_state_["main"];
-    init_ = main["init"];
-    init_();
-    update_ = main["update"];
-
-    SDL_Init(SDL_INIT_VIDEO);
-    window_ =
-        SDL_CreateWindow(project.name.c_str(), 1280, 720, SDL_WINDOW_VULKAN);
+    return project;
 }
 
-Application::~Application() {
-    if (window_ != nullptr) {
-        SDL_DestroyWindow(window_);
-    }
-}
-
-void Application::run() {
-    std::cout << "Hello from ume::Application::run()\n";
-    SDL_Event e;
-    bool should_quit = false;
-
-    while (!should_quit) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) {
-                should_quit = true;
-            }
-
-            // update_();
-
-            renderer_.beginFrame();
-
-            renderer_.endFrame();
-        }
-    }
+WindowConfig getWindowConfig(const ProjectDescription &project) {
+    return WindowConfig{.title = project.name,
+                        .width = project.window_config.width,
+                        .height = project.window_config.height};
 }
 
 } // namespace ume

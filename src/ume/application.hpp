@@ -1,5 +1,6 @@
 #pragma once
 
+#include "platform/window.hpp"
 #include "renderer/renderer.hpp"
 
 #define SOL_ALL_SAFETIES_ON 1
@@ -11,9 +12,10 @@ struct SDL_Window;
 
 namespace ume {
 
-struct Project {
+struct ProjectDescription {
     std::string name;
     std::string main_script;
+    WindowConfig window_config;
 };
 
 struct ApplicationConfig {
@@ -22,17 +24,22 @@ struct ApplicationConfig {
 
 class Application {
 public:
-    explicit Application(ApplicationConfig &config);
+    explicit Application(const ApplicationConfig &config);
     ~Application();
 
     void run();
 
 private:
-    SDL_Window *window_{nullptr};
+    ProjectDescription project_;
+    Window window_;
     Renderer renderer_;
 
     sol::state lua_state_;
     sol::function init_;
     sol::function update_;
+
+    static ProjectDescription loadProject(const std::string &working_dir);
 };
+
+WindowConfig getWindowConfig(const ProjectDescription &project);
 } // namespace ume

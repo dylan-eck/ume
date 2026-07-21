@@ -16,7 +16,10 @@ find_package(Vulkan REQUIRED)
 add_executable(ume)
 target_sources(
   ume
-  PRIVATE src/main.cpp src/ume/application.cpp src/ume/renderer/renderer.cpp
+  PRIVATE src/main.cpp
+          src/ume/application.cpp
+          src/ume/platform/window.cpp
+          src/ume/renderer/renderer.cpp
           src/ume/platform/vulkan/vulkan_renderer.cpp
           src/ume/platform/vulkan/vulkan_context.cpp)
 target_include_directories(ume PRIVATE src)

@@ -1,2 +1,4 @@
 name = "Test Application"
 main_script = "main.lua"
+window_config.width = 1280
+window_config.height = 720
