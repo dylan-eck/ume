@@ -34,6 +34,8 @@ private:
     Window window_;
     Renderer renderer_;
 
+    int frame_count_ = 0;
+
     sol::state lua_state_;
     sol::function init_;
     sol::function update_;

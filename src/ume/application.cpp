@@ -24,13 +24,15 @@ Application::Application(const ApplicationConfig &config)
 Application::~Application() {}
 
 void Application::run() {
-    std::cout << "Hello from ume::Application::run()\n";
+    // std::cout << "Hello from ume::Application::run()\n";
     while (window_.pollEvents()) {
-        // update_();
+        update_(frame_count_);
 
         renderer_.beginFrame();
 
         renderer_.endFrame();
+
+        frame_count_++;
     }
 }
 
