@@ -6,7 +6,8 @@
 namespace ume {
 class VulkanRenderer : public RendererBackend {
 public:
-    void init() override;
+    explicit VulkanRenderer(void *native_window_handle);
+
     void beginFrame() override;
     void endFrame() override;
 

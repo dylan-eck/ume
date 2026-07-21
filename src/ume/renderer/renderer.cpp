@@ -1,13 +1,11 @@
 #include "renderer.hpp"
 
 namespace ume {
-void Renderer::init() {}
-
-void Renderer::shutdown() {}
+Renderer::Renderer(void *native_window_handle)
+    : backend_(createRendererBackend(native_window_handle)) {}
 
 void Renderer::beginFrame() {}
 
 void Renderer::endFrame() {}
 
-Renderer::Renderer() { backend_ = createRendererBackend(); }
 } // namespace ume

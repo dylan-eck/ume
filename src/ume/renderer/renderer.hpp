@@ -8,10 +8,7 @@ namespace ume {
 
 class Renderer {
 public:
-    Renderer();
-
-    void init();
-    void shutdown();
+    explicit Renderer(void *native_window_handle);
 
     void beginFrame();
     void endFrame();
