@@ -1,5 +1,7 @@
 #pragma once
 
+#include "renderer/renderer.hpp"
+
 #include <string>
 
 struct SDL_Window;
@@ -24,5 +26,6 @@ public:
 
 private:
     SDL_Window *window_{nullptr};
+    Renderer renderer_;
 };
 } // namespace ume

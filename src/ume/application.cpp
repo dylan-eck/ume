@@ -57,6 +57,10 @@ void Application::run() {
             if (e.type == SDL_EVENT_QUIT) {
                 should_quit = true;
             }
+
+            renderer_.beginFrame();
+
+            renderer_.endFrame();
         }
     }
 }
