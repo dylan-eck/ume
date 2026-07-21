@@ -5,5 +5,5 @@ function main.init()
 end
 
 function main.update()
-    print("Hello from update in main.lua!")
+    -- print("Hello from update in main.lua!")
 end
