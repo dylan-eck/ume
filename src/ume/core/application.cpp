@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "../core/logger.hpp"
 
 #include <glaze/toml.hpp>
 
@@ -19,14 +20,15 @@ Application::Application(const ApplicationConfig &config)
     init_ = main["init"];
     init_();
     update_ = main["update"];
+
+    UME_LOG_INFO(Core, "application initialized");
 }
 
 Application::~Application() {}
 
 void Application::run() {
-    // std::cout << "Hello from ume::Application::run()\n";
     while (window_.pollEvents()) {
-        update_(frame_count_);
+        // update_(frame_count_);
 
         renderer_.beginFrame();
 
@@ -49,9 +51,7 @@ ProjectDescription Application::loadProject(const std::string &working_dir) {
         throw std::runtime_error(err_str);
     }
 
-    std::cout << "loaded project.toml:\n";
-    std::cout << "         name: " << project.name << "\n";
-    std::cout << "  main_script: " << project.main_script << "\n";
+    UME_LOG_INFO(Core, "loaded project");
 
     return project;
 }

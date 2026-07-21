@@ -20,6 +20,9 @@ CheckOptions:
   - key: readability-identifier-naming.EnumCase
     value: CamelCase
 
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: ""
+
   - key: readability-identifier-naming.FunctionCase
     value: camelBack
 
