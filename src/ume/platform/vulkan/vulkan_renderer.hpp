@@ -1,7 +1,8 @@
 #pragma once
 
 #include "../../renderer/renderer_backend.hpp"
-#include "vulkan_context.hpp"
+#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+#include <vulkan/vulkan_raii.hpp>
 
 namespace ume {
 class VulkanRenderer : public RendererBackend {
@@ -18,6 +19,9 @@ public:
     void endFrame() override;
 
 private:
-    VulkanContext context_;
+    vk::raii::Context context_;
+    vk::raii::Instance instance_{nullptr};
+
+    void createInstance();
 };
 } // namespace ume
