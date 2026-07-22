@@ -12,6 +12,9 @@ public:
     RendererBackend(const RendererBackend &) = delete;
     RendererBackend &operator=(const RendererBackend &) = delete;
 
+    RendererBackend(RendererBackend &&) = delete;
+    RendererBackend &operator=(RendererBackend &&) = delete;
+
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;
 };

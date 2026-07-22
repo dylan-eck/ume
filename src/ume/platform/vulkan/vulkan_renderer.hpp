@@ -11,6 +11,9 @@ public:
     VulkanRenderer(const VulkanRenderer &) = delete;
     VulkanRenderer &operator=(const VulkanRenderer &) = delete;
 
+    VulkanRenderer(VulkanRenderer &&) = delete;
+    VulkanRenderer &operator=(VulkanRenderer &&) = delete;
+
     void beginFrame() override;
     void endFrame() override;
 

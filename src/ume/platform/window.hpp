@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
 struct SDL_Window;
 
@@ -11,18 +12,24 @@ struct WindowConfig {
     uint32_t height{720};
 };
 
+struct SDLWindowDeleter {
+    void operator()(SDL_Window *window) const;
+};
+
 class Window {
 public:
     explicit Window(const WindowConfig &config);
-    ~Window();
 
     Window(const Window &) = delete;
     Window &operator=(const Window &) = delete;
+
+    Window(Window &&) = delete;
+    Window &operator=(Window &&) = delete;
 
     bool pollEvents();
     [[nodiscard]] void *getNativeHandle() const;
 
 private:
-    SDL_Window *window_{nullptr};
+    std::unique_ptr<SDL_Window, SDLWindowDeleter> window_;
 };
 } // namespace ume

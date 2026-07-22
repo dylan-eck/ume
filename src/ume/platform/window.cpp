@@ -4,18 +4,20 @@
 
 namespace ume {
 
-Window::Window(const WindowConfig &config) {
+namespace {
+SDL_Window *createSDLWindow(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
-    window_ =
-        SDL_CreateWindow(config.title.c_str(), static_cast<int>(config.width),
-                         static_cast<int>(config.height), SDL_WINDOW_VULKAN);
+    return SDL_CreateWindow(config.title.c_str(),
+                            static_cast<int>(config.width),
+                            static_cast<int>(config.height), SDL_WINDOW_VULKAN);
+}
+} // namespace
+
+void SDLWindowDeleter::operator()(SDL_Window *window) const {
+    SDL_DestroyWindow(window);
 }
 
-Window::~Window() {
-    if (window_ != nullptr) {
-        SDL_DestroyWindow(window_);
-    }
-}
+Window::Window(const WindowConfig &config) : window_(createSDLWindow(config)) {}
 
 bool Window::pollEvents() {
     SDL_Event e;
@@ -28,5 +30,5 @@ bool Window::pollEvents() {
     return true;
 }
 
-void *Window::getNativeHandle() const { return window_; };
+void *Window::getNativeHandle() const { return window_.get(); };
 } // namespace ume
