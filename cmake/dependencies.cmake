@@ -80,3 +80,5 @@ target_include_directories(lua PUBLIC ${CMAKE_SOURCE_DIR}/vendor/lua)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
 find_package(Vulkan REQUIRED)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)

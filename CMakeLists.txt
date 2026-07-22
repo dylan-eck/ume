@@ -16,13 +16,9 @@ target_compile_definitions(ume PRIVATE $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
 
 target_sources(
   ume
-  PRIVATE src/main.cpp
-          src/ume/core/logger.cpp
-          src/ume/core/application.cpp
-          src/ume/platform/window.cpp
-          src/ume/renderer/renderer.cpp
-          src/ume/platform/vulkan/vulkan_renderer.cpp
-          src/ume/platform/vulkan/vulkan_context.cpp)
+  PRIVATE src/main.cpp src/ume/core/logger.cpp src/ume/core/application.cpp
+          src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
+          src/ume/platform/vulkan/vulkan_renderer.cpp)
 target_include_directories(ume PRIVATE src)
 target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze sol2::sol2 lua
                                   Vulkan::Vulkan spdlog::spdlog)
