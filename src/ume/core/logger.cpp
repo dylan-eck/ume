@@ -17,17 +17,19 @@ const char *categoryName(Category c) {
         return "renderer";
     case Category::Platform:
         return "platform";
+    default:
+        return "unknown";
     }
-    return "unknown";
 }
 } // namespace
 
-using LoggerArray = std::array<std::shared_ptr<spdlog::logger>, 3>;
+using LoggerArray = std::array<std::shared_ptr<spdlog::logger>,
+                               static_cast<size_t>(Category::Count)>;
 
 LoggerArray &loggers() {
     static LoggerArray instance = [] {
         LoggerArray arr;
-        for (std::size_t i = 0; i < arr.size(); ++i) {
+        for (std::size_t i = 0; i < static_cast<size_t>(Category::Count); ++i) {
             arr[i] =
                 spdlog::stdout_color_mt(categoryName(static_cast<Category>(i)));
         }
