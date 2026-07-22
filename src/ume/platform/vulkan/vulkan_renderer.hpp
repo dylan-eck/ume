@@ -8,6 +8,9 @@ class VulkanRenderer : public RendererBackend {
 public:
     explicit VulkanRenderer(void *native_window_handle);
 
+    VulkanRenderer(const VulkanRenderer &) = delete;
+    VulkanRenderer &operator=(const VulkanRenderer &) = delete;
+
     void beginFrame() override;
     void endFrame() override;
 

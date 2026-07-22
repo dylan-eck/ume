@@ -6,7 +6,11 @@ namespace ume {
 
 class RendererBackend {
 public:
+    RendererBackend() = default;
     virtual ~RendererBackend() = default;
+
+    RendererBackend(const RendererBackend &) = delete;
+    RendererBackend &operator=(const RendererBackend &) = delete;
 
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;

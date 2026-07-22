@@ -10,6 +10,9 @@ class Renderer {
 public:
     explicit Renderer(void *native_window_handle);
 
+    Renderer(const Renderer &) = delete;
+    Renderer &operator=(const Renderer &) = delete;
+
     void beginFrame();
     void endFrame();
 
