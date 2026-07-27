@@ -23,6 +23,8 @@ public:
 private:
     vk::raii::Context context_;
     vk::raii::Instance instance_ = nullptr;
+    vk::raii::DebugUtilsMessengerEXT debug_messenger_ = nullptr;
+    vk::raii::SurfaceKHR surface_ = nullptr;
 
     void initVulkan(void *native_window_handle);
 };

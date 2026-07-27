@@ -19,53 +19,38 @@ void VulkanRenderer::beginFrame() {}
 void VulkanRenderer::endFrame() {}
 
 void VulkanRenderer::initVulkan(void *native_window_handle) {
+    vkb::InstanceBuilder builder(reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+        SDL_Vulkan_GetVkGetInstanceProcAddr()));
 
-    constexpr vk::ApplicationInfo kAppInfo{
-        .pApplicationName = "Hello Triangle",
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName = "No Engine",
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = vk::ApiVersion14};
+    auto inst_ret = builder.set_app_name("Test Application")
+                        .set_app_version(VK_MAKE_VERSION(0, 1, 1))
+                        .set_engine_name("Ume Engine")
+                        .set_engine_version(VK_MAKE_VERSION(0, 1, 0))
+                        .require_api_version(1, 4, 0)
+                        .request_validation_layers()
+                        .use_default_debug_messenger()
+                        .build();
 
-    uint32_t count;
-    const char *const *extensions = SDL_Vulkan_GetInstanceExtensions(&count);
-    std::vector<const char *> required_extensions(extensions,
-                                                  extensions + count);
-    required_extensions.push_back(
-        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    if (!inst_ret) {
+        throw std::runtime_error("failed to create vulkan instance: " +
+                                 inst_ret.error().message());
+    }
 
-    vk::InstanceCreateInfo create_info{
-        .flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
-        .pApplicationInfo = &kAppInfo,
-        .enabledExtensionCount =
-            static_cast<uint32_t>(required_extensions.size()),
-        .ppEnabledExtensionNames = required_extensions.data()};
-
-    instance_ = vk::raii::Instance(context_, create_info);
+    vkb::Instance vkb_inst = inst_ret.value();
+    instance_ = vk::raii::Instance(context_, vkb_inst);
+    debug_messenger_ =
+        vk::raii::DebugUtilsMessengerEXT(instance_, vkb_inst.debug_messenger);
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     auto *sdl_window = (SDL_Window *)native_window_handle;
-    if (!SDL_Vulkan_CreateSurface(sdl_window, *instance_, nullptr, &surface)) {
+    if (!SDL_Vulkan_CreateSurface(sdl_window, vkb_inst.instance, nullptr,
+                                  &surface)) {
         const char *error = SDL_GetError();
 
         throw std::runtime_error(error);
     }
 
-    // vkb::InstanceBuilder builder;
-    // auto inst_ret =
-    //     builder.set_app_name("Test Application")
-    //         .request_validation_layers()
-    //         .use_default_debug_messenger()
-    //         .require_api_version(1, 3, 0)
-    //         .enable_extension(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)
-    //         .build();
-
-    // if (!inst_ret) {
-    //     throw std::runtime_error("failed to create vulkan instance: " +
-    //                              inst_ret.error().message());
-    // }
-
-    // vkb::Instance vkb_inst = inst_ret.value();
+    // surface_ = vk::raii::SurfaceKHR(instance_, surface);
 
     // vkb::PhysicalDeviceSelector selector{vkb_inst};
     // auto phys_ret = selector.set_surface(surface).select();
