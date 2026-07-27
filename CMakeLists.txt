@@ -20,5 +20,12 @@ target_sources(
           src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
           src/ume/platform/vulkan/vulkan_renderer.cpp)
 target_include_directories(ume PRIVATE src)
-target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze sol2::sol2 lua
-                                  Vulkan::Vulkan spdlog::spdlog)
+target_link_libraries(
+  ume
+  PRIVATE SDL3::SDL3-static
+          glaze
+          sol2::sol2
+          lua
+          Vulkan::Vulkan
+          spdlog::spdlog
+          vk-bootstrap::vk-bootstrap)

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../../renderer/renderer_backend.hpp"
+
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+#define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
 #include <vulkan/vulkan_raii.hpp>
 
 namespace ume {
@@ -20,8 +22,8 @@ public:
 
 private:
     vk::raii::Context context_;
-    vk::raii::Instance instance_{nullptr};
+    vk::raii::Instance instance_ = nullptr;
 
-    void createInstance();
+    void initVulkan(void *native_window_handle);
 };
 } // namespace ume
