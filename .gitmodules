@@ -17,3 +17,6 @@
 [submodule "vendor/vk-bootstrap"]
 	path = vendor/vk-bootstrap
 	url = https://github.com/charles-lunarg/vk-bootstrap.git
+[submodule "vendor/embed"]
+	path = vendor/embed
+	url = https://github.com/batterycenter/embed.git
