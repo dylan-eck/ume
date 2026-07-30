@@ -29,3 +29,26 @@ target_link_libraries(
           Vulkan::Vulkan
           spdlog::spdlog
           vk-bootstrap::vk-bootstrap)
+
+function(add_slang_shader TARGET SHADER)
+  set(SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
+
+  set(SHADER_REL_OUTPUT "generated/${SHADER}.spv")
+  set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
+
+  add_custom_command(
+    OUTPUT ${SHADER_OUTPUT}
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+    COMMAND
+      ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target spirv -profile spirv_1_4
+      -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry
+      fragMain -o ${SHADER_OUTPUT}
+    DEPENDS ${SHADER_SOURCE}
+    COMMENT "Compiling slang shader: ${SHADER}"
+    VERBATIM)
+
+  b_embed(${TARGET} ${SHADER_REL_OUTPUT})
+endfunction()
+
+add_slang_shader(ume "src/ume/renderer/shaders/triangle.slang")

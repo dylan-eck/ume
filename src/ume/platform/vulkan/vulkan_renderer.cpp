@@ -3,6 +3,7 @@
 
 #include <VkBootstrap.h>
 #include "SDL3/SDL_vulkan.h"
+#include "battery/embed.hpp"
 
 #include <iostream>
 namespace ume {
@@ -114,6 +115,22 @@ void VulkanRenderer::initVulkan(void *native_window_handle) {
         view_create_info.image = image;
         swapchain_image_views_.emplace_back(device_, view_create_info);
     }
+
+    size_t data_length =
+        b::embed<"generated/src/ume/renderer/shaders/triangle.slang.spv">()
+            .length();
+
+    const char *data =
+        b::embed<"generated/src/ume/renderer/shaders/triangle.slang.spv">()
+            .data();
+
+    for (size_t i = 0; i < data_length; i++) {
+        if (i > 0 && (i % 8 == 0)) {
+            std::cout << "\n";
+        }
+        std::print("0x{:02X} ", (unsigned char)data[i]);
+    }
+    std::cout << "\n";
 }
 
 std::unique_ptr<RendererBackend>

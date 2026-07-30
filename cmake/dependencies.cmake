@@ -81,4 +81,26 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
 find_package(Vulkan REQUIRED)
 
+find_program(
+  SLANGC_EXECUTABLE
+  NAMES slangc
+  HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin" NO_CACHE)
+
+if(NOT SLANGC_EXECUTABLE)
+  message(FATAL_ERROR "failed to locate slangc executable")
+endif()
+
+message(STATUS "Using slangc: ${SLANGC_EXECUTABLE}")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(B_PRODUCTION_MODE
+      ON
+      CACHE BOOL "" FORCE)
+else()
+  set(B_PRODUCTION_MODE
+      OFF
+      CACHE BOOL "" FORCE)
+endif()
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/embed)

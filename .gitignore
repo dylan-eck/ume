@@ -5,6 +5,7 @@
 
 # build dirs
 build/
+generated/
 
 # cmake files
 compile_commands.json
