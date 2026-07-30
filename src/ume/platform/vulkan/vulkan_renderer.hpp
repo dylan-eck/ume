@@ -34,5 +34,8 @@ private:
     std::vector<vk::raii::ImageView> swapchain_image_views_;
 
     void initVulkan(void *native_window_handle);
+
+    [[nodiscard]] vk::raii::ShaderModule
+    createShaderModule(std::vector<uint8_t> &shader_source);
 };
 } // namespace ume

@@ -5,7 +5,6 @@
 #include "SDL3/SDL_vulkan.h"
 #include "battery/embed.hpp"
 
-#include <iostream>
 namespace ume {
 
 VulkanRenderer::VulkanRenderer(void *native_window_handle)
@@ -116,21 +115,21 @@ void VulkanRenderer::initVulkan(void *native_window_handle) {
         swapchain_image_views_.emplace_back(device_, view_create_info);
     }
 
-    size_t data_length =
+    std::vector<uint8_t> shader_source =
         b::embed<"generated/src/ume/renderer/shaders/triangle.slang.spv">()
-            .length();
+            .vec();
+    vk::raii::ShaderModule shader_module = createShaderModule(shader_source);
+}
 
-    const char *data =
-        b::embed<"generated/src/ume/renderer/shaders/triangle.slang.spv">()
-            .data();
+vk::raii::ShaderModule
+VulkanRenderer::createShaderModule(std::vector<uint8_t> &shader_source) {
 
-    for (size_t i = 0; i < data_length; i++) {
-        if (i > 0 && (i % 8 == 0)) {
-            std::cout << "\n";
-        }
-        std::print("0x{:02X} ", (unsigned char)data[i]);
-    }
-    std::cout << "\n";
+    vk::ShaderModuleCreateInfo create_info{
+        .codeSize = static_cast<uint32_t>(shader_source.size()),
+        .pCode = reinterpret_cast<uint32_t *>(shader_source.data())};
+
+    vk::raii::ShaderModule module(device_, create_info);
+    return module;
 }
 
 std::unique_ptr<RendererBackend>
