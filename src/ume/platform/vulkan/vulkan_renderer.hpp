@@ -25,6 +25,13 @@ private:
     vk::raii::Instance instance_ = nullptr;
     vk::raii::DebugUtilsMessengerEXT debug_messenger_ = nullptr;
     vk::raii::SurfaceKHR surface_ = nullptr;
+    vk::raii::Device device_ = nullptr;
+    vk::raii::Queue queue_ = nullptr;
+
+    VkFormat swapchain_format_ = VK_FORMAT_B8G8R8A8_UNORM;
+    vk::raii::SwapchainKHR swapchain_ = nullptr;
+    std::vector<vk::Image> swapchain_images_;
+    std::vector<vk::raii::ImageView> swapchain_image_views_;
 
     void initVulkan(void *native_window_handle);
 };

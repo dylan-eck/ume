@@ -4,6 +4,7 @@
 #include <VkBootstrap.h>
 #include "SDL3/SDL_vulkan.h"
 
+#include <iostream>
 namespace ume {
 
 VulkanRenderer::VulkanRenderer(void *native_window_handle)
@@ -47,38 +48,72 @@ void VulkanRenderer::initVulkan(void *native_window_handle) {
                                   &surface)) {
         const char *error = SDL_GetError();
 
-        throw std::runtime_error(error);
+        throw std::runtime_error("failed to create surface: " +
+                                 std::string(error));
     }
 
-    // surface_ = vk::raii::SurfaceKHR(instance_, surface);
+    surface_ = vk::raii::SurfaceKHR(instance_, surface);
 
-    // vkb::PhysicalDeviceSelector selector{vkb_inst};
-    // auto phys_ret = selector.set_surface(surface).select();
-    // if (!phys_ret) {
-    //     throw std::runtime_error("failed to select physical device");
-    // }
+    vk::raii::PhysicalDevice physical_device =
+        instance_.enumeratePhysicalDevices().front();
 
-    // vkb::DeviceBuilder device_builder{phys_ret.value()};
-    // auto dev_ret = device_builder.build();
-    // if (!dev_ret) {
-    //     throw std::runtime_error("failed to create logical device");
-    // }
-    // vkb::Device vkb_device = dev_ret.value();
+    float queue_priority = 1.0;
+    auto queue_create_info =
+        vk::DeviceQueueCreateInfo{.queueFamilyIndex = 0,
+                                  .queueCount = 1,
+                                  .pQueuePriorities = &queue_priority};
 
-    // VkDevice device = vkb_device.device;
+    vk::StructureChain<vk::PhysicalDeviceFeatures2,
+                       vk::PhysicalDeviceVulkan11Features,
+                       vk::PhysicalDeviceVulkan13Features,
+                       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+        feature_chain = {{},
+                         {.shaderDrawParameters = 1u},
+                         {.dynamicRendering = 1u},
+                         {.extendedDynamicState = 1u}};
 
-    // auto graphics_queue_ret = vkb_device.get_queue(vkb::QueueType::graphics);
-    // if (!graphics_queue_ret) {
-    //     throw std::runtime_error("no graphics queue found");
-    // }
-    // VkQueue graphics_queue = graphics_queue_ret.value();
+    std::vector<const char *> required_device_extension = {
+        vk::KHRSwapchainExtensionName, "VK_KHR_portability_subset"};
 
-    // vkb::SwapchainBuilder swapchain_builder{vkb_device};
-    // auto swap_ret = swapchain_builder.build();
-    // if (!swap_ret) {
-    //     throw std::runtime_error("failed to create swapchain");
-    // }
-    // vkb::Swapchain vkb_swapchain = swap_ret.value();
+    vk::DeviceCreateInfo device_create_info{
+        .pNext = &feature_chain.get<vk::PhysicalDeviceFeatures2>(),
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queue_create_info,
+        .enabledExtensionCount =
+            static_cast<uint32_t>(required_device_extension.size()),
+        .ppEnabledExtensionNames = required_device_extension.data()};
+
+    device_ = vk::raii::Device(physical_device, device_create_info);
+    queue_ = vk::raii::Queue(device_, 0, 0);
+
+    vkb::SwapchainBuilder swapchain_builder(*physical_device, *device_,
+                                            *surface_);
+    vkb::Swapchain vkb_swapchain =
+        swapchain_builder
+            .set_desired_format(VkSurfaceFormatKHR{
+                .format = swapchain_format_,
+                .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+            .set_desired_extent(1280, 720)
+            .build()
+            .value();
+
+    swapchain_ = vk::raii::SwapchainKHR(device_, vkb_swapchain.swapchain);
+    swapchain_images_ = swapchain_.getImages();
+
+    vk::ImageViewCreateInfo view_create_info{
+        .viewType = vk::ImageViewType::e2D,
+        .format = vk::Format(swapchain_format_),
+        .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor,
+                             .baseMipLevel = 0,
+                             .levelCount = 1,
+                             .baseArrayLayer = 0,
+                             .layerCount = 1}};
+
+    for (auto &image : swapchain_images_) {
+        view_create_info.image = image;
+        swapchain_image_views_.emplace_back(device_, view_create_info);
+    }
 }
 
 std::unique_ptr<RendererBackend>
