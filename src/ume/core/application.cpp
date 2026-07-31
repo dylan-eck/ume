@@ -15,7 +15,7 @@ Application::Application(const ApplicationConfig &config)
     std::cout << "lua test:\n";
     lua_state_.open_libraries(sol::lib::base);
 
-    lua_state_.script_file(config.working_dir + "/main.lua");
+    lua_state_.script_file(config.working_dir + "/" + project_.main_script);
     sol::table main = lua_state_["main"];
     init_ = main["init"];
     init_();
