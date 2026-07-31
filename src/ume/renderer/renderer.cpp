@@ -4,8 +4,8 @@ namespace ume {
 Renderer::Renderer(void *native_window_handle)
     : backend_(createRendererBackend(native_window_handle)) {}
 
-void Renderer::beginFrame() {}
+void Renderer::beginFrame() { backend_->beginFrame(); }
 
-void Renderer::endFrame() {}
+void Renderer::endFrame() { backend_->endFrame(); }
 
 } // namespace ume

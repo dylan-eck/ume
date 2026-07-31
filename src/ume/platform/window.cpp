@@ -7,9 +7,17 @@ namespace ume {
 namespace {
 SDL_Window *createSDLWindow(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
+
+    Uint32 flags = 0;
+#if defined(UME_RENDER_BACKEND_METAL)
+    flags |= SDL_WINDOW_METAL;
+#elif defined(UME_RENDER_BACKEND_VULKAN)
+    flags |= SDL_WINDOW_VULKAN;
+#endif
+
     return SDL_CreateWindow(config.title.c_str(),
                             static_cast<int>(config.width),
-                            static_cast<int>(config.height), SDL_WINDOW_VULKAN);
+                            static_cast<int>(config.height), flags);
 }
 } // namespace
 
