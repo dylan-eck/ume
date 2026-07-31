@@ -23,3 +23,6 @@
 [submodule "vendor/metal-cpp"]
 	path = vendor/metal-cpp
 	url = https://github.com/apple/metal-cpp.git
+[submodule "vendor/glm"]
+	path = vendor/glm
+	url = https://github.com/g-truc/glm.git
