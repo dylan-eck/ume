@@ -1,5 +1,5 @@
-#include "metal_renderer.hpp"
-#include "../../core/logger.hpp"
+#include "ume/platform/metal/metal_renderer.hpp"
+#include "ume/core/logger.hpp"
 
 #define NS_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
@@ -7,7 +7,7 @@
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
 #include <QuartzCore/QuartzCore.hpp>
-#include "battery/embed.hpp"
+#include <battery/embed.hpp>
 
 namespace ume {
 
@@ -117,8 +117,24 @@ void MetalRenderer::beginFrame() {
     pass_descriptor->release();
 
     encoder_->setRenderPipelineState(pipeline_state_);
+}
+
+void MetalRenderer::draw(const DrawCommand &cmd) {
+    if (encoder_ == nullptr) {
+        return;
+    }
+
+    MetalBuffer *vertex_buffer = buffers_.get(cmd.vertex_buffer);
+    if (vertex_buffer == nullptr) {
+        UME_LOG_WARN(Renderer, "attempted to draw invalid vertex buffer {}",
+                     cmd.vertex_buffer.id);
+
+        return;
+    }
+
+    encoder_->setVertexBuffer(vertex_buffer->buffer, 0, 0);
     encoder_->drawPrimitives(MTL::PrimitiveTypeTriangle, NS::UInteger(0),
-                             NS::UInteger(3));
+                             NS::UInteger(cmd.vertex_count));
 }
 
 void MetalRenderer::endFrame() {
@@ -138,6 +154,35 @@ void MetalRenderer::endFrame() {
 
     frame_pool_->release();
     frame_pool_ = nullptr;
+}
+
+BufferHandle
+MetalRenderer::createBuffer(const BufferDescription &buffer_description) {
+    auto desc = buffer_description;
+    MTL::Buffer *buffer =
+        desc.initial_data != nullptr
+            ? device_->newBuffer(desc.initial_data, desc.size,
+                                 MTL::ResourceStorageModeShared)
+            : device_->newBuffer(desc.size, MTL::ResourceStorageModeShared);
+
+    if (buffer == nullptr) {
+        return {};
+    }
+
+    return buffers_.insert(MetalBuffer{.buffer = buffer, .size = desc.size});
+}
+
+void MetalRenderer::destroyBuffer(BufferHandle handle) {
+    MetalBuffer *entry = buffers_.retire(handle);
+
+    if (entry == nullptr) {
+        UME_LOG_WARN(Renderer, "attempted to destroy stale handle: {}",
+                     handle.id);
+        return;
+    }
+
+    entry->buffer->release();
+    buffers_.reclaim(handle);
 }
 
 std::unique_ptr<RendererBackend>

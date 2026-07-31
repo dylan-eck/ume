@@ -10,6 +10,8 @@ class Renderer {
 public:
     explicit Renderer(void *native_window_handle);
 
+    ~Renderer();
+
     Renderer(const Renderer &) = delete;
     Renderer &operator=(const Renderer &) = delete;
 
@@ -21,5 +23,7 @@ public:
 
 private:
     std::unique_ptr<RendererBackend> backend_;
+
+    BufferHandle vertex_buffer_;
 };
 } // namespace ume
