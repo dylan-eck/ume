@@ -20,3 +20,6 @@
 [submodule "vendor/embed"]
 	path = vendor/embed
 	url = https://github.com/batterycenter/embed.git
+[submodule "vendor/metal-cpp"]
+	path = vendor/metal-cpp
+	url = https://github.com/apple/metal-cpp.git
