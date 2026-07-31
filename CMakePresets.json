@@ -2,30 +2,73 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "debug",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "debug-config",
+      "hidden": true,
+      "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
-      "name": "release",
-      "inherits": "debug",
-      "binaryDir": "${sourceDir}/build/release",
+      "name": "release-config",
+      "hidden": true,
+      "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "metal-backend",
+      "hidden": true,
+      "cacheVariables": {
+        "UME_RENDER_BACKEND": "metal"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "vulkan-backend",
+      "hidden": true,
+      "cacheVariables": {
+        "UME_RENDER_BACKEND": "vulkan"
+      }
+    },
+    { "name": "debug-metal", "inherits": ["debug-config", "metal-backend"] },
+    { "name": "debug-vulkan", "inherits": ["debug-config", "vulkan-backend"] },
+    {
+      "name": "release-metal",
+      "inherits": ["release-config", "metal-backend"]
+    },
+    {
+      "name": "release-vulkan",
+      "inherits": ["release-config", "vulkan-backend"]
     }
   ],
   "buildPresets": [
     {
-      "name": "debug",
-      "configurePreset": "debug"
+      "name": "debug-metal",
+      "configurePreset": "debug-metal"
     },
     {
-      "name": "release",
-      "configurePreset": "release"
+      "name": "debug-vulkan",
+      "configurePreset": "debug-vulkan"
+    },
+    {
+      "name": "release-metal",
+      "configurePreset": "release-metal"
+    },
+    {
+      "name": "release-vulkan",
+      "configurePreset": "release-vulkan"
     }
   ]
 }

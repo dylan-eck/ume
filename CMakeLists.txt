@@ -11,6 +11,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/dependencies.cmake)
 
+if(APPLE)
+  set(UME_DEFAULT_RENDER_BACKEND "metal")
+else()
+  set(UME_DEFAULT_RENDER_BACKEND "vulkan")
+endif()
+
+set(UME_RENDER_BACKEND
+    "${UME_DEFAULT_RENDER_BACKEND}"
+    CACHE STRING "Renderer backend to build (metal or vulkan)")
+set_property(CACHE UME_RENDER_BACKEND PROPERTY STRINGS metal vulkan)
+
+if(NOT UME_RENDER_BACKEND STREQUAL "metal" AND NOT UME_RENDER_BACKEND STREQUAL
+                                               "vulkan")
+  message(
+    FATAL_ERROR
+      "UME_RENDER_BACKEND must be 'metal' or 'vulkan', got ${UME_RENDER_BACKEND}"
+  )
+endif()
+
+if(UME_RENDER_BACKEND STREQUAL "metal" AND NOT APPLE)
+  message(
+    FATAL_ERROR "UME_RENDER_BACKEND=metal is only supported on Apple platforms")
+endif()
+
+message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
+
 add_executable(ume)
 target_compile_definitions(ume PRIVATE $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
 
@@ -22,7 +48,7 @@ target_include_directories(ume PRIVATE src)
 target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze sol2::sol2 lua
                                   spdlog::spdlog)
 
-if(APPLE)
+if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume PRIVATE src/ume/platform/metal/metal_renderer.cpp)
   target_compile_definitions(ume PRIVATE UME_RENDER_BACKEND_METAL)
   target_include_directories(ume PRIVATE vendor/metal-cpp)
@@ -86,7 +112,7 @@ function(add_slang_shader_metallib TARGET SHADER)
   b_embed(${TARGET} ${SHADER_REL_OUTPUT})
 endfunction()
 
-if(APPLE)
+if(UME_RENDER_BACKEND STREQUAL "metal")
   add_slang_shader_metallib(ume "src/ume/renderer/shaders/triangle.slang")
 else()
   add_slang_shader_spirv(ume "src/ume/renderer/shaders/triangle.slang")
