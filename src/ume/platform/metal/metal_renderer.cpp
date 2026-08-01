@@ -124,17 +124,31 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
+    if (!cmd.push_constants.empty()) {
+        encoder_->setVertexBytes(cmd.push_constants.data(),
+                                 cmd.push_constants.size(), 0);
+    }
+
     MetalBuffer *vertex_buffer = buffers_.get(cmd.vertex_buffer);
     if (vertex_buffer == nullptr) {
-        UME_LOG_WARN(Renderer, "attempted to draw invalid vertex buffer {}",
+        UME_LOG_WARN(Renderer,
+                     "attempted to draw using invalid vertex buffer {}",
                      cmd.vertex_buffer.id);
-
         return;
     }
 
-    encoder_->setVertexBuffer(vertex_buffer->buffer, 0, 0);
-    encoder_->drawPrimitives(MTL::PrimitiveTypeTriangle, NS::UInteger(0),
-                             NS::UInteger(cmd.vertex_count));
+    MetalBuffer *index_buffer = buffers_.get(cmd.index_buffer);
+    if (index_buffer == nullptr) {
+        UME_LOG_WARN(Renderer,
+                     "attempted to draw using invalid index buffer {}",
+                     cmd.index_buffer.id);
+        return;
+    }
+
+    encoder_->setVertexBuffer(vertex_buffer->buffer, 0, 1);
+    encoder_->drawIndexedPrimitives(
+        MTL::PrimitiveTypeTriangle, NS::UInteger(cmd.index_count),
+        MTL::IndexTypeUInt16, index_buffer->buffer, NS::UInteger(0));
 }
 
 void MetalRenderer::endFrame() {

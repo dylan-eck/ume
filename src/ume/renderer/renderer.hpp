@@ -25,5 +25,6 @@ private:
     std::unique_ptr<RendererBackend> backend_;
 
     BufferHandle vertex_buffer_;
+    BufferHandle index_buffer_;
 };
 } // namespace ume

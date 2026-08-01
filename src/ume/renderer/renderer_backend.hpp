@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <span>
 
 namespace ume {
 
@@ -14,9 +15,15 @@ struct BufferDescription {
     const void *initial_data;
 };
 
+enum Indextype : uint8_t { UInt16, UInt32 };
+
 struct DrawCommand {
     BufferHandle vertex_buffer;
     uint32_t vertex_count = 0;
+    BufferHandle index_buffer;
+    uint32_t index_count = 0;
+    Indextype index_type;
+    std::span<const std::byte> push_constants;
 };
 
 class RendererBackend {

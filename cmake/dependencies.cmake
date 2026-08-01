@@ -104,3 +104,5 @@ else()
       CACHE BOOL "" FORCE)
 endif()
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/embed)
+
+add_subdirectory(vendor/glm)
