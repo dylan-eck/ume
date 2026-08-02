@@ -2,9 +2,6 @@
 #include "ume/core/logger.hpp"
 #include "ume/renderer/primitives.hpp"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace ume {
 
 struct DrawUniforms {
@@ -24,6 +21,8 @@ Renderer::Renderer(void *native_window_handle)
         .initial_data = ume::primitives::kCubeIndices.data(),
     });
 
+    model_matrix_ = glm::mat4(1.0f);
+
     UME_LOG_INFO(Renderer, "created buffer resource {}", vertex_buffer_.id);
 }
 
@@ -37,8 +36,17 @@ void Renderer::beginFrame() { backend_->beginFrame(); }
 
 void Renderer::endFrame() {
 
+    model_matrix_ =
+        glm::rotate(model_matrix_, 0.005f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    auto view =
+        glm::lookAt(glm::vec3(0.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                    glm::vec3(0.0f, 1.0f, 0.0f));
+    auto projection =
+        glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+
     DrawUniforms uniforms{.model_view_projection =
-                              glm::scale(glm::mat4(1.0f), glm::vec3(0.5f))};
+                              projection * view * model_matrix_};
 
     backend_->draw({.vertex_buffer = vertex_buffer_,
                     .vertex_count = 3,
