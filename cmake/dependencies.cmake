@@ -106,3 +106,19 @@ endif()
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/embed)
 
 add_subdirectory(vendor/glm)
+
+set(TINYGLTF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinygltf")
+
+add_library(tinygltf STATIC "${TINYGLTF_DIR}/tiny_gltf_v3.c")
+add_library(tinygltf::tinygltf ALIAS tinygltf)
+
+target_include_directories(tinygltf SYSTEM PUBLIC "${TINYGLTF_DIR}")
+
+set_target_properties(
+  tinygltf
+  PROPERTIES C_STANDARD 11
+             C_STANDARD_REQUIRED ON
+             C_EXTENSIONS OFF
+             POSITION_INDEPENDENT_CODE ON)
+
+target_compile_definitions(tinygltf PUBLIC TINYGLTF3_ENABLE_FS)
