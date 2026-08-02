@@ -43,5 +43,6 @@ public:
 };
 
 std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle);
+createRendererBackend(void *native_window_handle, uint32_t pixel_width,
+                      uint32_t pixel_height);
 } // namespace ume

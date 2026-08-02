@@ -17,7 +17,8 @@ struct MeshDescription {
 
 class Renderer {
 public:
-    explicit Renderer(void *native_window_handle);
+    explicit Renderer(void *native_window_handle, uint32_t pixel_width,
+                      uint32_t pixel_height);
 
     ~Renderer();
 
@@ -53,6 +54,7 @@ private:
     ResourcePool<Mesh, MeshHandle> meshes_;
     std::vector<Submission> submissions_;
 
+    float aspect_;
     glm::mat4 view_;
     glm::mat4 projection_;
 };

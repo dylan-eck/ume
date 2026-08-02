@@ -11,7 +11,8 @@
 
 namespace ume {
 
-MetalRenderer::MetalRenderer(void *native_window_handle) {
+MetalRenderer::MetalRenderer(void *native_window_handle, uint32_t pixel_width,
+                             uint32_t pixel_height) {
     auto *sdl_window = static_cast<SDL_Window *>(native_window_handle);
 
     metal_view_ = SDL_Metal_CreateView(sdl_window);
@@ -30,9 +31,6 @@ MetalRenderer::MetalRenderer(void *native_window_handle) {
 
     command_queue_ = device_->newCommandQueue();
 
-    int pixel_width;
-    int pixel_height;
-    SDL_GetWindowSizeInPixels(sdl_window, &pixel_width, &pixel_height);
     layer_->setDrawableSize(CGSizeMake(pixel_width, pixel_height));
 
     auto shader = b::embed<
@@ -207,7 +205,9 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
 }
 
 std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle) {
-    return std::make_unique<MetalRenderer>(native_window_handle);
+createRendererBackend(void *native_window_handle, uint32_t pixel_width,
+                      uint32_t pixel_height) {
+    return std::make_unique<MetalRenderer>(native_window_handle, pixel_width,
+                                           pixel_height);
 }
 } // namespace ume

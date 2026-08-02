@@ -35,7 +35,8 @@ struct MetalBuffer {
 
 class MetalRenderer : public RendererBackend {
 public:
-    explicit MetalRenderer(void *native_window_handle);
+    explicit MetalRenderer(void *native_window_handle, uint32_t pixel_width,
+                           uint32_t pixel_height);
 
     ~MetalRenderer();
 

@@ -12,7 +12,9 @@ namespace ume {
 
 Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
-      window_(getWindowConfig(project_)), renderer_(window_.getNativeHandle()) {
+      window_(getWindowConfig(project_)),
+      renderer_(window_.getNativeHandle(), project_.window_config.width,
+                project_.window_config.height) {
 
     std::cout << "lua test:\n";
     lua_state_.open_libraries(sol::lib::base);

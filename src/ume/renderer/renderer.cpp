@@ -7,8 +7,13 @@ struct DrawUniforms {
     glm::mat4 model_view_projection;
 };
 
-Renderer::Renderer(void *native_window_handle)
-    : backend_(createRendererBackend(native_window_handle)) {}
+Renderer::Renderer(void *native_window_handle, uint32_t pixel_width,
+                   uint32_t pixel_height)
+    : backend_(createRendererBackend(native_window_handle, pixel_width,
+                                     pixel_height)) {
+
+    aspect_ = (float)pixel_width / (float)pixel_height;
+}
 
 Renderer::~Renderer() {}
 
@@ -54,7 +59,7 @@ void Renderer::destroyMesh(MeshHandle handle) {
 void Renderer::setCamera(const glm::vec3 &position, const glm::vec3 &target,
                          float fov_y) {
     view_ = glm::lookAt(position, target, glm::vec3(0.0f, 1.0f, 0.0f));
-    projection_ = glm::perspective(fov_y, 1280.0f / 720.0f, 0.1f, 100.0f);
+    projection_ = glm::perspective(fov_y, aspect_, 0.1f, 100.0f);
 }
 
 void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
