@@ -40,7 +40,9 @@ void Application::run() {
         cube_transform_ =
             glm::rotate(cube_transform_, 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        renderer_.submit(cube_mesh_, cube_transform_);
+        if (cube_mesh_) {
+            renderer_.submit(cube_mesh_, cube_transform_);
+        }
         renderer_.render();
         frame_count_++;
     }
