@@ -3,7 +3,6 @@
 #include "../platform/window.hpp"
 #include "../renderer/renderer.hpp"
 
-#define SOL_ALL_SAFETIES_ON 1
 #include <sol/sol.hpp>
 
 #include <string>
@@ -43,8 +42,8 @@ private:
     int frame_count_ = 0;
 
     sol::state lua_state_;
-    sol::function init_;
-    sol::function update_;
+    sol::protected_function init_;
+    sol::protected_function update_;
 
     glm::mat4 cube_transform_ = glm::mat4(1.0f);
     MeshHandle cube_mesh_{};

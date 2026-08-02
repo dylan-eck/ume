@@ -28,6 +28,9 @@ Application::Application(const ApplicationConfig &config)
         .indices = primitives::kCubeIndices,
     });
 
+    renderer_.setCamera(glm::vec3(0.0f, 2.0f, 2.0f), glm::vec3(0.0f),
+                        glm::radians(45.0f));
+
     UME_LOG_INFO(Core, "application initialized");
 }
 

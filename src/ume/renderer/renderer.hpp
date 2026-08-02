@@ -30,7 +30,8 @@ public:
     MeshHandle createMesh(const MeshDescription &desc);
     void destroyMesh(MeshHandle handle);
 
-    void setCamera(glm::vec3 &position, glm::vec3 &target, float fov_y);
+    void setCamera(const glm::vec3 &position, const glm::vec3 &target,
+                   float fov_y);
 
     void submit(MeshHandle handle, const glm::mat4 &transform);
     void render();
@@ -51,5 +52,8 @@ private:
     std::unique_ptr<RendererBackend> backend_;
     ResourcePool<Mesh, MeshHandle> meshes_;
     std::vector<Submission> submissions_;
+
+    glm::mat4 view_;
+    glm::mat4 projection_;
 };
 } // namespace ume

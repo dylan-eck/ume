@@ -40,7 +40,7 @@ message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
 add_executable(ume)
 target_compile_definitions(
   ume PRIVATE $<$<CONFIG:Debug>:UME_ENABLE_LOGGING> GLM_FORCE_DEPTH_ZERO_TO_ONE
-              GLM_FORCE_EXPLICIT_CTOR)
+              GLM_FORCE_EXPLICIT_CTOR SOL_ALL_SAFETIES_ON=1)
 
 target_sources(
   ume PRIVATE src/main.cpp src/ume/core/logger.cpp src/ume/core/application.cpp

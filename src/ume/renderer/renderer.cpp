@@ -51,6 +51,12 @@ void Renderer::destroyMesh(MeshHandle handle) {
     meshes_.reclaim(handle);
 }
 
+void Renderer::setCamera(const glm::vec3 &position, const glm::vec3 &target,
+                         float fov_y) {
+    view_ = glm::lookAt(position, target, glm::vec3(0.0f, 1.0f, 0.0f));
+    projection_ = glm::perspective(fov_y, 1280.0f / 720.0f, 0.1f, 100.0f);
+}
+
 void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
     Mesh *mesh = meshes_.get(handle);
     if (mesh == nullptr) {
@@ -63,18 +69,12 @@ void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
 
 void Renderer::render() {
 
-    auto view =
-        glm::lookAt(glm::vec3(0.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                    glm::vec3(0.0f, 1.0f, 0.0f));
-    auto projection =
-        glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
-
     backend_->beginFrame();
 
     for (const auto &next : submissions_) {
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
-                                  projection * view * next.transform};
+                                  projection_ * view_ * next.transform};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,
