@@ -1,7 +1,9 @@
 #include "application.hpp"
-#include "../core/logger.hpp"
+#include "ume/core/logger.hpp"
+#include "ume/renderer/primitives.hpp"
 
 #include <glaze/toml.hpp>
+#include <glm/glm.hpp>
 
 #include <iostream>
 #include <string>
@@ -21,6 +23,11 @@ Application::Application(const ApplicationConfig &config)
     init_();
     update_ = main["update"];
 
+    cube_mesh_ = renderer_.createMesh({
+        .vertices = primitives::kCubeVertices,
+        .indices = primitives::kCubeIndices,
+    });
+
     UME_LOG_INFO(Core, "application initialized");
 }
 
@@ -30,10 +37,11 @@ void Application::run() {
     while (window_.pollEvents()) {
         // update_(frame_count_);
 
-        renderer_.beginFrame();
+        cube_transform_ =
+            glm::rotate(cube_transform_, 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        renderer_.endFrame();
-
+        renderer_.submit(cube_mesh_, cube_transform_);
+        renderer_.render();
         frame_count_++;
     }
 }

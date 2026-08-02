@@ -147,7 +147,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
-    MTL::IndexType index_type = cmd.index_type == Indextype::UInt16
+    MTL::IndexType index_type = cmd.index_type == IndexType::UInt16
                                     ? MTL::IndexTypeUInt16
                                     : MTL::IndexType::IndexTypeUInt32;
 
@@ -179,6 +179,7 @@ void MetalRenderer::endFrame() {
 BufferHandle
 MetalRenderer::createBuffer(const BufferDescription &buffer_description) {
     auto desc = buffer_description;
+
     MTL::Buffer *buffer =
         desc.initial_data != nullptr
             ? device_->newBuffer(desc.initial_data, desc.size,

@@ -1,6 +1,5 @@
 #include "renderer.hpp"
 #include "ume/core/logger.hpp"
-#include "ume/renderer/primitives.hpp"
 
 namespace ume {
 
@@ -9,39 +8,60 @@ struct DrawUniforms {
 };
 
 Renderer::Renderer(void *native_window_handle)
-    : backend_(createRendererBackend(native_window_handle)) {
+    : backend_(createRendererBackend(native_window_handle)) {}
 
-    vertex_buffer_ = backend_->createBuffer({
-        .size = sizeof(ume::primitives::kCubeVertices),
-        .initial_data = ume::primitives::kCubeVertices.data(),
-    });
+Renderer::~Renderer() {}
 
-    index_buffer_ = backend_->createBuffer({
-        .size = sizeof(ume::primitives::kCubeIndices),
-        .initial_data = ume::primitives::kCubeIndices.data(),
-    });
-
-    model_matrix_ = glm::mat4(1.0f);
-
-    UME_LOG_INFO(Renderer, "created buffer resource {}", vertex_buffer_.id);
-}
-
-Renderer::~Renderer() {
-    if (vertex_buffer_) {
-        backend_->destroyBuffer(vertex_buffer_);
+MeshHandle Renderer::createMesh(const MeshDescription &desc) {
+    BufferHandle vertex_buffer =
+        backend_->createBuffer({.size = desc.vertices.size_bytes(),
+                                .initial_data = desc.vertices.data()});
+    if (!vertex_buffer) {
+        return {};
     }
 
-    if (index_buffer_) {
-        backend_->destroyBuffer(index_buffer_);
+    BufferHandle index_buffer =
+        backend_->createBuffer({.size = desc.indices.size_bytes(),
+                                .initial_data = desc.indices.data()});
+    if (!index_buffer) {
+        backend_->destroyBuffer(vertex_buffer);
+        return {};
     }
+
+    MeshHandle handle = meshes_.insert({
+        .vertex_buffer = vertex_buffer,
+        .index_buffer = index_buffer,
+        .index_count = static_cast<uint32_t>(desc.indices.size()),
+    });
+
+    return handle;
 }
 
-void Renderer::beginFrame() { backend_->beginFrame(); }
+void Renderer::destroyMesh(MeshHandle handle) {
+    Mesh *mesh = meshes_.retire(handle);
+    if (mesh == nullptr) {
+        UME_LOG_WARN(Renderer, "attempted to destroy stale mesh handle: {}",
+                     handle.id);
+        return;
+    }
 
-void Renderer::endFrame() {
+    backend_->destroyBuffer(mesh->vertex_buffer);
+    backend_->destroyBuffer(mesh->index_buffer);
 
-    model_matrix_ =
-        glm::rotate(model_matrix_, 0.005f, glm::vec3(0.0f, 1.0f, 0.0f));
+    meshes_.reclaim(handle);
+}
+
+void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
+    Mesh *mesh = meshes_.get(handle);
+    if (mesh == nullptr) {
+        UME_LOG_WARN(Renderer, "invalid mesh handle submitted {}", handle.id);
+        return;
+    }
+
+    submissions_.push_back({.mesh = *mesh, .transform = transform});
+}
+
+void Renderer::render() {
 
     auto view =
         glm::lookAt(glm::vec3(0.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f),
@@ -49,15 +69,23 @@ void Renderer::endFrame() {
     auto projection =
         glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
 
-    DrawUniforms uniforms{.model_view_projection =
-                              projection * view * model_matrix_};
+    backend_->beginFrame();
 
-    backend_->draw({.vertex_buffer = vertex_buffer_,
-                    .vertex_count = 3,
-                    .index_buffer = index_buffer_,
-                    .index_count = 36,
-                    .index_type = Indextype::UInt16,
-                    .push_constants = std::as_bytes(std::span(&uniforms, 1))});
+    for (const auto &next : submissions_) {
+        Mesh mesh = next.mesh;
+        DrawUniforms uniforms{.model_view_projection =
+                                  projection * view * next.transform};
+
+        backend_->draw({
+            .vertex_buffer = mesh.vertex_buffer,
+            .index_buffer = mesh.index_buffer,
+            .index_count = mesh.index_count,
+            .index_type = mesh.index_type,
+            .push_constants = std::as_bytes(std::span(&uniforms, 1)),
+        });
+    }
+    submissions_.clear();
+
     backend_->endFrame();
 }
 

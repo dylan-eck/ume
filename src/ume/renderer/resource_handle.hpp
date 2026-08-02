@@ -10,6 +10,8 @@ template <typename Tag> struct ResourceHandle {
 };
 
 struct BufferTag;
+struct MeshTag;
 
 using BufferHandle = ResourceHandle<BufferTag>;
+using MeshHandle = ResourceHandle<MeshTag>;
 } // namespace ume

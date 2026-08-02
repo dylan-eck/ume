@@ -22,7 +22,9 @@ void VulkanRenderer::draw(const DrawCommand &cmd) {}
 void VulkanRenderer::endFrame() {}
 
 BufferHandle
-VulkanRenderer::createBuffer(const BufferDescription &buffer_description) {}
+VulkanRenderer::createBuffer(const BufferDescription &buffer_description) {
+    return {};
+}
 
 void VulkanRenderer::destroyBuffer(BufferHandle handle) {}
 

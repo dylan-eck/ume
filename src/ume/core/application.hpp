@@ -46,6 +46,9 @@ private:
     sol::function init_;
     sol::function update_;
 
+    glm::mat4 cube_transform_ = glm::mat4(1.0f);
+    MeshHandle cube_mesh_{};
+
     static ProjectDescription loadProject(const std::string &working_dir);
 };
 
