@@ -17,7 +17,14 @@ VulkanRenderer::VulkanRenderer(void *native_window_handle)
 
 void VulkanRenderer::beginFrame() {}
 
+void VulkanRenderer::draw(const DrawCommand &cmd) {}
+
 void VulkanRenderer::endFrame() {}
+
+BufferHandle
+VulkanRenderer::createBuffer(const BufferDescription &buffer_description) {}
+
+void VulkanRenderer::destroyBuffer(BufferHandle handle) {}
 
 void VulkanRenderer::initVulkan(void *native_window_handle) {
     vkb::InstanceBuilder builder(reinterpret_cast<PFN_vkGetInstanceProcAddr>(

@@ -55,15 +55,15 @@ public:
 
 private:
     SDL_MetalView metal_view_;
-    CA::MetalLayer *layer_;
-    MTL::Device *device_;
-    MTL::CommandQueue *command_queue_;
-    MTL::RenderPipelineState *pipeline_state_;
+    CA::MetalLayer *layer_ = nullptr;
+    MTL::Device *device_ = nullptr;
+    MTL::CommandQueue *command_queue_ = nullptr;
+    MTL::RenderPipelineState *pipeline_state_ = nullptr;
 
-    NS::AutoreleasePool *frame_pool_;
-    CA::MetalDrawable *drawable_;
-    MTL::CommandBuffer *command_buffer_;
-    MTL::RenderCommandEncoder *encoder_;
+    NS::AutoreleasePool *frame_pool_ = nullptr;
+    CA::MetalDrawable *drawable_ = nullptr;
+    MTL::CommandBuffer *command_buffer_ = nullptr;
+    MTL::RenderCommandEncoder *encoder_ = nullptr;
 
     ResourcePool<MetalBuffer, BufferHandle> buffers_;
 };

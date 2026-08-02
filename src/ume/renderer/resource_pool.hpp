@@ -59,7 +59,7 @@ public:
     }
 
     void reclaim(HandleT handle) {
-        free_list_.push_back(handle.id & kHandleIndexBits);
+        free_list_.push_back(handle.id & kHandleIndexMask);
     }
 
 private:

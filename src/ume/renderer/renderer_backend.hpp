@@ -1,14 +1,11 @@
 #pragma once
 
+#include "ume/renderer/resource_handle.hpp"
+
 #include <memory>
 #include <span>
 
 namespace ume {
-
-struct BufferHandle {
-    uint32_t id = 0;
-    explicit operator bool() const { return id != 0; }
-};
 
 struct BufferDescription {
     size_t size;
@@ -43,7 +40,7 @@ public:
 
     virtual BufferHandle
     createBuffer(const BufferDescription &buffer_description) = 0;
-    virtual void destroyBuffer(BufferHandle buffer) = 0;
+    virtual void destroyBuffer(BufferHandle handle) = 0;
 };
 
 std::unique_ptr<RendererBackend>

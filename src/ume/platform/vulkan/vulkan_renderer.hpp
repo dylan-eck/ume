@@ -18,7 +18,12 @@ public:
     VulkanRenderer &operator=(VulkanRenderer &&) = delete;
 
     void beginFrame() override;
+    void draw(const DrawCommand &cmd) override;
     void endFrame() override;
+
+    BufferHandle
+    createBuffer(const BufferDescription &buffer_description) override;
+    void destroyBuffer(BufferHandle handle) override;
 
 private:
     vk::raii::Context context_;

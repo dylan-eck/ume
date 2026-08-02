@@ -30,6 +30,10 @@ Renderer::~Renderer() {
     if (vertex_buffer_) {
         backend_->destroyBuffer(vertex_buffer_);
     }
+
+    if (index_buffer_) {
+        backend_->destroyBuffer(index_buffer_);
+    }
 }
 
 void Renderer::beginFrame() { backend_->beginFrame(); }

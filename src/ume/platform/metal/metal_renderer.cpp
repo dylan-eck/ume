@@ -147,10 +147,14 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
+    MTL::IndexType index_type = cmd.index_type == Indextype::UInt16
+                                    ? MTL::IndexTypeUInt16
+                                    : MTL::IndexType::IndexTypeUInt32;
+
     encoder_->setVertexBuffer(vertex_buffer->buffer, 0, 1);
-    encoder_->drawIndexedPrimitives(
-        MTL::PrimitiveTypeTriangle, NS::UInteger(cmd.index_count),
-        MTL::IndexTypeUInt16, index_buffer->buffer, NS::UInteger(0));
+    encoder_->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle,
+                                    NS::UInteger(cmd.index_count), index_type,
+                                    index_buffer->buffer, NS::UInteger(0));
 }
 
 void MetalRenderer::endFrame() {
