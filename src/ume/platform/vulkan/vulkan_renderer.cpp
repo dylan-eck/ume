@@ -7,7 +7,8 @@
 
 namespace ume {
 
-VulkanRenderer::VulkanRenderer(void *native_window_handle)
+VulkanRenderer::VulkanRenderer(void *native_window_handle, uint32_t pixel_width,
+                               uint32_t pixel_height)
     : context_(reinterpret_cast<PFN_vkGetInstanceProcAddr>(
           SDL_Vulkan_GetVkGetInstanceProcAddr())) {
     initVulkan(native_window_handle);
@@ -142,7 +143,9 @@ VulkanRenderer::createShaderModule(std::vector<uint8_t> &shader_source) {
 }
 
 std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle) {
-    return std::make_unique<VulkanRenderer>(native_window_handle);
+createRendererBackend(void *native_window_handle, uint32_t pixel_width,
+                      uint32_t pixel_height) {
+    return std::make_unique<VulkanRenderer>(native_window_handle, pixel_width,
+                                            pixel_height);
 }
 } // namespace ume

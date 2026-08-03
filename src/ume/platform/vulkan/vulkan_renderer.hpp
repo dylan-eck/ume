@@ -9,7 +9,8 @@
 namespace ume {
 class VulkanRenderer : public RendererBackend {
 public:
-    explicit VulkanRenderer(void *native_window_handle);
+    explicit VulkanRenderer(void *native_window_handle, uint32_t pixel_width,
+                            uint32_t pixel_height);
 
     VulkanRenderer(const VulkanRenderer &) = delete;
     VulkanRenderer &operator=(const VulkanRenderer &) = delete;
