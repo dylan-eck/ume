@@ -4,62 +4,9 @@
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
 
-#include <iostream>
 #include <string>
 
 namespace ume {
-
-inline constexpr std::array<Vertex, 24> kCubeVertices = {{
-    Vertex{.position{-0.5f, -0.5f, 0.5f, 1.0f},
-           .normal{0.0f, 0.0f, 1.0f, 0.0f}},
-    Vertex{.position{0.5f, -0.5f, 0.5f, 1.0f}, .normal{0.0f, 0.0f, 1.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, 0.5f, 1.0f}, .normal{0.0f, 0.0f, 1.0f, 0.0f}},
-    Vertex{.position{-0.5f, 0.5f, 0.5f, 1.0f}, .normal{0.0f, 0.0f, 1.0f, 0.0f}},
-
-    Vertex{.position{0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{0.0f, 0.0f, -1.0f, 0.0f}},
-    Vertex{.position{-0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{0.0f, 0.0f, -1.0f, 0.0f}},
-    Vertex{.position{-0.5f, 0.5f, -0.5f, 1.0f},
-           .normal{0.0f, 0.0f, -1.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, -0.5f, 1.0f},
-           .normal{0.0f, 0.0f, -1.0f, 0.0f}},
-
-    Vertex{.position{-0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{-1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{-0.5f, -0.5f, 0.5f, 1.0f},
-           .normal{-1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{-0.5f, 0.5f, 0.5f, 1.0f},
-           .normal{-1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{-0.5f, 0.5f, -0.5f, 1.0f},
-           .normal{-1.0f, 0.0f, 0.0f, 0.0f}},
-
-    Vertex{.position{0.5f, -0.5f, 0.5f, 1.0f}, .normal{1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, -0.5f, 1.0f}, .normal{1.0f, 0.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, 0.5f, 1.0f}, .normal{1.0f, 0.0f, 0.0f, 0.0f}},
-
-    Vertex{.position{-0.5f, 0.5f, 0.5f, 1.0f}, .normal{0.0f, 1.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, 0.5f, 1.0f}, .normal{0.0f, 1.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, 0.5f, -0.5f, 1.0f}, .normal{0.0f, 1.0f, 0.0f, 0.0f}},
-    Vertex{.position{-0.5f, 0.5f, -0.5f, 1.0f},
-           .normal{0.0f, 1.0f, 0.0f, 0.0f}},
-
-    Vertex{.position{-0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{0.0f, -1.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, -0.5f, -0.5f, 1.0f},
-           .normal{0.0f, -1.0f, 0.0f, 0.0f}},
-    Vertex{.position{0.5f, -0.5f, 0.5f, 1.0f},
-           .normal{0.0f, -1.0f, 0.0f, 0.0f}},
-    Vertex{.position{-0.5f, -0.5f, 0.5f, 1.0f},
-           .normal{0.0f, -1.0f, 0.0f, 0.0f}},
-}};
-
-inline constexpr std::array<uint32_t, 36> kCubeIndices = {{
-    0,  1,  2,  0,  2,  3,  4,  5,  6,  4,  6,  7,  8,  9,  10, 8,  10, 11,
-    12, 13, 14, 12, 14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
-}};
 
 Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
@@ -67,22 +14,11 @@ Application::Application(const ApplicationConfig &config)
       renderer_(window_.getNativeHandle(), project_.window_config.width,
                 project_.window_config.height) {
 
-    std::cout << "lua test:\n";
-    lua_state_.open_libraries(sol::lib::base);
+    script_engine_ = std::make_unique<ScriptEngine>(
+        renderer_, config.working_dir + "/" + project_.main_script);
+    script_engine_->init();
 
-    lua_state_.script_file(config.working_dir + "/" + project_.main_script);
-    sol::table main = lua_state_["main"];
-    init_ = main["init"];
-    init_();
-    update_ = main["update"];
-
-    cube_mesh_ = renderer_.createMesh({
-        .vertices = kCubeVertices,
-        .indices = kCubeIndices,
-    });
-
-    renderer_.setCamera(glm::vec3(0.0f, 2.0f, 2.0f), glm::vec3(0.0f),
-                        glm::radians(45.0f));
+    last_frame_time_ = std::chrono::steady_clock::now();
 
     UME_LOG_INFO(Core, "application initialized");
 }
@@ -91,16 +27,13 @@ Application::~Application() {}
 
 void Application::run() {
     while (window_.pollEvents()) {
-        // update_(frame_count_);
+        auto now = std::chrono::steady_clock::now();
+        float delta =
+            std::chrono::duration<float>(now - last_frame_time_).count();
+        last_frame_time_ = now;
 
-        cube_transform_ =
-            glm::rotate(cube_transform_, 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
-
-        if (cube_mesh_) {
-            renderer_.submit(cube_mesh_, cube_transform_);
-        }
+        script_engine_->update(delta);
         renderer_.render();
-        frame_count_++;
     }
 }
 

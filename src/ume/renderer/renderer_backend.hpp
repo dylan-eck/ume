@@ -17,6 +17,7 @@ enum class IndexType : uint8_t { UInt16, UInt32 };
 struct DrawCommand {
     BufferHandle vertex_buffer;
     BufferHandle index_buffer;
+    uint32_t index_count = 0;
     IndexType index_type;
     std::span<const std::byte> push_constants;
 };

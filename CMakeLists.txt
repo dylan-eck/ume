@@ -43,8 +43,14 @@ target_compile_definitions(
               GLM_FORCE_EXPLICIT_CTOR SOL_ALL_SAFETIES_ON=1)
 
 target_sources(
-  ume PRIVATE src/main.cpp src/ume/core/logger.cpp src/ume/core/application.cpp
-              src/ume/platform/window.cpp src/ume/renderer/renderer.cpp)
+  ume
+  PRIVATE src/main.cpp
+          src/ume/core/logger.cpp
+          src/ume/core/application.cpp
+          src/ume/platform/window.cpp
+          src/ume/renderer/renderer.cpp
+          src/ume/scripting/script_engine.cpp
+          src/ume/scripting/renderer_bindings.cpp)
 target_include_directories(ume PRIVATE src)
 
 target_link_libraries(

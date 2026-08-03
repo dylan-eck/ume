@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../platform/window.hpp"
-#include "../renderer/renderer.hpp"
-
-#include <sol/sol.hpp>
+#include "ume/platform/window.hpp"
+#include "ume/renderer/renderer.hpp"
+#include "ume/scripting/script_engine.hpp"
 
 #include <string>
+#include <memory>
+#include <chrono>
 
 struct SDL_Window;
 
@@ -38,15 +39,9 @@ private:
     ProjectDescription project_;
     Window window_;
     Renderer renderer_;
+    std::unique_ptr<ScriptEngine> script_engine_ = nullptr;
 
-    int frame_count_ = 0;
-
-    sol::state lua_state_;
-    sol::protected_function init_;
-    sol::protected_function update_;
-
-    glm::mat4 cube_transform_ = glm::mat4(1.0f);
-    MeshHandle cube_mesh_{};
+    std::chrono::steady_clock::time_point last_frame_time_;
 
     static ProjectDescription loadProject(const std::string &working_dir);
 };
