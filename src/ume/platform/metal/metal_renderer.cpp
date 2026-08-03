@@ -117,6 +117,7 @@ void MetalRenderer::beginFrame() {
     encoder_->setRenderPipelineState(pipeline_state_);
     encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
     encoder_->setCullMode(MTL::CullModeBack);
+    encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
 }
 
 void MetalRenderer::draw(const DrawCommand &cmd) {

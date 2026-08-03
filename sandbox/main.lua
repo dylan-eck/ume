@@ -1,48 +1,59 @@
 Main = {}
 Main.t = 0
 
-local CUBE_FACES = {
-    { n = { 0, 0, 1 },  p = { { -0.5, -0.5, 0.5 }, { 0.5, -0.5, 0.5 }, { 0.5, 0.5, 0.5 }, { -0.5, 0.5, 0.5 } } },
-    { n = { 0, 0, -1 }, p = { { 0.5, -0.5, -0.5 }, { -0.5, -0.5, -0.5 }, { -0.5, 0.5, -0.5 }, { 0.5, 0.5, -0.5 } } },
-    { n = { -1, 0, 0 }, p = { { -0.5, -0.5, -0.5 }, { -0.5, -0.5, 0.5 }, { -0.5, 0.5, 0.5 }, { -0.5, 0.5, -0.5 } } },
-    { n = { 1, 0, 0 },  p = { { 0.5, -0.5, 0.5 }, { 0.5, -0.5, -0.5 }, { 0.5, 0.5, -0.5 }, { 0.5, 0.5, 0.5 } } },
-    { n = { 0, 1, 0 },  p = { { -0.5, 0.5, 0.5 }, { 0.5, 0.5, 0.5 }, { 0.5, 0.5, -0.5 }, { -0.5, 0.5, -0.5 } } },
-    { n = { 0, -1, 0 }, p = { { -0.5, -0.5, -0.5 }, { 0.5, -0.5, -0.5 }, { 0.5, -0.5, 0.5 }, { -0.5, -0.5, 0.5 } } },
-}
+local function quad(resolution)
+    local v = Ume.VertexArray.new(500)
+    local i = Ume.IndexArray.new(500)
 
-local function make_cube()
-    local v = Ume.VertexArray.new(#CUBE_FACES * 4)
-    local idx = Ume.IndexArray.new(#CUBE_FACES * 6)
+    local vidx = 0
+    local tidx = 0
 
-    for f = 1, #CUBE_FACES do
-        local face = CUBE_FACES[f]
-        local base = (f - 1) * 4
-        local tri  = (f - 1) * 2
+    local start = -1
+    local step = 2 / resolution
 
-        for c = 1, 4 do
-            local p = face.p[c]
-            v:set_position(base + c - 1, p[1], p[2], p[3])
-            v:set_normal(base + c - 1, face.n[1], face.n[2], face.n[3])
+    for k = 0, resolution - 1 do
+        for j = 0, resolution - 1 do
+            local x0 = start + j * step
+            local y0 = start + k * step
+
+            local x1 = start + (j + 1) * step
+            local y1 = start + (k + 1) * step
+
+            v:set_position(vidx, x0, y0, 0)
+            v:set_normal(vidx, 0, 0, 1)
+
+            v:set_position(vidx + 1, x1, y0, 0)
+            v:set_normal(vidx + 1, 0, 0, 1)
+
+            v:set_position(vidx + 2, x1, y1, 0)
+            v:set_normal(vidx + 2, 0, 0, 1)
+
+            v:set_position(vidx + 3, x0, y1, 0)
+            v:set_normal(vidx + 3, 0, 0, 1)
+
+            i:set_triangle(tidx, vidx, vidx + 1, vidx + 2)
+            i:set_triangle(tidx + 1, vidx + 2, vidx + 3, vidx)
+
+            vidx = vidx + 4
+            tidx = tidx + 2
         end
-
-        idx:set_triangle(tri, base, base + 1, base + 2)
-        idx:set_triangle(tri + 1, base, base + 2, base + 3)
     end
 
-    return Ume.create_mesh(v, idx)
+    return Ume.create_mesh(v, i)
 end
 
 function Main.init()
-    Main.mesh = make_cube()
-    Ume.set_camera(0, 2, 3, 0, 0, 0, 45)
+    Main.mesh = quad(4)
+
+    Ume.set_camera(0, 0, 3, 0, 0, 0, 45)
 end
 
 function Main.update(delta)
-    Main.t = Main.t + delta
-    local r = 3
-    local x = r * math.cos(Main.t)
-    local z = r * math.sin(Main.t)
+    -- Main.t = Main.t + 0.5 * delta
+    -- local r = 3
+    -- local x = r * math.cos(Main.t)
+    -- local z = r * math.sin(Main.t)
 
-    Ume.set_camera(x, 2, z, 0, 0, 0, 45)
+    -- Ume.set_camera(x, 3, z, 0, 0, 0, 45)
     Ume.draw(Main.mesh)
 end
