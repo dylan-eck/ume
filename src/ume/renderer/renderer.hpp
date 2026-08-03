@@ -2,7 +2,6 @@
 
 #include "renderer_backend.hpp"
 #include "ume/renderer/resource_pool.hpp"
-#include "ume/renderer/primitives.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,8 +9,13 @@
 #include <memory>
 
 namespace ume {
+struct Vertex {
+    glm::vec4 position;
+    glm::vec4 normal;
+};
+
 struct MeshDescription {
-    std::span<const primitives::Vertex> vertices;
+    std::span<const Vertex> vertices;
     std::span<const uint32_t> indices;
 };
 
