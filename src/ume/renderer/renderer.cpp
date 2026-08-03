@@ -84,7 +84,6 @@ void Renderer::render() {
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,
             .index_buffer = mesh.index_buffer,
-            .index_count = mesh.index_count,
             .index_type = mesh.index_type,
             .push_constants = std::as_bytes(std::span(&uniforms, 1)),
         });
