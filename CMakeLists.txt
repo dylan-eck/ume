@@ -61,7 +61,8 @@ target_link_libraries(
           lua
           spdlog::spdlog
           glm::glm
-          tinygltf::tinygltf)
+          tinygltf::tinygltf
+          wren::wren)
 
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume PRIVATE src/ume/platform/metal/metal_renderer.cpp)

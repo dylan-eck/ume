@@ -122,3 +122,31 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON)
 
 target_compile_definitions(tinygltf PUBLIC TINYGLTF3_ENABLE_FS)
+
+set(WREN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/wren")
+add_library(
+  wren STATIC
+  "${WREN_DIR}/src/vm/wren_compiler.c"
+  "${WREN_DIR}/src/vm/wren_core.c"
+  "${WREN_DIR}/src/vm/wren_debug.c"
+  "${WREN_DIR}/src/vm/wren_primitive.c"
+  "${WREN_DIR}/src/vm/wren_utils.c"
+  "${WREN_DIR}/src/vm/wren_value.c"
+  "${WREN_DIR}/src/vm/wren_vm.c"
+  "${WREN_DIR}/src/optional/wren_opt_meta.c"
+  "${WREN_DIR}/src/optional/wren_opt_random.c")
+
+add_library(wren::wren ALIAS wren)
+
+target_include_directories(wren PUBLIC "${WREN_DIR}/src/include")
+target_include_directories(wren PRIVATE "${WREN_DIR}/src/optional")
+target_include_directories(wren PRIVATE "${WREN_DIR}/src/vm")
+
+set_target_properties(
+  wren
+  PROPERTIES C_STANDARD 99
+             C_STANDARD_REQUIRED ON
+             C_EXTENSIONS OFF
+             POSITION_INDEPENDENT_CODE ON)
+
+target_compile_definitions(wren PRIVATE WREN_OPT_META=1 WREN_OPT_RANDOM=1)

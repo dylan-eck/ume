@@ -4,6 +4,8 @@
 #include "ume/renderer/renderer.hpp"
 #include "ume/scripting/script_engine.hpp"
 
+#include <wren.hpp>
+
 #include <string>
 #include <memory>
 #include <chrono>
@@ -40,6 +42,7 @@ private:
     Window window_;
     Renderer renderer_;
     std::unique_ptr<ScriptEngine> script_engine_ = nullptr;
+    WrenVM *vm_ = nullptr;
 
     std::chrono::steady_clock::time_point last_frame_time_;
 
