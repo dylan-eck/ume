@@ -40,29 +40,17 @@ message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
 add_executable(ume)
 target_compile_definitions(
   ume PRIVATE $<$<CONFIG:Debug>:UME_ENABLE_LOGGING> GLM_FORCE_DEPTH_ZERO_TO_ONE
-              GLM_FORCE_EXPLICIT_CTOR SOL_ALL_SAFETIES_ON=1)
+              GLM_FORCE_EXPLICIT_CTOR)
 
 target_sources(
   ume
-  PRIVATE src/main.cpp
-          src/ume/core/logger.cpp
-          src/ume/core/application.cpp
-          src/ume/platform/window.cpp
-          src/ume/renderer/renderer.cpp
-          src/ume/scripting/script_engine.cpp
-          src/ume/scripting/renderer_bindings.cpp)
+  PRIVATE src/main.cpp src/ume/core/logger.cpp src/ume/core/application.cpp
+          src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
+          src/ume/scripting/script_engine.cpp)
 target_include_directories(ume PRIVATE src)
 
-target_link_libraries(
-  ume
-  PRIVATE SDL3::SDL3-static
-          glaze
-          sol2::sol2
-          lua
-          spdlog::spdlog
-          glm::glm
-          tinygltf::tinygltf
-          wren::wren)
+target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze spdlog::spdlog
+                                  glm::glm tinygltf::tinygltf wren::wren)
 
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume PRIVATE src/ume/platform/metal/metal_renderer.cpp)

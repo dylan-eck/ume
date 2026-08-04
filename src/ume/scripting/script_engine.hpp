@@ -1,8 +1,9 @@
 #pragma once
 
 #include <string>
-#include <memory>
 
+struct WrenVM;
+struct WrenHandle;
 namespace ume {
 
 class Renderer;
@@ -22,7 +23,8 @@ public:
     void update(float delta);
 
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+    WrenVM *wren_vm_;
+    WrenHandle *main_class_;
+    WrenHandle *main_update_;
 };
 } // namespace ume
