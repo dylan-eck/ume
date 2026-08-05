@@ -97,7 +97,7 @@ MetalRenderer::MetalRenderer(void *native_window_handle, uint32_t pixel_width,
 
     MTL::DepthStencilDescriptor *depth_desc =
         MTL::DepthStencilDescriptor::alloc()->init();
-    depth_desc->setDepthCompareFunction(MTL::CompareFunctionLess);
+    depth_desc->setDepthCompareFunction(MTL::CompareFunctionGreater);
     depth_desc->setDepthWriteEnabled(true);
 
     depth_state_ = device_->newDepthStencilState(depth_desc);
@@ -133,7 +133,7 @@ void MetalRenderer::beginFrame() {
     depth_attachment->setTexture(depth_texture_);
     depth_attachment->setLoadAction(MTL::LoadActionClear);
     depth_attachment->setStoreAction(MTL::StoreActionDontCare);
-    depth_attachment->setClearDepth(1.0);
+    depth_attachment->setClearDepth(0.0);
 
     encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor);
     pass_descriptor->release();

@@ -75,8 +75,9 @@ class Vector3 {
 class Sandbox {
     static init() {
         __t = 0
-        __cameraDistance = 60
-        __fov_y = 3
+        __camera_distance = 6
+        __camera_height = 6
+        __fov_y = 30
 
         var resolution = 8
 
@@ -89,14 +90,14 @@ class Sandbox {
             quad(Vector3.new(0, -1, 0), resolution)
         ]
 
-        Renderer.setCamera(0, 4, __cameraDistance, 0, 0, 0, __fov_y)
+        Renderer.setCamera(0, __camera_height, __camera_distance, 0, 0, 0, __fov_y)
     }
 
     static update(delta) {
-        __t = __t + 0.25 * delta
+        __t = __t + 0.5 * delta
 
-        var r = __cameraDistance
-        Renderer.setCamera(r * __t.cos, 4, r * __t.sin, 0, 0, 0, __fov_y)
+        var r = __camera_distance
+        Renderer.setCamera(r * __t.cos, __camera_height, r * __t.sin, 0, 0, 0, __fov_y)
 
         for (mesh in __meshes) {
             Renderer.submit(mesh, 0.5, 0, 0)

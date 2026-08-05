@@ -56,10 +56,19 @@ void Renderer::destroyMesh(MeshHandle handle) {
     meshes_.reclaim(handle);
 }
 
+namespace {
+glm::mat4 perspectiveReverseZ(float fov_y, float aspect, float z_near) {
+    const float kF = 1.0f / std::tan(fov_y * 0.5f);
+    auto mat = glm::mat4(kF / aspect, 0, 0, 0, 0, kF, 0, 0, 0, 0, 0, -1, 0, 0,
+                         z_near, 0);
+    return mat;
+}
+} // namespace
+
 void Renderer::setCamera(const glm::vec3 &position, const glm::vec3 &target,
                          float fov_y) {
     view_ = glm::lookAt(position, target, glm::vec3(0.0f, 1.0f, 0.0f));
-    projection_ = glm::perspective(fov_y, aspect_, 0.1f, 100.0f);
+    projection_ = perspectiveReverseZ(fov_y, aspect_, 1.0f);
 }
 
 void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
