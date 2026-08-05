@@ -11,7 +11,7 @@
 
 namespace ume {
 
-// TODO: move to hidden namespace?
+namespace {
 void writeFn(WrenVM *vm, const char *text) {
     static std::string buffer;
     buffer += text;
@@ -40,7 +40,6 @@ void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
     }
 }
 
-namespace {
 void abortWithError(WrenVM *vm, const char *message) {
     wrenSetSlotString(vm, 0, message);
     wrenAbortFiber(vm, 0);
@@ -202,8 +201,6 @@ void scriptSetCamera(WrenVM *vm) {
                                  glm::radians(kFovYDegrees));
 }
 
-} // namespace
-
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
@@ -226,6 +223,7 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
 
     return nullptr;
 }
+} // namespace
 
 ScriptEngine::ScriptEngine(Renderer &renderer,
                            const std::string &main_script_path) {
