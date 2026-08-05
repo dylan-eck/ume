@@ -23,6 +23,8 @@ class CommandBuffer;
 class RenderCommandEncoder;
 class RenderPipelineState;
 class Buffer;
+class Texture;
+class DepthStencilState;
 } // namespace MTL
 // NOLINTEND
 
@@ -65,6 +67,9 @@ private:
     CA::MetalDrawable *drawable_ = nullptr;
     MTL::CommandBuffer *command_buffer_ = nullptr;
     MTL::RenderCommandEncoder *encoder_ = nullptr;
+
+    MTL::Texture *depth_texture_;
+    MTL::DepthStencilState *depth_state_;
 
     ResourcePool<MetalBuffer, BufferHandle> buffers_;
 };

@@ -1,7 +1,7 @@
 class Renderer {
     foreign static createMesh(positions, normals, indices)
 
-    foreign static submit(mesh)
+    foreign static submit(mesh, px, py, pz)
 
     foreign static setCamera(px, py, pz, tx, ty, tz, fovYDegrees)
 }
@@ -99,7 +99,11 @@ class Sandbox {
         Renderer.setCamera(r * __t.cos, 4, r * __t.sin, 0, 0, 0, __fov_y)
 
         for (mesh in __meshes) {
-            Renderer.submit(mesh)
+            Renderer.submit(mesh, 0.5, 0, 0)
+        }
+
+        for (mesh in __meshes) {
+            Renderer.submit(mesh, -0.5, 0, 0)
         }
     }
 

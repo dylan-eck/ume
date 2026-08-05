@@ -173,8 +173,14 @@ void scriptSubmit(WrenVM *vm) {
         return;
     }
 
+    auto x = static_cast<float>(wrenGetSlotDouble(vm, 2));
+    auto y = static_cast<float>(wrenGetSlotDouble(vm, 3));
+    auto z = static_cast<float>(wrenGetSlotDouble(vm, 4));
+
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+
     MeshHandle handle{static_cast<uint32_t>(wrenGetSlotDouble(vm, 1))};
-    rendererFromVM(vm).submit(handle, glm::mat4(1.0f));
+    rendererFromVM(vm).submit(handle, transform);
 }
 
 void scriptSetCamera(WrenVM *vm) {
@@ -213,7 +219,7 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
         return &scriptCreateMesh;
     }
 
-    if (strcmp(signature, "submit(_)") == 0) {
+    if (strcmp(signature, "submit(_,_,_,_)") == 0) {
         return &scriptSubmit;
     }
 

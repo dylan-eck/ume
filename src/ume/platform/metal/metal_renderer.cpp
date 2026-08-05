@@ -69,6 +69,7 @@ MetalRenderer::MetalRenderer(void *native_window_handle, uint32_t pixel_width,
     descriptor->setFragmentFunction(fragment_func);
     descriptor->colorAttachments()->object(0)->setPixelFormat(
         MTL::PixelFormatBGRA8Unorm);
+    descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
 
     error = nullptr;
     pipeline_state_ = device_->newRenderPipelineState(descriptor, &error);
@@ -83,6 +84,23 @@ MetalRenderer::MetalRenderer(void *native_window_handle, uint32_t pixel_width,
             std::string("failed to create render pipeline state: ") +
             error->localizedDescription()->utf8String());
     }
+
+    MTL::TextureDescriptor *tex_desc =
+        MTL::TextureDescriptor::texture2DDescriptor(
+            MTL::PixelFormatDepth32Float, pixel_width, pixel_height, false);
+
+    tex_desc->setStorageMode(MTL::StorageModePrivate);
+    tex_desc->setUsage(MTL::TextureUsageRenderTarget);
+
+    depth_texture_ = device_->newTexture(tex_desc);
+    tex_desc->release();
+
+    MTL::DepthStencilDescriptor *depth_desc =
+        MTL::DepthStencilDescriptor::alloc()->init();
+    depth_desc->setDepthCompareFunction(MTL::CompareFunctionLess);
+    depth_desc->setDepthWriteEnabled(true);
+
+    depth_state_ = device_->newDepthStencilState(depth_desc);
 
     UME_LOG_INFO(Renderer, "initialized metal renderer backend");
 }
@@ -111,13 +129,20 @@ void MetalRenderer::beginFrame() {
     color_attachment->setStoreAction(MTL::StoreActionStore);
     color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
 
+    auto *depth_attachment = pass_descriptor->depthAttachment();
+    depth_attachment->setTexture(depth_texture_);
+    depth_attachment->setLoadAction(MTL::LoadActionClear);
+    depth_attachment->setStoreAction(MTL::StoreActionDontCare);
+    depth_attachment->setClearDepth(1.0);
+
     encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor);
     pass_descriptor->release();
 
     encoder_->setRenderPipelineState(pipeline_state_);
     encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
     encoder_->setCullMode(MTL::CullModeBack);
-    encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
+    // encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
+    encoder_->setDepthStencilState(depth_state_);
 }
 
 void MetalRenderer::draw(const DrawCommand &cmd) {
