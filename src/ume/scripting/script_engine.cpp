@@ -173,14 +173,14 @@ void scriptSubmit(WrenVM *vm) {
         return;
     }
 
-    auto x = static_cast<float>(wrenGetSlotDouble(vm, 2));
-    auto y = static_cast<float>(wrenGetSlotDouble(vm, 3));
-    auto z = static_cast<float>(wrenGetSlotDouble(vm, 4));
-
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+    const glm::dvec3 kWorldPosition{
+        wrenGetSlotDouble(vm, 2),
+        wrenGetSlotDouble(vm, 3),
+        wrenGetSlotDouble(vm, 4),
+    };
 
     MeshHandle handle{static_cast<uint32_t>(wrenGetSlotDouble(vm, 1))};
-    rendererFromVM(vm).submit(handle, transform);
+    rendererFromVM(vm).submit(handle, kWorldPosition, glm::mat4(1.0f));
 }
 
 void scriptSetCamera(WrenVM *vm) {
@@ -191,20 +191,22 @@ void scriptSetCamera(WrenVM *vm) {
         }
     }
 
-    const auto kPosition =
-        glm::vec3(static_cast<float>(wrenGetSlotDouble(vm, 1)),
-                  static_cast<float>(wrenGetSlotDouble(vm, 2)),
-                  static_cast<float>(wrenGetSlotDouble(vm, 3)));
+    const glm::dvec3 kCameraWorldPosition =
+        glm::dvec3(wrenGetSlotDouble(vm, 1), wrenGetSlotDouble(vm, 2),
+                   wrenGetSlotDouble(vm, 3));
 
-    const auto kTarget =
-        glm::vec3(static_cast<float>(wrenGetSlotDouble(vm, 4)),
-                  static_cast<float>(wrenGetSlotDouble(vm, 5)),
-                  static_cast<float>(wrenGetSlotDouble(vm, 6)));
+    const glm::dvec3 kTargetWorldPosition =
+        glm::dvec3(wrenGetSlotDouble(vm, 4), wrenGetSlotDouble(vm, 5),
+                   wrenGetSlotDouble(vm, 6));
 
-    const auto kFovYDegrees = static_cast<float>(wrenGetSlotDouble(vm, 7));
+    const auto kFovYDegrees =
+        glm::radians(static_cast<float>(wrenGetSlotDouble(vm, 7)));
 
-    rendererFromVM(vm).setCamera(kPosition, kTarget,
-                                 glm::radians(kFovYDegrees));
+    const CameraState kCameraState =
+        lookAtCamera(kCameraWorldPosition, kTargetWorldPosition,
+                     glm::dvec3(0.0f, 1.0f, 0.0f), kFovYDegrees, 1.0f);
+
+    rendererFromVM(vm).setCamera(kCameraState);
 }
 
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,

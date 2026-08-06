@@ -74,38 +74,53 @@ class Vector3 {
 
 class Sandbox {
     static init() {
-        __t = 0
-        __camera_distance = 6
-        __camera_height = 6
+        __planet_radius = 7000000
+        __camera_distance = __planet_radius + 200
+        __camera_height = 0
         __fov_y = 30
+
+        __t = 0.7853981633974483
+        __rotation_speed = 0.2
+
 
         var resolution = 8
 
         __meshes = [
-            quad(Vector3.new(0, 0, 1), resolution),
-            quad(Vector3.new(0, 0, -1), resolution),
-            quad(Vector3.new(1, 0, 0), resolution),
-            quad(Vector3.new(-1, 0, 0), resolution),
-            quad(Vector3.new(0, 1, 0), resolution),
-            quad(Vector3.new(0, -1, 0), resolution)
+            quad(Vector3.new(0, 0, 1), resolution, __planet_radius),
+            quad(Vector3.new(0, 0, -1), resolution, __planet_radius),
+            quad(Vector3.new(1, 0, 0), resolution, __planet_radius),
+            quad(Vector3.new(-1, 0, 0), resolution, __planet_radius),
+            quad(Vector3.new(0, 1, 0), resolution, __planet_radius),
+            quad(Vector3.new(0, -1, 0), resolution, __planet_radius)
         ]
 
-        Renderer.setCamera(0, __camera_height, __camera_distance, 0, 0, 0, __fov_y)
+        __marker = [
+            quad(Vector3.new(0, 0, 1), 8, 20),
+            quad(Vector3.new(0, 0, -1), 8, 20),
+            quad(Vector3.new(1, 0, 0), 8, 20),
+            quad(Vector3.new(-1, 0, 0), 8, 20),
+            quad(Vector3.new(0, 1, 0), 8, 20),
+            quad(Vector3.new(0, -1, 0), 8, 20)
+        ]
+
+        Renderer.setCamera(__camera_distance, 0, 0, 0, 0, 0, __fov_y)
     }
 
     static update(delta) {
-        __t = __t + 0.5 * delta
+        __t = __t + __rotation_speed * delta
 
         var r = __camera_distance
-        Renderer.setCamera(r * __t.cos, __camera_height, r * __t.sin, 0, 0, 0, __fov_y)
+        var cam_x = __camera_distance * __t.cos
+        var cam_z = __camera_distance * __t.sin
 
-        for (mesh in __meshes) {
-            Renderer.submit(mesh, 0.5, 0, 0)
-        }
+        var marker_r = __camera_distance - 100
+        var marker_x = marker_r * __t.cos
+        var marker_z = marker_r * __t.sin
 
-        for (mesh in __meshes) {
-            Renderer.submit(mesh, -0.5, 0, 0)
-        }
+        Renderer.setCamera(cam_x, 0, cam_z, 0, 0, 0, __fov_y)
+
+        for (mesh in __meshes) { Renderer.submit(mesh, 0, 0, 0) }
+        for (mesh in __marker) { Renderer.submit(mesh, marker_x, 0, marker_z) }
     }
 
     static addVertex(positions, normals, p) {
@@ -120,7 +135,7 @@ class Sandbox {
         normals.add(n.z)
     }
 
-    static quad(normal, resolution) {
+    static quad(normal, resolution, scale) {
         var positions = []
         var normals = []
         var indices = []
@@ -143,6 +158,11 @@ class Sandbox {
                 var p10 = Vector3.cubeToSphere(n + a * (t + step) + b * u)
                 var p11 = Vector3.cubeToSphere(n + a * (t + step) + b * (u + step))
                 var p01 = Vector3.cubeToSphere(n + a * t + b * (u + step))
+
+                p00 = p00 * scale
+                p10 = p10 * scale
+                p11 = p11 * scale
+                p01 = p01 * scale
 
                 var s = positions.count / 3
 

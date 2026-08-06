@@ -56,39 +56,42 @@ void Renderer::destroyMesh(MeshHandle handle) {
     meshes_.reclaim(handle);
 }
 
-namespace {
-glm::mat4 perspectiveReverseZ(float fov_y, float aspect, float z_near) {
-    const float kF = 1.0f / std::tan(fov_y * 0.5f);
-    auto mat = glm::mat4(kF / aspect, 0, 0, 0, 0, kF, 0, 0, 0, 0, 0, -1, 0, 0,
-                         z_near, 0);
-    return mat;
-}
-} // namespace
-
-void Renderer::setCamera(const glm::vec3 &position, const glm::vec3 &target,
-                         float fov_y) {
-    view_ = glm::lookAt(position, target, glm::vec3(0.0f, 1.0f, 0.0f));
-    projection_ = perspectiveReverseZ(fov_y, aspect_, 1.0f);
+void Renderer::setCamera(const CameraState &camera_state) {
+    camera_state_ = camera_state;
 }
 
-void Renderer::submit(MeshHandle handle, const glm::mat4 &transform) {
+void Renderer::submit(MeshHandle handle, const glm::dvec3 &world_position,
+                      const glm::mat4 &local_transform) {
     Mesh *mesh = meshes_.get(handle);
     if (mesh == nullptr) {
         UME_LOG_WARN(Renderer, "invalid mesh handle submitted {}", handle.id);
         return;
     }
 
-    submissions_.push_back({.mesh = *mesh, .transform = transform});
+    submissions_.push_back({.mesh = *mesh,
+                            .world_position = world_position,
+                            .local_transform = local_transform});
 }
 
 void Renderer::render() {
+    const glm::mat4 kProjection =
+        perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
+
+    const auto kViewRotation =
+        glm::mat4(glm::transpose(camera_state_.orientation));
 
     backend_->beginFrame();
 
     for (const auto &next : submissions_) {
+        const auto kRelative =
+            glm::vec3(next.world_position - camera_state_.position);
+
+        const glm::mat4 kModel =
+            glm::translate(glm::mat4(1.0f), kRelative) * next.local_transform;
+
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
-                                  projection_ * view_ * next.transform};
+                                  kProjection * kViewRotation * kModel};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,
