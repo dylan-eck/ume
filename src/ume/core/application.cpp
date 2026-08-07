@@ -3,6 +3,7 @@
 
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
+#include <wren.hpp>
 
 #include <string>
 

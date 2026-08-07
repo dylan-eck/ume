@@ -4,13 +4,12 @@
 #include "ume/renderer/renderer.hpp"
 #include "ume/scripting/script_engine.hpp"
 
-#include <wren.hpp>
-
 #include <string>
 #include <memory>
 #include <chrono>
 
 struct SDL_Window;
+struct WrenVM;
 
 namespace ume {
 

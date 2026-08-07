@@ -5,8 +5,6 @@ project(
   VERSION 0.1.0
   LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/dependencies.cmake)
@@ -37,87 +35,118 @@ endif()
 
 message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
 
-add_executable(ume)
+add_library(ume_config INTERFACE)
+target_compile_features(ume_config INTERFACE cxx_std_23)
 target_compile_definitions(
-  ume PRIVATE $<$<CONFIG:Debug>:UME_ENABLE_LOGGING> GLM_FORCE_DEPTH_ZERO_TO_ONE
-              GLM_FORCE_EXPLICIT_CTOR)
+  ume_config INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_EXPLICIT_CTOR
+                       $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
+target_link_libraries(ume_config INTERFACE glm::glm)
 
-target_sources(
-  ume
-  PRIVATE src/main.cpp src/ume/core/logger.cpp src/ume/core/application.cpp
-          src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
-          src/ume/scripting/script_engine.cpp)
-target_include_directories(ume PRIVATE src)
+add_library(ume_plugin_api INTERFACE)
+target_include_directories(ume_plugin_api INTERFACE include)
 
-target_link_libraries(ume PRIVATE SDL3::SDL3-static glaze spdlog::spdlog
-                                  glm::glm tinygltf::tinygltf wren::wren)
+# force plugin api header to be treated as c, not c++
+add_library(ume_plugin_api_c_check STATIC src/ume/plugin/plugin_api.c)
+target_link_libraries(ume_plugin_api_c_check PRIVATE ume_plugin_api)
+set_target_properties(
+  ume_plugin_api_c_check
+  PROPERTIES C_STANDARD 11
+             C_STANDARD_REQUIRED ON
+             C_EXTENSIONS OFF)
+target_compile_options(
+  ume_plugin_api_c_check
+  PRIVATE $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic
+          -Werror> $<$<C_COMPILER_ID:MSVC>:/W4 /WX>)
+
+add_library(
+  ume_engine STATIC
+  src/ume/core/logger.cpp src/ume/core/application.cpp
+  src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
+  src/ume/scripting/script_engine.cpp)
+target_include_directories(ume_engine PUBLIC src)
+target_link_libraries(
+  ume_engine
+  PUBLIC ume_config ume_plugin_api
+  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren)
 
 if(UME_RENDER_BACKEND STREQUAL "metal")
-  target_sources(ume PRIVATE src/ume/platform/metal/metal_renderer.cpp)
-  target_compile_definitions(ume PRIVATE UME_RENDER_BACKEND_METAL)
-  target_include_directories(ume PRIVATE vendor/metal-cpp)
+  target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
+  target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_METAL)
+  target_include_directories(ume_engine PRIVATE vendor/metal-cpp)
 
   find_library(METAL_LIB Metal REQUIRED)
   find_library(FOUNDATION_LIB Foundation REQUIRED)
   find_library(QUARTZCORE_LIB QuartzCore REQUIRED)
 
-  target_link_libraries(ume PRIVATE ${METAL_LIB} ${FOUNDATION_LIB}
-                                    ${QUARTZCORE_LIB})
+  target_link_libraries(ume_engine PRIVATE ${METAL_LIB} ${FOUNDATION_LIB}
+                                           ${QUARTZCORE_LIB})
 else()
-  target_sources(ume PRIVATE src/ume/platform/vulkan/vulkan_renderer.cpp)
-  target_compile_definitions(ume PRIVATE UME_RENDER_BACKEND_VULKAN)
-
-  target_link_libraries(ume PRIVATE Vulkan::Vulkan vk-bootstrap::vk-bootstrap)
+  target_sources(ume_engine PRIVATE src/ume/platform/vulkan/vulkan_renderer.cpp)
+  target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_VULKAN)
+  target_link_libraries(ume_engine PRIVATE Vulkan::Vulkan
+                                           vk-bootstrap::vk-bootstrap)
 endif()
 
-function(add_slang_shader_spirv TARGET SHADER)
+function(add_slang_shader TARGET SHADER)
   set(SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
 
-  set(SHADER_REL_OUTPUT "generated/${SHADER}.spv")
-  set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
+  if(UME_RENDER_BACKEND STREQUAL "metal")
+    set(SHADER_REL_OUTPUT "generated/${SHADER}.metallib")
+    set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
 
-  add_custom_command(
-    OUTPUT ${SHADER_OUTPUT}
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/generated"
-    COMMAND
-      ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target spirv -profile spirv_1_4
-      -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry
-      fragMain -o ${SHADER_OUTPUT}
-    DEPENDS ${SHADER_SOURCE}
-    COMMENT "Compiling slang shader: ${SHADER}"
-    VERBATIM)
+    get_filename_component(SHADER_NAME "${SHADER}" NAME)
+    set(SHADER_MSL "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.metal")
+    set(SHADER_AIR "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.air")
+
+    add_custom_command(
+      OUTPUT ${SHADER_OUTPUT}
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+              "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+      COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target metal -entry
+              vertMain -entry fragMain -o ${SHADER_MSL}
+      COMMAND xcrun -sdk macosx metal -gline-tables-only -frecord-sources -c
+              ${SHADER_MSL} -o ${SHADER_AIR}
+      COMMAND xcrun -sdk macosx metallib ${SHADER_AIR} -o ${SHADER_OUTPUT}
+      DEPENDS ${SHADER_SOURCE}
+      COMMENT "Compiling Metal shader: ${SHADER}"
+      VERBATIM)
+  else()
+    set(SHADER_REL_OUTPUT "generated/${SHADER}.spv")
+    set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
+
+    add_custom_command(
+      OUTPUT ${SHADER_OUTPUT}
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+              "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+      COMMAND
+        ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target spirv -profile spirv_1_4
+        -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry
+        fragMain -o ${SHADER_OUTPUT}
+      DEPENDS ${SHADER_SOURCE}
+      COMMENT "Compiling SPIR-V shader: ${SHADER}"
+      VERBATIM)
+  endif()
 
   b_embed(${TARGET} ${SHADER_REL_OUTPUT})
 endfunction()
 
-function(add_slang_shader_metallib TARGET SHADER)
-  set(SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
-  set(SHADER_REL_OUTPUT "generated/${SHADER}.metallib")
-  set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
+add_slang_shader(ume_engine "src/ume/renderer/shaders/triangle.slang")
 
-  get_filename_component(SHADER_NAME "${SHADER}" NAME)
-  set(SHADER_MSL "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.metal")
-  set(SHADER_AIR "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.air")
+set(UME_PLUGIN_LINK_TYPE
+    "STATIC"
+    CACHE STRING "STATIC or MODULE")
+set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 
-  add_custom_command(
-    OUTPUT ${SHADER_OUTPUT}
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/generated"
-    COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target metal -entry vertMain
-            -entry fragMain -o ${SHADER_MSL}
-    COMMAND xcrun -sdk macosx metal -gline-tables-only -frecord-sources -c
-            ${SHADER_MSL} -o ${SHADER_AIR}
-    COMMAND xcrun -sdk macosx metallib ${SHADER_AIR} -o ${SHADER_OUTPUT}
-    DEPENDS ${SHADER_SOURCE}
-    COMMENT "Compiling slang shader (metallib via xcrun): ${SHADER}"
-    VERBATIM)
+target_sources(ume_engine PRIVATE src/ume/plugin/plugin_host.cpp
+                                  src/ume/plugin/builtin_plugins.cpp)
+if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
+  target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
+endif()
 
-  b_embed(${TARGET} ${SHADER_REL_OUTPUT})
-endfunction()
+add_subdirectory(plugins/proc_planet)
 
-if(UME_RENDER_BACKEND STREQUAL "metal")
-  add_slang_shader_metallib(ume "src/ume/renderer/shaders/triangle.slang")
-else()
-  add_slang_shader_spirv(ume "src/ume/renderer/shaders/triangle.slang")
+add_executable(ume src/main.cpp)
+target_link_libraries(ume PRIVATE ume_engine)
+if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
+  target_link_libraries(ume PRIVATE proc_planet)
 endif()
