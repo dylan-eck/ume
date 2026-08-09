@@ -1,8 +1,9 @@
 #include "ume/plugin/plugin_host.hpp"
 
 #ifdef UME_PLUGIN_STATIC
-extern "C" bool UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
-                                             UmePluginDescription *description);
+extern "C" UME_PLUGIN_BOOL
+    UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
+                                 UmePluginDescription *description);
 #endif
 
 namespace ume {

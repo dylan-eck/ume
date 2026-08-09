@@ -1,0 +1,4 @@
+If:
+  PathMatch: include/ume/plugin/.*\.h
+CompileFlags:
+  Add: [-xc, -std=c11]

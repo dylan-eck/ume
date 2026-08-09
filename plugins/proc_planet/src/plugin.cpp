@@ -1,10 +1,13 @@
 #include "ume/plugin/plugin_api.h"
 
-extern "C" UME_PLUGIN_EXPORT bool
-UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
-                             UmePluginDescription *description) {
+#include <iostream>
+
+extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
+    const UmePluginApi *api, UmePluginDescription *description) {
     (void)api;
     (void)description;
 
-    return false;
+    std::cout << "### registering proc_planet plugin! ###\n";
+
+    return UME_FALSE;
 }

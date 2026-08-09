@@ -1,12 +1,11 @@
 #ifndef UME_PLUGIN_API_H
 #define UME_PLUGIN_API_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 #include <cstdint>
 extern "C" {
-#else
-#include <stdbool.h>
-#include <stdint.h>
 #endif
 
 #define UME_PLUGIN_ABI_VERSION 0
@@ -25,6 +24,10 @@ extern "C" {
 #define UME_PLUGIN_ENTRY(name) umePluginRegister
 #endif
 
+typedef uint8_t UME_PLUGIN_BOOL;
+#define UME_TRUE ((UME_PLUGIN_BOOL)1)
+#define UME_FALSE ((UME_PLUGIN_BOOL)0)
+
 typedef uint32_t UmeMeshHandle;
 #define UME_MESH_HANDLE_INVALID ((UmeMeshHandle)0)
 
@@ -32,6 +35,7 @@ typedef enum UmeLogLevel {
     UME_LOG_INFO = 0,
     UME_LOG_WARN = 1,
     UME_LOG_ERROR = 2,
+    UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff
 } UmeLogLevel;
 
 typedef struct UmeVertex {
@@ -86,8 +90,8 @@ typedef struct UmePluginDescription {
     void (*shutdown)(void *state);
 } UmePluginDescription;
 
-typedef bool (*UmePluginRegisterFunction)(const UmePluginApi *api,
-                                          UmePluginDescription *description);
+typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
+    const UmePluginApi *api, UmePluginDescription *description);
 
 #ifdef __cplusplus
 }

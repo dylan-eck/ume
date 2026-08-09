@@ -32,7 +32,7 @@ bool PluginHost::registerStatic(const char *name,
 
     UmePluginDescription description{};
 
-    if (!register_function(&api_, &description)) {
+    if (register_function(&api_, &description) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
         return false;
     }
@@ -83,7 +83,7 @@ void PluginHost::destroyMeshTrampoline(void *context,
 }
 
 void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
-                                  const double world_position[3]) noexcept {
+                                  const double *world_position) noexcept {
     auto *self = static_cast<PluginHost *>(context);
     self->renderer_.submit(
         {.id = handle},

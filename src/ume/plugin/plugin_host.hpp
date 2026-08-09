@@ -26,7 +26,8 @@ public:
     PluginHost(PluginHost &&) = delete;
     PluginHost &operator=(PluginHost &&) = delete;
 
-    bool registerStatic(const char *name, UmePluginRegisterFunction fn);
+    bool registerStatic(const char *name,
+                        UmePluginRegisterFunction register_function);
 
     Object *createObject(const char *type_name, const UmeParams *params);
     void destroyObject(Object *object);
@@ -51,7 +52,7 @@ private:
     static void destroyMeshTrampoline(void *context,
                                       UmeMeshHandle handle) noexcept;
     static void submitTrampoline(void *context, UmeMeshHandle handle,
-                                 const double world_position[3]) noexcept;
+                                 const double *world_position) noexcept;
     static void logTrampoline(void *context, UmeLogLevel log_level,
                               const char *message) noexcept;
 };
