@@ -2,6 +2,7 @@
 
 #include "ume/platform/window.hpp"
 #include "ume/renderer/renderer.hpp"
+#include "ume/plugin/plugin_host.hpp"
 #include "ume/scripting/script_engine.hpp"
 
 #include <string>
@@ -40,6 +41,8 @@ private:
     ProjectDescription project_;
     Window window_;
     Renderer renderer_;
+    PluginHost plugin_host_;
+
     std::unique_ptr<ScriptEngine> script_engine_ = nullptr;
     WrenVM *vm_ = nullptr;
 

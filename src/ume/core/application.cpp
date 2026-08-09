@@ -13,7 +13,10 @@ Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)),
       renderer_(window_.getNativeHandle(), project_.window_config.width,
-                project_.window_config.height) {
+                project_.window_config.height),
+      plugin_host_(renderer_) {
+
+    registerBuiltinPlugins(plugin_host_);
 
     script_engine_ = std::make_unique<ScriptEngine>(
         renderer_, config.working_dir + "/" + project_.main_script);

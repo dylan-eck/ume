@@ -1,11 +1,12 @@
 #ifndef UME_PLUGIN_API_H
 #define UME_PLUGIN_API_H
 
+#ifdef __cplusplus
+#include <cstdint>
+extern "C" {
+#else
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 #define UME_PLUGIN_ABI_VERSION 0
@@ -31,8 +32,6 @@ typedef enum UmeLogLevel {
     UME_LOG_INFO = 0,
     UME_LOG_WARN = 1,
     UME_LOG_ERROR = 2,
-    UME_LOG_LEVEL_FORCE_U32 =
-        0x7fffffff // ensure that underlying type is uint32_t
 } UmeLogLevel;
 
 typedef struct UmeVertex {

@@ -8,7 +8,7 @@ class logger;
 }
 
 namespace ume::logger {
-enum class Category : uint8_t { Core, Renderer, Platform, Count };
+enum class Category : uint8_t { Core, Renderer, Platform, Plugin, Count };
 
 spdlog::logger &get(Category category);
 

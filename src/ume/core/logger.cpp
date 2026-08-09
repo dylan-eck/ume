@@ -17,6 +17,8 @@ const char *categoryName(Category c) {
         return "renderer";
     case Category::Platform:
         return "platform";
+    case Category::Plugin:
+        return "plugin";
     default:
         return "unknown";
     }
