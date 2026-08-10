@@ -32,7 +32,6 @@ public:
     Object *createObject(const char *type_name, const UmeParams *params);
     void destroyObject(Object *object);
     void updateObjects(const UmeFrameContext &frame_context);
-    void shutdown();
 
     static const UmeParams kDefaultParams;
 

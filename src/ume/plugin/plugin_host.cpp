@@ -2,11 +2,22 @@
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/logger.hpp"
 
+#include <algorithm>
+#include <ranges>
+
 namespace ume {
 
 static_assert(sizeof(Vertex) == sizeof(UmeVertex));
 static_assert(alignof(Vertex) == alignof(UmeVertex));
 static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
+
+namespace {
+double alwaysFallback(void *impl, const char *key, double fallback) {
+    return fallback;
+}
+} // namespace
+
+const UmeParams PluginHost::kDefaultParams{nullptr, alwaysFallback};
 
 PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
     api_.abi_version = UME_PLUGIN_ABI_VERSION;
@@ -19,7 +30,22 @@ PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
     api_.log = &logTrampoline;
 }
 
-PluginHost::~PluginHost() = default;
+PluginHost::~PluginHost() {
+    for (auto &object : live_ | std::views::reverse) {
+        if (object->type->destroy != nullptr) {
+            object->type->destroy(object->type->user_data, object->instance);
+        }
+    }
+    live_.clear();
+    types_.clear();
+
+    for (auto &plugin : plugins_ | std::views::reverse) {
+        if (plugin.shutdown != nullptr) {
+            plugin.shutdown(plugin.state);
+        }
+    }
+    plugins_.clear();
+};
 
 bool PluginHost::registerStatic(const char *name,
                                 UmePluginRegisterFunction register_function) {
@@ -51,6 +77,69 @@ bool PluginHost::registerStatic(const char *name,
     plugins_.push_back(description);
     UME_LOG_INFO(Plugin, "registered plugin '{}'", name);
     return true;
+}
+
+PluginHost::Object *PluginHost::createObject(const char *type_name,
+                                             const UmeParams *params) {
+    if (type_name == nullptr) {
+        UME_LOG_ERROR(Plugin, "createObject called with null type name");
+        return nullptr;
+    }
+
+    const auto kItr = types_.find(type_name);
+    if (kItr == types_.end()) {
+        UME_LOG_ERROR(Plugin, "no registered type with name '{}'", type_name);
+        return nullptr;
+    }
+
+    const UmeObjectType &type = kItr->second;
+    if (type.create == nullptr) {
+        UME_LOG_ERROR(Plugin, "object type '{}' has no create function",
+                      type_name);
+        return nullptr;
+    }
+
+    void *instance = type.create(type.user_data,
+                                 params != nullptr ? params : &kDefaultParams);
+    if (instance == nullptr) {
+        UME_LOG_ERROR(Plugin, "failed to create instance of object type '{}'",
+                      type_name);
+        return nullptr;
+    }
+
+    live_.push_back(
+        std::make_unique<Object>(Object{.type = &type, .instance = instance}));
+    return live_.back().get();
+}
+
+void PluginHost::destroyObject(Object *object) {
+    if (object == nullptr) {
+        return;
+    }
+
+    const auto kItr =
+        std::ranges::find_if(live_, [object](const std::unique_ptr<Object> &o) {
+            return o.get() == object;
+        });
+
+    if (kItr == live_.end()) {
+        UME_LOG_WARN(Plugin, "attempted to destroy unknown object");
+        return;
+    }
+
+    if (object->type->destroy != nullptr) {
+        object->type->destroy(object->type->user_data, object->instance);
+    }
+    live_.erase(kItr);
+}
+
+void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
+    for (const auto &object : live_) {
+        if (object->type->update != nullptr) {
+            object->type->update(object->type->user_data, object->instance,
+                                 &frame_context);
+        }
+    }
 }
 
 void PluginHost::registerObjectTypeTrampoline(

@@ -18,6 +18,11 @@ Application::Application(const ApplicationConfig &config)
 
     registerBuiltinPlugins(plugin_host_);
 
+    if (plugin_host_.createObject("Planet", &PluginHost::kDefaultParams) ==
+        nullptr) {
+        UME_LOG_ERROR(Core, "failed to create the planet object");
+    }
+
     script_engine_ = std::make_unique<ScriptEngine>(
         renderer_, config.working_dir + "/" + project_.main_script);
     script_engine_->init();
@@ -37,6 +42,11 @@ void Application::run() {
         last_frame_time_ = now;
 
         script_engine_->update(delta);
+
+        UmeFrameContext context{};
+
+        plugin_host_.updateObjects(context);
+
         renderer_.render();
     }
 }
