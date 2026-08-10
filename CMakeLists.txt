@@ -38,8 +38,9 @@ message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
 add_library(ume_config INTERFACE)
 target_compile_features(ume_config INTERFACE cxx_std_23)
 target_compile_definitions(
-  ume_config INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_EXPLICIT_CTOR
-                       $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
+  ume_config
+  INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_EXPLICIT_CTOR
+            GLM_ENABLE_EXPERIMENTAL $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
 target_link_libraries(ume_config INTERFACE glm::glm)
 
 add_library(ume_plugin_api INTERFACE)
