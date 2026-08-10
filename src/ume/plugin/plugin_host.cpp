@@ -181,5 +181,23 @@ void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
 }
 
 void PluginHost::logTrampoline(void *context, UmeLogLevel log_level,
-                               const char *message) noexcept {}
+                               const char *message) noexcept {
+    if (message == nullptr) {
+        return;
+    }
+
+    switch (log_level) {
+    case UME_LOG_LEVEL_INFO:
+        UME_LOG_INFO(Plugin, "{}", message);
+        break;
+    case UME_LOG_LEVEL_WARN:
+        UME_LOG_WARN(Plugin, "{}", message);
+        break;
+    case UME_LOG_LEVEL_ERROR:
+        UME_LOG_ERROR(Plugin, "{}", message);
+        break;
+    default:
+        break;
+    }
+}
 } // namespace ume

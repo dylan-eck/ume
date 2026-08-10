@@ -10,16 +10,22 @@ struct ProcPlanetPlugin {
 void *createPlanet(void *user_data, const UmeParams *params) {
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
     // const double kRadius = params->number(params->impl, "radius", 7000000.0);
-    return new proc_planet::Planet();
+    return new proc_planet::Planet(&self->api);
 }
 
 void destroyPlanet(void *user_data, void *object) {
     delete static_cast<proc_planet::Planet *>(object);
 }
 
-void updatePlanet(void *user_data, void *object, const UmeFrameContext *frame) {
+// TODO: change frame_context to const reference?
+void updatePlanet(void *user_data, void *object,
+                  const UmeFrameContext *frame_context) {
     auto *planet = static_cast<proc_planet::Planet *>(object);
-    planet->update();
+    planet->update(frame_context);
+}
+
+void shutDownProcPlanet(void *state) {
+    delete static_cast<ProcPlanetPlugin *>(state);
 }
 } // namespace
 
@@ -29,8 +35,8 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
 
     description->abi_version = 0;
     description->name = "proc_planet";
-    description->state = nullptr;
-    description->shutdown = nullptr;
+    description->state = self;
+    description->shutdown = &shutDownProcPlanet;
 
     const UmeObjectType kPlanetType{
         .name = "Planet",

@@ -37,6 +37,8 @@ public:
     void destroyMesh(MeshHandle handle);
 
     void setCamera(const CameraState &camera_state);
+    [[nodiscard]] CameraState getCamera() const { return camera_state_; };
+    [[nodiscard]] float getAspect() const { return aspect_; };
 
     void submit(MeshHandle handle, const glm::dvec3 &world_position,
                 const glm::mat4 &local_transform);

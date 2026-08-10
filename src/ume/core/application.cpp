@@ -3,6 +3,7 @@
 
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <wren.hpp>
 
 #include <string>
@@ -36,6 +37,7 @@ Application::~Application() {}
 
 void Application::run() {
     while (window_.pollEvents()) {
+        frame_index_++;
         auto now = std::chrono::steady_clock::now();
         float delta =
             std::chrono::duration<float>(now - last_frame_time_).count();
@@ -43,7 +45,21 @@ void Application::run() {
 
         script_engine_->update(delta);
 
+        const CameraState &camera_state = renderer_.getCamera();
+
         UmeFrameContext context{};
+
+        context.frame_index = frame_index_,
+        context.camera_position[0] = camera_state.position.x;
+        context.camera_position[1] = camera_state.position.y;
+        context.camera_position[2] = camera_state.position.z;
+        std::memcpy(context.camera_orientation,
+                    glm::value_ptr(camera_state.orientation),
+                    sizeof(context.camera_orientation));
+        context.fov_y = camera_state.fov_y;
+        context.z_near = camera_state.z_near;
+        context.aspect = renderer_.getAspect();
+        context.delta_time = delta;
 
         plugin_host_.updateObjects(context);
 

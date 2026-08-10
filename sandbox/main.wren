@@ -75,35 +75,18 @@ class Vector3 {
 class Sandbox {
     static init() {
         __planet_radius = 7000000
-        __camera_distance = __planet_radius + 200
+        // __camera_distance = __planet_radius + 200
+        __camera_distance = 4
         __camera_height = 0
         __fov_y = 30
 
-        __t = 0.7853981633974483
-        __rotation_speed = 0.2
+        __t = 0
+        __rotation_speed = 1.0
 
 
         var resolution = 8
 
-        __meshes = [
-            quad(Vector3.new(0, 0, 1), resolution, __planet_radius),
-            quad(Vector3.new(0, 0, -1), resolution, __planet_radius),
-            quad(Vector3.new(1, 0, 0), resolution, __planet_radius),
-            quad(Vector3.new(-1, 0, 0), resolution, __planet_radius),
-            quad(Vector3.new(0, 1, 0), resolution, __planet_radius),
-            quad(Vector3.new(0, -1, 0), resolution, __planet_radius)
-        ]
-
-        __marker = [
-            quad(Vector3.new(0, 0, 1), 8, 20),
-            quad(Vector3.new(0, 0, -1), 8, 20),
-            quad(Vector3.new(1, 0, 0), 8, 20),
-            quad(Vector3.new(-1, 0, 0), 8, 20),
-            quad(Vector3.new(0, 1, 0), 8, 20),
-            quad(Vector3.new(0, -1, 0), 8, 20)
-        ]
-
-        Renderer.setCamera(__camera_distance, 0, 0, 0, 0, 0, __fov_y)
+        Renderer.setCamera(0, 0, __camera_distance, 0, 0, 0, __fov_y)
     }
 
     static update(delta) {
@@ -113,74 +96,6 @@ class Sandbox {
         var cam_x = __camera_distance * __t.cos
         var cam_z = __camera_distance * __t.sin
 
-        var marker_r = __camera_distance - 100
-        var marker_x = marker_r * __t.cos
-        var marker_z = marker_r * __t.sin
-
         Renderer.setCamera(cam_x, 0, cam_z, 0, 0, 0, __fov_y)
-
-        for (mesh in __meshes) { Renderer.submit(mesh, 0, 0, 0) }
-        for (mesh in __marker) { Renderer.submit(mesh, marker_x, 0, marker_z) }
-    }
-
-    static addVertex(positions, normals, p) {
-        var n = Vector3.norm(p)
-
-        positions.add(p.x)
-        positions.add(p.y)
-        positions.add(p.z)
-
-        normals.add(n.x)
-        normals.add(n.y)
-        normals.add(n.z)
-    }
-
-    static quad(normal, resolution, scale) {
-        var positions = []
-        var normals = []
-        var indices = []
-
-        var n = normal
-        var a = Vector3.new(n.y, n.z, n.x)
-        var b = Vector3.cross(n, a)
-
-        a = a * 2
-        b = b * 2
-
-        var step = 1 / resolution
-
-        for (i in 0..(resolution - 1)) {
-            for (j in 0..(resolution - 1)) {
-                var t = i * step - 0.5
-                var u = j * step - 0.5
-
-                var p00 = Vector3.cubeToSphere(n + a * t + b * u)
-                var p10 = Vector3.cubeToSphere(n + a * (t + step) + b * u)
-                var p11 = Vector3.cubeToSphere(n + a * (t + step) + b * (u + step))
-                var p01 = Vector3.cubeToSphere(n + a * t + b * (u + step))
-
-                p00 = p00 * scale
-                p10 = p10 * scale
-                p11 = p11 * scale
-                p01 = p01 * scale
-
-                var s = positions.count / 3
-
-                addVertex(positions, normals, p00)
-                addVertex(positions, normals, p10)
-                addVertex(positions, normals, p11)
-                addVertex(positions, normals, p01)
-
-                indices.add(s)
-                indices.add(s + 1)
-                indices.add(s + 2)
-
-                indices.add(s + 2)
-                indices.add(s + 3)
-                indices.add(s)
-            }
-        }
-
-        return Renderer.createMesh(positions, normals, indices)
     }
 }

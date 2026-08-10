@@ -46,6 +46,7 @@ private:
     std::unique_ptr<ScriptEngine> script_engine_ = nullptr;
     WrenVM *vm_ = nullptr;
 
+    uint64_t frame_index_ = 0;
     std::chrono::steady_clock::time_point last_frame_time_;
 
     static ProjectDescription loadProject(const std::string &working_dir);

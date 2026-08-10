@@ -32,9 +32,9 @@ typedef uint32_t UmeMeshHandle;
 #define UME_MESH_HANDLE_INVALID ((UmeMeshHandle)0)
 
 typedef enum UmeLogLevel {
-    UME_LOG_INFO = 0,
-    UME_LOG_WARN = 1,
-    UME_LOG_ERROR = 2,
+    UME_LOG_LEVEL_INFO = 0,
+    UME_LOG_LEVEL_WARN = 1,
+    UME_LOG_LEVEL_ERROR = 2,
     UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff
 } UmeLogLevel;
 
