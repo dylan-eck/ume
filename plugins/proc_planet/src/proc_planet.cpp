@@ -27,7 +27,7 @@ glm::dvec3 cubeToSphere(glm::dvec3 p) {
                                       (p.y * p.y * p.z * p.z / 3)),
                       p.y * std::sqrt(1 - (p.z * p.z / 2) - (p.x * p.x / 2) +
                                       (p.z * p.z * p.x * p.x / 3)),
-                      p.z * std::sqrt(1 - (p.x * p.x / 2 - p.y * p.y / 2) +
+                      p.z * std::sqrt(1 - (p.x * p.x / 2) - (p.y * p.y / 2) +
                                       (p.x * p.x * p.y * p.y / 3))};
 }
 } // namespace
