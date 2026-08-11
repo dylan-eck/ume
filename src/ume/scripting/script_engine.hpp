@@ -25,6 +25,7 @@ public:
 private:
     WrenVM *wren_vm_;
     WrenHandle *main_class_;
+    WrenHandle *main_init_;
     WrenHandle *main_update_;
 };
 } // namespace ume

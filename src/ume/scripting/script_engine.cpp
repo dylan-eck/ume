@@ -263,6 +263,7 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
         break;
     }
 
+    main_init_ = wrenMakeCallHandle(wren_vm_, "init()");
     main_update_ = wrenMakeCallHandle(wren_vm_, "update(_)");
     wrenEnsureSlots(wren_vm_, 1);
     wrenGetVariable(wren_vm_, "main", "Sandbox", 0);
@@ -272,15 +273,9 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
 ScriptEngine::~ScriptEngine() { wrenFreeVM(wren_vm_); }
 
 void ScriptEngine::init() {
-    WrenHandle *main_init = wrenMakeCallHandle(wren_vm_, "init()");
     wrenEnsureSlots(wren_vm_, 1);
-    wrenGetVariable(wren_vm_, "main", "Sandbox", 0);
-
-    // these lines are not necessary for a function that is called only once
-    WrenHandle *sandbox_class = wrenGetSlotHandle(wren_vm_, 0);
-    wrenSetSlotHandle(wren_vm_, 0, sandbox_class);
-
-    WrenInterpretResult result = wrenCall(wren_vm_, main_init);
+    wrenSetSlotHandle(wren_vm_, 0, main_class_);
+    WrenInterpretResult result = wrenCall(wren_vm_, main_init_);
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
