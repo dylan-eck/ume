@@ -74,24 +74,24 @@ void Renderer::submit(MeshHandle handle, const glm::dvec3 &world_position,
 }
 
 void Renderer::render() {
-    const glm::mat4 kProjection =
+    const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 
-    const auto kViewRotation =
+    const auto viewRotation =
         glm::mat4(glm::transpose(camera_state_.orientation));
 
     backend_->beginFrame();
 
     for (const auto &next : submissions_) {
-        const auto kRelative =
+        const auto relative =
             glm::vec3(next.world_position - camera_state_.position);
 
-        const glm::mat4 kModel =
-            glm::translate(glm::mat4(1.0f), kRelative) * next.local_transform;
+        const glm::mat4 model =
+            glm::translate(glm::mat4(1.0f), relative) * next.local_transform;
 
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
-                                  kProjection * kViewRotation * kModel};
+                                  projection * viewRotation * model};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,

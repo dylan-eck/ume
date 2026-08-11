@@ -29,15 +29,15 @@ public:
     }
 
     T *get(HandleT handle) {
-        const uint32_t kIndex = handle.id & kHandleIndexMask;
-        const uint32_t kGeneration = handle.id >> kHandleIndexBits;
+        const uint32_t index = handle.id & kHandleIndexMask;
+        const uint32_t generation = handle.id >> kHandleIndexBits;
 
-        if (kIndex >= slots_.size()) {
+        if (index >= slots_.size()) {
             return nullptr;
         }
 
-        Slot &slot = slots_[kIndex];
-        if (!slot.alive || slot.generation != kGeneration) {
+        Slot &slot = slots_[index];
+        if (!slot.alive || slot.generation != generation) {
             return nullptr;
         }
 

@@ -86,13 +86,13 @@ PluginHost::Object *PluginHost::createObject(const char *type_name,
         return nullptr;
     }
 
-    const auto kItr = types_.find(type_name);
-    if (kItr == types_.end()) {
+    const auto it = types_.find(type_name);
+    if (it == types_.end()) {
         UME_LOG_ERROR(Plugin, "no registered type with name '{}'", type_name);
         return nullptr;
     }
 
-    const UmeObjectType &type = kItr->second;
+    const UmeObjectType &type = it->second;
     if (type.create == nullptr) {
         UME_LOG_ERROR(Plugin, "object type '{}' has no create function",
                       type_name);
@@ -117,12 +117,12 @@ void PluginHost::destroyObject(Object *object) {
         return;
     }
 
-    const auto kItr =
+    const auto it =
         std::ranges::find_if(live_, [object](const std::unique_ptr<Object> &o) {
             return o.get() == object;
         });
 
-    if (kItr == live_.end()) {
+    if (it == live_.end()) {
         UME_LOG_WARN(Plugin, "attempted to destroy unknown object");
         return;
     }
@@ -130,7 +130,7 @@ void PluginHost::destroyObject(Object *object) {
     if (object->type->destroy != nullptr) {
         object->type->destroy(object->type->user_data, object->instance);
     }
-    live_.erase(kItr);
+    live_.erase(it);
 }
 
 void PluginHost::updateObjects(const UmeFrameContext &frame_context) {

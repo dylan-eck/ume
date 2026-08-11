@@ -29,11 +29,23 @@ CheckOptions:
   - key: readability-identifier-naming.MethodCase
     value: camelBack
 
+  - key: readability-identifier-naming.ConstantCase
+    value: CamelCase
+
   - key: readability-identifier-naming.ConstantPrefix
     value: "k"
 
-  - key: readability-identifier-naming.ConstantCase
-    value: CamelCase
+  - key: readability-identifier-naming.ConstantPrefix.LocalConstantCase
+    value: lower_case
+
+  - key: readability-identifier-naming.LocalConstantPrefix
+    value: ""
+
+  - key: readability-identifier-naming.ConstantParameterCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ConstantParameterPrefix
+    value: ""
 
   - key: readability-identifier-naming.VariableCase
     value: lower_case

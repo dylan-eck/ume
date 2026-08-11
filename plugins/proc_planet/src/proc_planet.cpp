@@ -35,7 +35,7 @@ glm::dvec3 cubeToSphere(glm::dvec3 p) {
 void Planet::generate() {
     uint32_t resolution = 8;
 
-    const std::array<glm::dvec3, 6> kFaceNormals{{
+    const std::array<glm::dvec3, 6> face_normals{{
         glm::dvec3(0.0f, 0.0f, 1.0f),
         glm::dvec3(0.0f, 0.0f, -1.0f),
         glm::dvec3(1.0f, 0.0f, 0.0f),
@@ -45,7 +45,7 @@ void Planet::generate() {
     }};
 
     double step = 1.0 / resolution;
-    for (const auto &normal : kFaceNormals) {
+    for (const auto &normal : face_normals) {
         std::vector<UmeVertex> vertices;
         std::vector<uint32_t> indices;
 
@@ -128,8 +128,8 @@ void Planet::update(const UmeFrameContext *frame_context) {
             continue;
         }
 
-        const std::array<double, 3> kWorldPosition = {0.0, 0.0, 0.0};
-        api_->submit(api_->context, mesh, kWorldPosition.data());
+        const std::array<double, 3> world_position = {0.0, 0.0, 0.0};
+        api_->submit(api_->context, mesh, world_position.data());
     }
 }
 } // namespace proc_planet

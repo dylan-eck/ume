@@ -13,21 +13,21 @@ struct CameraState {
 inline CameraState lookAtCamera(const glm::dvec3 &position,
                                 const glm::dvec3 &target, const glm::dvec3 &up,
                                 float fov_y, float z_near) {
-    const glm::dvec3 kForward = glm::normalize(target - position);
-    const glm::dvec3 kRight = glm::normalize(glm::cross(kForward, up));
-    const glm::dvec3 kUp = glm::cross(kRight, kForward);
+    const glm::dvec3 forward = glm::normalize(target - position);
+    const glm::dvec3 right = glm::normalize(glm::cross(forward, up));
+    const glm::dvec3 camera_up = glm::cross(right, forward);
 
-    return CameraState{
-        .position = position,
-        .orientation =
-            glm::mat3(glm::vec3(kRight), glm::vec3(kUp), glm::vec3(-kForward)),
-        .fov_y = fov_y,
-        .z_near = z_near};
+    return CameraState{.position = position,
+                       .orientation =
+                           glm::mat3(glm::vec3(right), glm::vec3(camera_up),
+                                     glm::vec3(-forward)),
+                       .fov_y = fov_y,
+                       .z_near = z_near};
 }
 
 inline glm::mat4 perspectiveReverseZ(float fov_y, float aspect, float z_near) {
-    const float kF = 1.0f / std::tan(fov_y * 0.5f);
-    auto mat = glm::mat4(kF / aspect, 0, 0, 0, 0, kF, 0, 0, 0, 0, 0, -1, 0, 0,
+    const float f = 1.0f / std::tan(fov_y * 0.5f);
+    auto mat = glm::mat4(f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, 0, -1, 0, 0,
                          z_near, 0);
     return mat;
 }

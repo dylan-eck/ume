@@ -24,15 +24,15 @@ void writeFn(WrenVM *vm, const char *text) {
 }
 
 void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
-             const int kLine, const char *msg) {
+             const int line, const char *msg) {
     switch (error_type) {
     case WREN_ERROR_COMPILE:
         UME_LOG_ERROR(Core, "wren compile error [{} line {}] [error] {}",
-                      module, kLine, msg);
+                      module, line, msg);
         break;
     case WREN_ERROR_STACK_TRACE:
         UME_LOG_ERROR(Core, "ren stack trace error [{} line {}] in {}", module,
-                      kLine, msg);
+                      line, msg);
         break;
     case WREN_ERROR_RUNTIME:
         UME_LOG_ERROR(Core, "wren runtime error [runtime error] {}", msg);
@@ -51,10 +51,10 @@ Renderer &rendererFromVM(WrenVM *vm) {
 
 bool readNumberList(WrenVM *vm, int list_slot, int scratch_slot,
                     std::vector<float> &out) {
-    const int kCount = wrenGetListCount(vm, list_slot);
-    out.resize(static_cast<size_t>(kCount));
+    const int count = wrenGetListCount(vm, list_slot);
+    out.resize(static_cast<size_t>(count));
 
-    for (int i = 0; i < kCount; i++) {
+    for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
         if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
             return false;
@@ -69,10 +69,10 @@ bool readNumberList(WrenVM *vm, int list_slot, int scratch_slot,
 
 bool readIndexList(WrenVM *vm, int list_slot, int scratch_slot,
                    std::vector<uint32_t> &out) {
-    const int kCount = wrenGetListCount(vm, list_slot);
-    out.resize(static_cast<size_t>(kCount));
+    const int count = wrenGetListCount(vm, list_slot);
+    out.resize(static_cast<size_t>(count));
 
-    for (int i = 0; i < kCount; i++) {
+    for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
         if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
             return false;
@@ -94,51 +94,51 @@ void scriptCreateMesh(WrenVM *vm) {
         return;
     }
 
-    const int kPositionCount = wrenGetListCount(vm, 1);
-    const int kNormalCount = wrenGetListCount(vm, 2);
-    const int kIndexCount = wrenGetListCount(vm, 3);
+    const int position_count = wrenGetListCount(vm, 1);
+    const int normal_count = wrenGetListCount(vm, 2);
+    const int index_count = wrenGetListCount(vm, 3);
 
-    if (kPositionCount % 3 != 0) {
+    if (position_count % 3 != 0) {
         abortWithError(vm, "createMesh: positions length must be a multiple "
                            "of 3");
         return;
     }
 
-    if (kNormalCount != kPositionCount) {
+    if (normal_count != position_count) {
         abortWithError(vm, "createMesh: normals and positions must have the "
                            "same length");
         return;
     }
 
-    if (kIndexCount % 3 != 0) {
+    if (index_count % 3 != 0) {
         abortWithError(vm, "createMesh: indices length must be a multiple "
                            "of 3");
         return;
     }
 
     wrenEnsureSlots(vm, 5);
-    constexpr int kScratchSlot = 4;
+    constexpr int scratch_slot = 4;
 
     std::vector<float> positions;
     std::vector<float> normals;
     std::vector<uint32_t> indices;
 
-    if (!readNumberList(vm, 1, kScratchSlot, positions) ||
-        !readNumberList(vm, 2, kScratchSlot, normals)) {
+    if (!readNumberList(vm, 1, scratch_slot, positions) ||
+        !readNumberList(vm, 2, scratch_slot, normals)) {
         abortWithError(vm, "createMesh: positions and normals must contain "
                            "only numbers");
         return;
     }
 
-    if (!readIndexList(vm, 3, kScratchSlot, indices)) {
+    if (!readIndexList(vm, 3, scratch_slot, indices)) {
         abortWithError(vm, "createMesh: indices must contain only numbers");
         return;
     }
 
-    const size_t kVertexCount = positions.size() / 3;
+    const size_t vertex_count = positions.size() / 3;
 
-    std::vector<Vertex> vertices(kVertexCount);
-    for (size_t i = 0; i < kVertexCount; ++i) {
+    std::vector<Vertex> vertices(vertex_count);
+    for (size_t i = 0; i < vertex_count; ++i) {
         vertices[i].position = {positions[i * 3], positions[(i * 3) + 1],
                                 positions[(i * 3) + 2], 1.0f};
         vertices[i].normal = {normals[i * 3], normals[(i * 3) + 1],
@@ -146,7 +146,7 @@ void scriptCreateMesh(WrenVM *vm) {
     }
 
     for (uint32_t index : indices) {
-        if (index >= kVertexCount) {
+        if (index >= vertex_count) {
             abortWithError(vm, "createMesh: index out of range");
             return;
         }
@@ -160,10 +160,6 @@ void scriptCreateMesh(WrenVM *vm) {
         return;
     }
 
-    // UME_LOG_INFO(Core, "created mesh {} ({} vertices, {} indices)",
-    // handle.id,
-    //              kVertexCount, indices.size());
-
     wrenSetSlotDouble(vm, 0, static_cast<double>(handle.id));
 }
 
@@ -173,14 +169,14 @@ void scriptSubmit(WrenVM *vm) {
         return;
     }
 
-    const glm::dvec3 kWorldPosition{
+    const glm::dvec3 world_position{
         wrenGetSlotDouble(vm, 2),
         wrenGetSlotDouble(vm, 3),
         wrenGetSlotDouble(vm, 4),
     };
 
     MeshHandle handle{static_cast<uint32_t>(wrenGetSlotDouble(vm, 1))};
-    rendererFromVM(vm).submit(handle, kWorldPosition, glm::mat4(1.0f));
+    rendererFromVM(vm).submit(handle, world_position, glm::mat4(1.0f));
 }
 
 void scriptSetCamera(WrenVM *vm) {
@@ -191,22 +187,22 @@ void scriptSetCamera(WrenVM *vm) {
         }
     }
 
-    const glm::dvec3 kCameraWorldPosition =
+    const glm::dvec3 camera_world_position =
         glm::dvec3(wrenGetSlotDouble(vm, 1), wrenGetSlotDouble(vm, 2),
                    wrenGetSlotDouble(vm, 3));
 
-    const glm::dvec3 kTargetWorldPosition =
+    const glm::dvec3 target_world_position =
         glm::dvec3(wrenGetSlotDouble(vm, 4), wrenGetSlotDouble(vm, 5),
                    wrenGetSlotDouble(vm, 6));
 
-    const auto kFovYDegrees =
+    const auto fov_y_degrees =
         glm::radians(static_cast<float>(wrenGetSlotDouble(vm, 7)));
 
-    const CameraState kCameraState =
-        lookAtCamera(kCameraWorldPosition, kTargetWorldPosition,
-                     glm::dvec3(0.0f, 1.0f, 0.0f), kFovYDegrees, 1.0f);
+    const CameraState camera_state =
+        lookAtCamera(camera_world_position, target_world_position,
+                     glm::dvec3(0.0f, 1.0f, 0.0f), fov_y_degrees, 1.0f);
 
-    rendererFromVM(vm).setCamera(kCameraState);
+    rendererFromVM(vm).setCamera(camera_state);
 }
 
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,

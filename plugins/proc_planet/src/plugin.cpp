@@ -9,7 +9,7 @@ struct ProcPlanetPlugin {
 
 void *createPlanet(void *user_data, const UmeParams *params) {
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
-    // const double kRadius = params->number(params->impl, "radius", 7000000.0);
+    // const double radius = params->number(params->impl, "radius", 7000000.0);
     return new proc_planet::Planet(&self->api);
 }
 
@@ -38,7 +38,7 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     description->state = self;
     description->shutdown = &shutDownProcPlanet;
 
-    const UmeObjectType kPlanetType{
+    const UmeObjectType planet_type{
         .name = "Planet",
         .user_data = self,
         .create = &createPlanet,
@@ -46,7 +46,7 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
         .update = &updatePlanet,
     };
 
-    api->registerObjectType(api->context, &kPlanetType);
+    api->registerObjectType(api->context, &planet_type);
 
     return UME_TRUE;
 }
