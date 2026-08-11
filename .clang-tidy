@@ -35,7 +35,7 @@ CheckOptions:
   - key: readability-identifier-naming.ConstantPrefix
     value: "k"
 
-  - key: readability-identifier-naming.ConstantPrefix.LocalConstantCase
+  - key: readability-identifier-naming.LocalConstantCase
     value: lower_case
 
   - key: readability-identifier-naming.LocalConstantPrefix
@@ -65,6 +65,5 @@ CheckOptions:
   # namespace
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
-
 
 

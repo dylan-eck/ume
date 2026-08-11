@@ -2,3 +2,7 @@ If:
   PathMatch: include/ume/plugin/.*\.h
 CompileFlags:
   Add: [-xc, -std=c11]
+
+Diagnostics:
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
