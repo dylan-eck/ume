@@ -13,8 +13,8 @@ namespace ume {
 Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)),
-      renderer_(window_.getNativeHandle(), project_.window_config.width,
-                project_.window_config.height),
+      renderer_(window_.getNativeHandle(), window_.getPixelWidth(),
+                window_.getPixelHeight()),
       plugin_host_(renderer_) {
 
     registerBuiltinPlugins(plugin_host_);

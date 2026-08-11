@@ -25,7 +25,14 @@ void SDLWindowDeleter::operator()(SDL_Window *window) const {
     SDL_DestroyWindow(window);
 }
 
-Window::Window(const WindowConfig &config) : window_(createSDLWindow(config)) {}
+Window::Window(const WindowConfig &config) : window_(createSDLWindow(config)) {
+    int w;
+    int h;
+
+    SDL_GetWindowSizeInPixels(window_.get(), &w, &h);
+    pixel_width_ = w;
+    pixel_height_ = h;
+}
 
 bool Window::pollEvents() {
     SDL_Event e;

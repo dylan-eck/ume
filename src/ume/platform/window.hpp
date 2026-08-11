@@ -29,7 +29,12 @@ public:
     bool pollEvents();
     [[nodiscard]] void *getNativeHandle() const;
 
+    [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; };
+    [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; };
+
 private:
     std::unique_ptr<SDL_Window, SDLWindowDeleter> window_;
+    uint32_t pixel_width_;
+    uint32_t pixel_height_;
 };
 } // namespace ume
