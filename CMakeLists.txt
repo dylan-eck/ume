@@ -46,7 +46,6 @@ target_link_libraries(ume_config INTERFACE glm::glm)
 add_library(ume_plugin_api INTERFACE)
 target_include_directories(ume_plugin_api INTERFACE include)
 
-# force plugin api header to be treated as c, not c++
 add_library(ume_plugin_api_c_check STATIC src/ume/plugin/plugin_api.c)
 target_link_libraries(ume_plugin_api_c_check PRIVATE ume_plugin_api)
 set_target_properties(

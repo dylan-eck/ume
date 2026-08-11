@@ -27,5 +27,7 @@ private:
     WrenHandle *main_class_;
     WrenHandle *main_init_;
     WrenHandle *main_update_;
+
+    bool main_script_failed_ = false;
 };
 } // namespace ume

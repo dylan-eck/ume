@@ -13,10 +13,12 @@ const char *categoryName(Category c) {
     switch (c) {
     case Category::Core:
         return "core";
-    case Category::Renderer:
-        return "renderer";
     case Category::Platform:
         return "platform";
+    case Category::Renderer:
+        return "renderer";
+    case Category::Script:
+        return "script";
     case Category::Plugin:
         return "plugin";
     default:

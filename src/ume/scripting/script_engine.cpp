@@ -18,7 +18,7 @@ void writeFn(WrenVM *vm, const char *text) {
 
     size_t pos;
     while ((pos = buffer.find('\n')) != std::string::npos) {
-        UME_LOG_INFO(Core, "{}", buffer.substr(0, pos));
+        UME_LOG_INFO(Script, "{}", buffer.substr(0, pos));
         buffer.erase(0, pos + 1);
     }
 }
@@ -27,15 +27,15 @@ void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
              const int line, const char *msg) {
     switch (error_type) {
     case WREN_ERROR_COMPILE:
-        UME_LOG_ERROR(Core, "wren compile error [{} line {}] [error] {}",
+        UME_LOG_ERROR(Script, "wren compile error [{} line {}] [error] {}",
                       module, line, msg);
         break;
     case WREN_ERROR_STACK_TRACE:
-        UME_LOG_ERROR(Core, "ren stack trace error [{} line {}] in {}", module,
-                      line, msg);
+        UME_LOG_ERROR(Script, "ren stack trace error [{} line {}] in {}",
+                      module, line, msg);
         break;
     case WREN_ERROR_RUNTIME:
-        UME_LOG_ERROR(Core, "wren runtime error [runtime error] {}", msg);
+        UME_LOG_ERROR(Script, "wren runtime error [runtime error] {}", msg);
         break;
     }
 }
@@ -279,15 +279,18 @@ void ScriptEngine::init() {
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
-        throw std::runtime_error("wren compile error");
     case WREN_RESULT_RUNTIME_ERROR:
-        throw std::runtime_error("wren runtime error");
+        main_script_failed_ = true;
     case WREN_RESULT_SUCCESS:
         break;
     }
 }
 
 void ScriptEngine::update(float delta) {
+    if (main_script_failed_) {
+        return;
+    }
+
     wrenEnsureSlots(wren_vm_, 2);
     wrenSetSlotHandle(wren_vm_, 0, main_class_);
     wrenSetSlotDouble(wren_vm_, 1, delta);
@@ -296,9 +299,8 @@ void ScriptEngine::update(float delta) {
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
-        throw std::runtime_error("wren compile error");
     case WREN_RESULT_RUNTIME_ERROR:
-        throw std::runtime_error("wren runtime error");
+        main_script_failed_ = true;
     case WREN_RESULT_SUCCESS:
         break;
     }
