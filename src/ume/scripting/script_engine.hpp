@@ -1,12 +1,19 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
 struct WrenVM;
 struct WrenHandle;
 namespace ume {
 
 class Renderer;
+
+struct WrenVMDeleter {
+    void operator()(WrenVM *vm) const;
+};
+
+using WrenVMPtr = std::unique_ptr<WrenVM, WrenVMDeleter>;
 
 class ScriptEngine {
 public:
@@ -23,7 +30,7 @@ public:
     void update(float delta);
 
 private:
-    WrenVM *wren_vm_;
+    WrenVMPtr wren_vm_;
     WrenHandle *main_class_;
     WrenHandle *main_init_;
     WrenHandle *main_update_;

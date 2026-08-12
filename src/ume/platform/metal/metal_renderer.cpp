@@ -1,5 +1,6 @@
 #include "ume/platform/metal/metal_renderer.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/error.hpp"
 
 #define NS_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
@@ -11,19 +12,37 @@
 
 namespace ume {
 
+namespace {
+const char *errorString(NS::Error *error) {
+    if (error == nullptr || error->localizedDescription() == nullptr) {
+        return "unknown error";
+    }
+    return error->localizedDescription()->utf8String();
+}
+} // namespace
+
 MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
                              uint32_t pixel_height)
     : surface_(std::move(surface)), layer_(surface_.getLayer()) {
 
-    device_ = MTL::CreateSystemDefaultDevice();
+    auto pool = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
-    layer_->setDevice(device_);
+    device_ = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
+    if (!device_) {
+        throw Error(logger::Category::Renderer,
+                    "no metal rendering device found");
+    }
+
+    layer_->setDevice(device_.get());
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
     layer_->setFramebufferOnly(true);
-
-    command_queue_ = device_->newCommandQueue();
-
     layer_->setDrawableSize(CGSizeMake(pixel_width, pixel_height));
+
+    command_queue_ = NS::TransferPtr(device_->newCommandQueue());
+    if (!command_queue_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create metal command queue");
+    }
 
     auto shader = b::embed<
         "generated/src/ume/renderer/shaders/triangle.slang.metallib">();
@@ -35,46 +54,42 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
         });
 
     NS::Error *error = nullptr;
-    MTL::Library *library = device_->newLibrary(data, &error);
+    auto library = NS::TransferPtr(device_->newLibrary(data, &error));
     dispatch_release(data);
 
-    if (library == nullptr) {
-        throw std::runtime_error(
-            std::string("failed to create metal library: ") +
-            error->localizedDescription()->utf8String());
+    if (!library) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create metal library: {}", errorString(error));
     }
 
-    MTL::Function *vertex_func = library->newFunction(
-        NS::String::string("vertMain", NS::UTF8StringEncoding));
+    auto vertex_func = NS::TransferPtr(library->newFunction(
+        NS::String::string("vertMain", NS::UTF8StringEncoding)));
 
-    MTL::Function *fragment_func = library->newFunction(
-        NS::String::string("fragMain", NS::UTF8StringEncoding));
+    auto fragment_func = NS::TransferPtr(library->newFunction(
+        NS::String::string("fragMain", NS::UTF8StringEncoding)));
 
-    if (vertex_func == nullptr || fragment_func == nullptr) {
-        library->release();
-        throw std::runtime_error(
+    if (!vertex_func || !fragment_func) {
+        throw Error(
+            logger::Category::Renderer,
             "vertMain/fragMain entrypoints not found in shader library");
     }
 
-    auto *descriptor = MTL::RenderPipelineDescriptor::alloc()->init();
-    descriptor->setVertexFunction(vertex_func);
-    descriptor->setFragmentFunction(fragment_func);
+    auto descriptor =
+        NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
+    descriptor->setVertexFunction(vertex_func.get());
+    descriptor->setFragmentFunction(fragment_func.get());
     descriptor->colorAttachments()->object(0)->setPixelFormat(
         MTL::PixelFormatBGRA8Unorm);
     descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
 
     error = nullptr;
-    pipeline_state_ = device_->newRenderPipelineState(descriptor, &error);
+    pipeline_state_ = NS::TransferPtr(
+        device_->newRenderPipelineState(descriptor.get(), &error));
 
-    vertex_func->release();
-    fragment_func->release();
-    descriptor->release();
-    library->release();
-
-    if (pipeline_state_ == nullptr) {
-        throw std::runtime_error(
-            std::string("failed to create render pipeline state: ") +
-            error->localizedDescription()->utf8String());
+    if (!pipeline_state_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create render pipeline state: {}",
+                    errorString(error));
     }
 
     MTL::TextureDescriptor *tex_desc =
@@ -84,36 +99,41 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     tex_desc->setStorageMode(MTL::StorageModePrivate);
     tex_desc->setUsage(MTL::TextureUsageRenderTarget);
 
-    depth_texture_ = device_->newTexture(tex_desc);
-    tex_desc->release();
+    depth_texture_ = NS::TransferPtr(device_->newTexture(tex_desc));
+    if (!depth_texture_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create depth texture");
+    }
 
-    MTL::DepthStencilDescriptor *depth_desc =
-        MTL::DepthStencilDescriptor::alloc()->init();
+    auto depth_desc =
+        NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
     depth_desc->setDepthCompareFunction(MTL::CompareFunctionGreater);
     depth_desc->setDepthWriteEnabled(true);
 
-    depth_state_ = device_->newDepthStencilState(depth_desc);
+    depth_state_ =
+        NS::TransferPtr(device_->newDepthStencilState(depth_desc.get()));
+    if (!depth_state_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create depth stencil state");
+    }
 
     UME_LOG_INFO(Renderer, "initialized metal renderer backend");
 }
 
-MetalRenderer::~MetalRenderer() {
-    pipeline_state_->release();
-    command_queue_->release();
-    device_->release();
-}
-
 void MetalRenderer::beginFrame() {
-    frame_pool_ = NS::AutoreleasePool::alloc()->init();
+    frame_pool_ = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
 
     drawable_ = layer_->nextDrawable();
     if (drawable_ == nullptr) {
+        encoder_ = nullptr;
+        command_buffer_ = nullptr;
         return;
     }
 
     command_buffer_ = command_queue_->commandBuffer();
 
-    auto *pass_descriptor = MTL::RenderPassDescriptor::alloc()->init();
+    auto pass_descriptor =
+        NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
     auto *color_attachment = pass_descriptor->colorAttachments()->object(0);
     color_attachment->setTexture(drawable_->texture());
     color_attachment->setLoadAction(MTL::LoadActionClear);
@@ -121,19 +141,18 @@ void MetalRenderer::beginFrame() {
     color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
 
     auto *depth_attachment = pass_descriptor->depthAttachment();
-    depth_attachment->setTexture(depth_texture_);
+    depth_attachment->setTexture(depth_texture_.get());
     depth_attachment->setLoadAction(MTL::LoadActionClear);
     depth_attachment->setStoreAction(MTL::StoreActionDontCare);
     depth_attachment->setClearDepth(0.0);
 
-    encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor);
-    pass_descriptor->release();
+    encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor.get());
 
-    encoder_->setRenderPipelineState(pipeline_state_);
+    encoder_->setRenderPipelineState(pipeline_state_.get());
     encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
     encoder_->setCullMode(MTL::CullModeBack);
     encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
-    encoder_->setDepthStencilState(depth_state_);
+    encoder_->setDepthStencilState(depth_state_.get());
 }
 
 void MetalRenderer::draw(const DrawCommand &cmd) {
@@ -166,10 +185,10 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
                                     ? MTL::IndexTypeUInt16
                                     : MTL::IndexTypeUInt32;
 
-    encoder_->setVertexBuffer(vertex_buffer->buffer, 0, 1);
-    encoder_->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle,
-                                    NS::UInteger(cmd.index_count), index_type,
-                                    index_buffer->buffer, NS::UInteger(0));
+    encoder_->setVertexBuffer(vertex_buffer->buffer.get(), 0, 1);
+    encoder_->drawIndexedPrimitives(
+        MTL::PrimitiveTypeTriangle, NS::UInteger(cmd.index_count), index_type,
+        index_buffer->buffer.get(), NS::UInteger(0));
 }
 
 void MetalRenderer::endFrame() {
@@ -187,25 +206,28 @@ void MetalRenderer::endFrame() {
     command_buffer_ = nullptr;
     drawable_ = nullptr;
 
-    frame_pool_->release();
-    frame_pool_ = nullptr;
+    frame_pool_.reset();
 }
 
-BufferHandle
-MetalRenderer::createBuffer(const BufferDescription &buffer_description) {
-    auto desc = buffer_description;
-
-    MTL::Buffer *buffer =
-        desc.initial_data != nullptr
-            ? device_->newBuffer(desc.initial_data, desc.size,
-                                 MTL::ResourceStorageModeShared)
-            : device_->newBuffer(desc.size, MTL::ResourceStorageModeShared);
-
-    if (buffer == nullptr) {
+BufferHandle MetalRenderer::createBuffer(const BufferDescription &desc) {
+    if (desc.size == 0) {
+        UME_LOG_WARN(Renderer, "attempted to create buffer with size zero");
         return {};
     }
 
-    return buffers_.insert(MetalBuffer{.buffer = buffer, .size = desc.size});
+    auto buffer = NS::TransferPtr(
+        desc.initial_data != nullptr
+            ? device_->newBuffer(desc.initial_data, desc.size,
+                                 MTL::ResourceStorageModeShared)
+            : device_->newBuffer(desc.size, MTL::ResourceStorageModeShared));
+
+    if (!buffer) {
+        UME_LOG_WARN(Renderer, "failed to allocate {} byte buffer", desc.size);
+        return {};
+    }
+
+    return buffers_.insert(
+        MetalBuffer{.buffer = std::move(buffer), .size = desc.size});
 }
 
 void MetalRenderer::destroyBuffer(BufferHandle handle) {
@@ -217,7 +239,7 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
         return;
     }
 
-    entry->buffer->release();
+    entry->buffer.reset();
     buffers_.reclaim(handle);
 }
 

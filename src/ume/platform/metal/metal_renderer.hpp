@@ -4,6 +4,8 @@
 #include "ume/renderer/resource_pool.hpp"
 #include "ume/platform/window.hpp"
 
+#include <Foundation/NSSharedPtr.hpp>
+
 // NOLINTBEGIN(readability-identifier-naming)
 // forward declared metal types
 namespace NS {
@@ -31,7 +33,7 @@ class DepthStencilState;
 namespace ume {
 
 struct MetalBuffer {
-    MTL::Buffer *buffer;
+    NS::SharedPtr<MTL::Buffer> buffer;
     size_t size = 0;
 };
 
@@ -40,7 +42,7 @@ public:
     explicit MetalRenderer(MetalSurface surface, uint32_t pixel_width,
                            uint32_t pixel_height);
 
-    ~MetalRenderer();
+    ~MetalRenderer() override = default;
 
     MetalRenderer(const MetalRenderer &) = delete;
     MetalRenderer &operator=(const MetalRenderer &) = delete;
@@ -52,24 +54,23 @@ public:
     void draw(const DrawCommand &cmd) override;
     void endFrame() override;
 
-    BufferHandle
-    createBuffer(const BufferDescription &buffer_description) override;
+    BufferHandle createBuffer(const BufferDescription &desc) override;
     void destroyBuffer(BufferHandle handle) override;
 
 private:
     MetalSurface surface_;
     CA::MetalLayer *layer_ = nullptr;
-    MTL::Device *device_ = nullptr;
-    MTL::CommandQueue *command_queue_ = nullptr;
-    MTL::RenderPipelineState *pipeline_state_ = nullptr;
 
-    NS::AutoreleasePool *frame_pool_ = nullptr;
+    NS::SharedPtr<MTL::Device> device_ = nullptr;
+    NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
+    NS::SharedPtr<MTL::RenderPipelineState> pipeline_state_ = nullptr;
+    NS::SharedPtr<MTL::Texture> depth_texture_;
+    NS::SharedPtr<MTL::DepthStencilState> depth_state_;
+
+    NS::SharedPtr<NS::AutoreleasePool> frame_pool_ = nullptr;
     CA::MetalDrawable *drawable_ = nullptr;
     MTL::CommandBuffer *command_buffer_ = nullptr;
     MTL::RenderCommandEncoder *encoder_ = nullptr;
-
-    MTL::Texture *depth_texture_;
-    MTL::DepthStencilState *depth_state_;
 
     ResourcePool<MetalBuffer, BufferHandle> buffers_;
 };

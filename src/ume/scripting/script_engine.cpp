@@ -12,6 +12,8 @@
 
 namespace ume {
 
+void WrenVMDeleter::operator()(WrenVM *vm) const { wrenFreeVM(vm); }
+
 namespace {
 void writeFn(WrenVM *vm, const char *text) {
     static std::string buffer;
@@ -228,10 +230,28 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
 
     return nullptr;
 }
+
+WrenVMPtr createWrenVM(Renderer &renderer) {
+    WrenConfiguration config;
+    wrenInitConfiguration(&config);
+    config.writeFn = &writeFn;
+    config.errorFn = &errorFn;
+    config.bindForeignMethodFn = &bindForeignMethodFn;
+    config.userData = &renderer;
+
+    WrenVMPtr vm(wrenNewVM(&config));
+
+    if (!vm) {
+        throw Error(logger::Category::Script, "failed to create wren vm");
+    }
+
+    return vm;
+}
 } // namespace
 
 ScriptEngine::ScriptEngine(Renderer &renderer,
-                           const std::string &main_script_path) {
+                           const std::string &main_script_path)
+    : wren_vm_(createWrenVM(renderer)) {
     std::ifstream main_script(main_script_path);
 
     if (!main_script.is_open()) {
@@ -244,17 +264,8 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
     std::string main_script_src = buffer.str();
     main_script.close();
 
-    WrenConfiguration config;
-    wrenInitConfiguration(&config);
-    config.writeFn = &writeFn;
-    config.errorFn = &errorFn;
-    config.bindForeignMethodFn = &bindForeignMethodFn;
-    config.userData = &renderer;
-
-    wren_vm_ = wrenNewVM(&config);
-
     WrenInterpretResult result =
-        wrenInterpret(wren_vm_, "main", main_script_src.c_str());
+        wrenInterpret(wren_vm_.get(), "main", main_script_src.c_str());
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
@@ -269,19 +280,25 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
         break;
     }
 
-    main_init_ = wrenMakeCallHandle(wren_vm_, "init()");
-    main_update_ = wrenMakeCallHandle(wren_vm_, "update(_)");
-    wrenEnsureSlots(wren_vm_, 1);
-    wrenGetVariable(wren_vm_, "main", "Sandbox", 0);
-    main_class_ = wrenGetSlotHandle(wren_vm_, 0);
+    main_init_ = wrenMakeCallHandle(wren_vm_.get(), "init()");
+    main_update_ = wrenMakeCallHandle(wren_vm_.get(), "update(_)");
+    wrenEnsureSlots(wren_vm_.get(), 1);
+    wrenGetVariable(wren_vm_.get(), "main", "Sandbox", 0);
+    main_class_ = wrenGetSlotHandle(wren_vm_.get(), 0);
 }
 
-ScriptEngine::~ScriptEngine() { wrenFreeVM(wren_vm_); }
+ScriptEngine::~ScriptEngine() {
+    for (WrenHandle *handle : {main_class_, main_init_, main_update_}) {
+        if (handle != nullptr) {
+            wrenReleaseHandle(wren_vm_.get(), handle);
+        }
+    }
+}
 
 void ScriptEngine::init() {
-    wrenEnsureSlots(wren_vm_, 1);
-    wrenSetSlotHandle(wren_vm_, 0, main_class_);
-    WrenInterpretResult result = wrenCall(wren_vm_, main_init_);
+    wrenEnsureSlots(wren_vm_.get(), 1);
+    wrenSetSlotHandle(wren_vm_.get(), 0, main_class_);
+    WrenInterpretResult result = wrenCall(wren_vm_.get(), main_init_);
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
@@ -298,11 +315,11 @@ void ScriptEngine::update(float delta) {
         return;
     }
 
-    wrenEnsureSlots(wren_vm_, 2);
-    wrenSetSlotHandle(wren_vm_, 0, main_class_);
-    wrenSetSlotDouble(wren_vm_, 1, delta);
+    wrenEnsureSlots(wren_vm_.get(), 2);
+    wrenSetSlotHandle(wren_vm_.get(), 0, main_class_);
+    wrenSetSlotDouble(wren_vm_.get(), 1, delta);
 
-    WrenInterpretResult result = wrenCall(wren_vm_, main_update_);
+    WrenInterpretResult result = wrenCall(wren_vm_.get(), main_update_);
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
