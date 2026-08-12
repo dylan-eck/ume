@@ -1,6 +1,7 @@
 #include "script_engine.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/renderer/renderer.hpp"
+#include "ume/core/error.hpp"
 
 #include <wren.hpp>
 
@@ -234,7 +235,8 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
     std::ifstream main_script(main_script_path);
 
     if (!main_script.is_open()) {
-        throw std::runtime_error("failed to open main script");
+        throw Error(logger::Category::Script, "failed to open main script: {}",
+                    main_script_path);
     }
 
     std::stringstream buffer;
@@ -256,9 +258,13 @@ ScriptEngine::ScriptEngine(Renderer &renderer,
 
     switch (result) {
     case WREN_RESULT_COMPILE_ERROR:
-        throw std::runtime_error("wren compile error");
+        throw Error(logger::Category::Script,
+                    "wren compile error during loading of main script: {}",
+                    main_script_path);
     case WREN_RESULT_RUNTIME_ERROR:
-        throw std::runtime_error("wren runtime error");
+        throw Error(logger::Category::Script,
+                    "wren runtime error during loading of main script: {}",
+                    main_script_path);
     case WREN_RESULT_SUCCESS:
         break;
     }
@@ -281,6 +287,7 @@ void ScriptEngine::init() {
     case WREN_RESULT_COMPILE_ERROR:
     case WREN_RESULT_RUNTIME_ERROR:
         main_script_failed_ = true;
+        break;
     case WREN_RESULT_SUCCESS:
         break;
     }
@@ -301,6 +308,7 @@ void ScriptEngine::update(float delta) {
     case WREN_RESULT_COMPILE_ERROR:
     case WREN_RESULT_RUNTIME_ERROR:
         main_script_failed_ = true;
+        break;
     case WREN_RESULT_SUCCESS:
         break;
     }

@@ -1,5 +1,6 @@
 #include "application.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/error.hpp"
 
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
@@ -74,13 +75,11 @@ ProjectDescription Application::loadProject(const std::string &working_dir) {
         project, working_dir + "/project.toml", std::string{});
 
     if (err) {
-        std::string err_str =
-            "failed to parse toml: " + glz::format_error(err, "project.toml") +
-            '\n';
-        throw std::runtime_error(err_str);
+        throw Error(logger::Category::Core, "failed to parse project.toml: {}",
+                    glz::format_error(err, "project.toml"));
     }
 
-    UME_LOG_INFO(Core, "loaded project");
+    UME_LOG_INFO(Core, "loaded project.toml");
 
     return project;
 }

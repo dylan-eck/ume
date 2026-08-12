@@ -63,7 +63,7 @@ void logMessage(Category category, Level level,
             toSpdlogLevel(level),
             spdlog::string_view_t{message.data(), message.size()});
     } catch (...) {
-        fputs("exception thrown in logger", stderr);
+        fputs("exception thrown in logger\n", stderr);
     }
 }
 

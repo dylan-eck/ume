@@ -9,7 +9,8 @@
     X(Platform, "platform")                                                    \
     X(Renderer, "renderer")                                                    \
     X(Script, "script")                                                        \
-    X(Plugin, "plugin")
+    X(Plugin, "plugin")                                                        \
+    X(Unknown, "unknown")
 
 namespace ume::logger {
 
