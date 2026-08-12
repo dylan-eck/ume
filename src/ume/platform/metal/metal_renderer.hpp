@@ -2,10 +2,10 @@
 
 #include "ume/renderer/renderer_backend.hpp"
 #include "ume/renderer/resource_pool.hpp"
+#include "ume/platform/window.hpp"
 
-#include <SDL3/SDL.h>
-
-// NOLINTBEGIN (forward declaring metal types)
+// NOLINTBEGIN(readability-identifier-naming)
+// forward declared metal types
 namespace NS {
 class Error;
 class AutoreleasePool;
@@ -26,7 +26,7 @@ class Buffer;
 class Texture;
 class DepthStencilState;
 } // namespace MTL
-// NOLINTEND
+// NOLINTEND(readability-identifier-naming)
 
 namespace ume {
 
@@ -37,7 +37,7 @@ struct MetalBuffer {
 
 class MetalRenderer : public RendererBackend {
 public:
-    explicit MetalRenderer(void *native_window_handle, uint32_t pixel_width,
+    explicit MetalRenderer(MetalSurface surface, uint32_t pixel_width,
                            uint32_t pixel_height);
 
     ~MetalRenderer();
@@ -57,7 +57,7 @@ public:
     void destroyBuffer(BufferHandle handle) override;
 
 private:
-    SDL_MetalView metal_view_;
+    MetalSurface surface_;
     CA::MetalLayer *layer_ = nullptr;
     MTL::Device *device_ = nullptr;
     MTL::CommandQueue *command_queue_ = nullptr;

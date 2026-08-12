@@ -11,17 +11,9 @@
 
 namespace ume {
 
-MetalRenderer::MetalRenderer(void *native_window_handle, uint32_t pixel_width,
-                             uint32_t pixel_height) {
-    auto *sdl_window = static_cast<SDL_Window *>(native_window_handle);
-
-    metal_view_ = SDL_Metal_CreateView(sdl_window);
-
-    if (metal_view_ == nullptr) {
-        throw std::runtime_error("failed to create metal view");
-    }
-
-    layer_ = static_cast<CA::MetalLayer *>(SDL_Metal_GetLayer(metal_view_));
+MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
+                             uint32_t pixel_height)
+    : surface_(std::move(surface)), layer_(surface_.getLayer()) {
 
     device_ = MTL::CreateSystemDefaultDevice();
 
@@ -109,7 +101,6 @@ MetalRenderer::~MetalRenderer() {
     pipeline_state_->release();
     command_queue_->release();
     device_->release();
-    SDL_Metal_DestroyView(metal_view_);
 }
 
 void MetalRenderer::beginFrame() {
@@ -230,10 +221,9 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
     buffers_.reclaim(handle);
 }
 
-std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle, uint32_t pixel_width,
-                      uint32_t pixel_height) {
-    return std::make_unique<MetalRenderer>(native_window_handle, pixel_width,
-                                           pixel_height);
+std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {
+    return std::make_unique<MetalRenderer>(window.createMetalSurface(),
+                                           window.getPixelWidth(),
+                                           window.getPixelHeight());
 }
 } // namespace ume

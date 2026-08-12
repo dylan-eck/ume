@@ -1,8 +1,32 @@
 #include "window.hpp"
+#include "ume/core/logger.hpp"
+#include "ume/core/error.hpp"
 
 #include <SDL3/SDL.h>
 
 namespace ume {
+
+#ifdef UME_RENDER_BACKEND_METAL
+void MetalSurface::ViewDeleter::operator()(void *view) const {
+    SDL_Metal_DestroyView(static_cast<SDL_MetalView>(view));
+}
+
+CA::MetalLayer *MetalSurface::getLayer() const {
+    return static_cast<CA::MetalLayer *>(
+        SDL_Metal_GetLayer(static_cast<SDL_MetalView>(view_.get())));
+}
+
+MetalSurface Window::createMetalSurface() const {
+    SDL_MetalView view = SDL_Metal_CreateView(window_.get());
+
+    if (view == nullptr) {
+        throw Error(logger::Category::Platform,
+                    "failed to create metal view: {}", SDL_GetError());
+    }
+
+    return MetalSurface(view);
+}
+#endif
 
 namespace {
 SDL_Window *createSDLWindow(const WindowConfig &config) {
@@ -15,9 +39,9 @@ SDL_Window *createSDLWindow(const WindowConfig &config) {
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    return SDL_CreateWindow(config.title.c_str(),
-                            static_cast<int>(config.width),
-                            static_cast<int>(config.height), flags);
+    return SDL_CreateWindow(
+        config.title.c_str(), static_cast<int>(config.width),
+        static_cast<int>(config.height), flags | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 }
 } // namespace
 

@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/platform/window.hpp"
 
 namespace ume {
 
@@ -7,13 +8,10 @@ struct DrawUniforms {
     glm::mat4 model_view_projection;
 };
 
-Renderer::Renderer(void *native_window_handle, uint32_t pixel_width,
-                   uint32_t pixel_height)
-    : backend_(createRendererBackend(native_window_handle, pixel_width,
-                                     pixel_height)) {
-
-    aspect_ = (float)pixel_width / (float)pixel_height;
-}
+Renderer::Renderer(const Window &window)
+    : backend_(createRendererBackend(window)),
+      aspect_(static_cast<float>(window.getPixelWidth()) /
+              static_cast<float>(window.getPixelHeight())) {}
 
 Renderer::~Renderer() {}
 
@@ -77,7 +75,7 @@ void Renderer::render() {
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 
-    const auto viewRotation =
+    const auto view_rotation =
         glm::mat4(glm::transpose(camera_state_.orientation));
 
     backend_->beginFrame();
@@ -91,7 +89,7 @@ void Renderer::render() {
 
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
-                                  projection * viewRotation * model};
+                                  projection * view_rotation * model};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,

@@ -26,10 +26,12 @@ public:
     PluginHost(PluginHost &&) = delete;
     PluginHost &operator=(PluginHost &&) = delete;
 
-    bool registerStatic(const char *name,
-                        UmePluginRegisterFunction register_function);
+    [[nodiscard]] bool
+    registerStatic(const char *name,
+                   UmePluginRegisterFunction register_function);
 
-    Object *createObject(const char *type_name, const UmeParams *params);
+    [[nodiscard]] Object *createObject(const char *type_name,
+                                       const UmeParams *params);
     void destroyObject(Object *object);
     void updateObjects(const UmeFrameContext &frame_context);
 

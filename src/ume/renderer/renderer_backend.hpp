@@ -42,7 +42,6 @@ public:
     virtual void destroyBuffer(BufferHandle handle) = 0;
 };
 
-std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle, uint32_t pixel_width,
-                      uint32_t pixel_height);
+class Window;
+std::unique_ptr<RendererBackend> createRendererBackend(const Window &window);
 } // namespace ume

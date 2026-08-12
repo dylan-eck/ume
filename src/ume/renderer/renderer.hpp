@@ -22,8 +22,7 @@ struct MeshDescription {
 
 class Renderer {
 public:
-    explicit Renderer(void *native_window_handle, uint32_t pixel_width,
-                      uint32_t pixel_height);
+    explicit Renderer(const Window &window);
 
     ~Renderer();
 
@@ -33,7 +32,7 @@ public:
     Renderer(Renderer &&) = delete;
     Renderer &operator=(Renderer &&) = delete;
 
-    MeshHandle createMesh(const MeshDescription &desc);
+    [[nodiscard]] MeshHandle createMesh(const MeshDescription &desc);
     void destroyMesh(MeshHandle handle);
 
     void setCamera(const CameraState &camera_state);
