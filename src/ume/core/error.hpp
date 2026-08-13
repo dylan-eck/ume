@@ -8,8 +8,6 @@ namespace ume {
 // this error class is only to used for unrecoverable startup errors
 // these errors will be caught exclusively in main()
 
-// this class must be trivially copyable to ensure that no exceptions are thrown
-// during error propagation
 class Error final : public std::runtime_error {
 public:
     template <typename... Args>

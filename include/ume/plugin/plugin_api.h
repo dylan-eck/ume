@@ -44,6 +44,7 @@ typedef struct UmeVertex {
 } UmeVertex;
 
 typedef struct UmeMeshDescription {
+    uint32_t struct_size;
     const UmeVertex *vertices;
     uint32_t vertex_count;
     const uint32_t *indices;
@@ -51,6 +52,7 @@ typedef struct UmeMeshDescription {
 } UmeMeshDescription;
 
 typedef struct UmeFrameContext {
+    uint32_t struct_size;
     uint64_t frame_index;
     double camera_position[3];
     float camera_orientation[9];
@@ -58,11 +60,13 @@ typedef struct UmeFrameContext {
 } UmeFrameContext;
 
 typedef struct UmeParams {
+    uint32_t struct_size;
     void *impl;
     double (*number)(void *impl, const char *key, double fallback);
 } UmeParams;
 
 typedef struct UmeObjectType {
+    uint32_t struct_size;
     const char *name;
     void *user_data;
     void *(*create)(void *user_data, const UmeParams *params);
@@ -71,8 +75,8 @@ typedef struct UmeObjectType {
 } UmeObjectType;
 
 typedef struct UmePluginApi {
-    uint32_t abi_version;
     uint32_t struct_size;
+    uint32_t abi_version;
     void *context;
     void (*registerObjectType)(void *context, const UmeObjectType *type);
     UmeMeshHandle (*createMesh)(void *context,
@@ -84,6 +88,7 @@ typedef struct UmePluginApi {
 } UmePluginApi;
 
 typedef struct UmePluginDescription {
+    uint32_t struct_size;
     uint32_t abi_version;
     const char *name;
     void *state;

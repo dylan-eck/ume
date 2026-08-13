@@ -17,7 +17,11 @@ double alwaysFallback(void *impl, const char *key, double fallback) {
 }
 } // namespace
 
-const UmeParams PluginHost::kDefaultParams{nullptr, alwaysFallback};
+const UmeParams PluginHost::kDefaultParams{
+    .struct_size = sizeof(UmeParams),
+    .impl = nullptr,
+    .number = alwaysFallback,
+};
 
 PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
     api_.abi_version = UME_PLUGIN_ABI_VERSION;
@@ -57,6 +61,7 @@ bool PluginHost::registerStatic(const char *name,
     }
 
     UmePluginDescription description{};
+    description.struct_size = sizeof(UmePluginDescription);
 
     if (register_function(&api_, &description) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
@@ -144,6 +149,14 @@ void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
 
 void PluginHost::registerObjectTypeTrampoline(
     void *context, const UmeObjectType *type) noexcept {
+
+    if (type == nullptr || type->struct_size < sizeof(UmeObjectType)) {
+        UME_LOG_ERROR(Plugin,
+                      "object registration rejected, invalid structsize {} "
+                      "(expected >= {})",
+                      type ? type->struct_size : 0, sizeof(UmeObjectType));
+    }
+
     auto *self = static_cast<PluginHost *>(context);
     self->types_.insert_or_assign(type->name, *type);
 }

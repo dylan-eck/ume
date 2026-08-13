@@ -31,14 +31,20 @@ void shutDownProcPlanet(void *state) {
 
 extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     const UmePluginApi *api, UmePluginDescription *description) {
+
+    if (api->struct_size < sizeof(UmePluginApi)) {
+        return UME_FALSE;
+    }
+
     auto *self = new ProcPlanetPlugin{*api};
 
-    description->abi_version = 0;
+    description->abi_version = UME_PLUGIN_ABI_VERSION;
     description->name = "proc_planet";
     description->state = self;
     description->shutdown = &shutDownProcPlanet;
 
     const UmeObjectType planet_type{
+        .struct_size = sizeof(UmeObjectType),
         .name = "Planet",
         .user_data = self,
         .create = &createPlanet,
