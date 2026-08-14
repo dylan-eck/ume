@@ -1,5 +1,6 @@
 #include "vulkan_renderer.hpp"
-#include "../../core/logger.hpp"
+#include "ume/core/logger.hpp"
+#include "ume/platform/window.hpp"
 
 #include <VkBootstrap.h>
 #include "SDL3/SDL_vulkan.h"
@@ -7,11 +8,10 @@
 
 namespace ume {
 
-VulkanRenderer::VulkanRenderer(void *native_window_handle, uint32_t pixel_width,
-                               uint32_t pixel_height)
+VulkanRenderer::VulkanRenderer(const Window &window)
     : context_(reinterpret_cast<PFN_vkGetInstanceProcAddr>(
           SDL_Vulkan_GetVkGetInstanceProcAddr())) {
-    initVulkan(native_window_handle);
+    initVulkan(window);
 
     UME_LOG_INFO(Renderer, "initialized renderer");
 }
@@ -29,7 +29,7 @@ VulkanRenderer::createBuffer(const BufferDescription &buffer_description) {
 
 void VulkanRenderer::destroyBuffer(BufferHandle handle) {}
 
-void VulkanRenderer::initVulkan(void *native_window_handle) {
+void VulkanRenderer::initVulkan(const Window &window) {
     vkb::InstanceBuilder builder(reinterpret_cast<PFN_vkGetInstanceProcAddr>(
         SDL_Vulkan_GetVkGetInstanceProcAddr()));
 
@@ -52,16 +52,7 @@ void VulkanRenderer::initVulkan(void *native_window_handle) {
     debug_messenger_ =
         vk::raii::DebugUtilsMessengerEXT(instance_, vkb_inst.debug_messenger);
 
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    auto *sdl_window = (SDL_Window *)native_window_handle;
-    if (!SDL_Vulkan_CreateSurface(sdl_window, vkb_inst.instance, nullptr,
-                                  &surface)) {
-        const char *error = SDL_GetError();
-
-        throw std::runtime_error("failed to create surface: " +
-                                 std::string(error));
-    }
-
+    VkSurfaceKHR surface = window.createVulkanSurface(vkb_inst.instance);
     surface_ = vk::raii::SurfaceKHR(instance_, surface);
 
     vk::raii::PhysicalDevice physical_device =
@@ -142,10 +133,7 @@ VulkanRenderer::createShaderModule(std::vector<uint8_t> &shader_source) {
     return module;
 }
 
-std::unique_ptr<RendererBackend>
-createRendererBackend(void *native_window_handle, uint32_t pixel_width,
-                      uint32_t pixel_height) {
-    return std::make_unique<VulkanRenderer>(native_window_handle, pixel_width,
-                                            pixel_height);
+std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {
+    return std::make_unique<VulkanRenderer>(window);
 }
 } // namespace ume

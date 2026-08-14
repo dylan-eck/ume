@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../renderer/renderer_backend.hpp"
+#include "ume/renderer/renderer_backend.hpp"
 
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
@@ -9,8 +9,7 @@
 namespace ume {
 class VulkanRenderer : public RendererBackend {
 public:
-    explicit VulkanRenderer(void *native_window_handle, uint32_t pixel_width,
-                            uint32_t pixel_height);
+    explicit VulkanRenderer(const Window &window);
 
     VulkanRenderer(const VulkanRenderer &) = delete;
     VulkanRenderer &operator=(const VulkanRenderer &) = delete;
@@ -39,7 +38,7 @@ private:
     std::vector<vk::Image> swapchain_images_;
     std::vector<vk::raii::ImageView> swapchain_image_views_;
 
-    void initVulkan(void *native_window_handle);
+    void initVulkan(const Window &window);
 
     [[nodiscard]] vk::raii::ShaderModule
     createShaderModule(std::vector<uint8_t> &shader_source);

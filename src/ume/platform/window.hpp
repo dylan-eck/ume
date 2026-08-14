@@ -1,11 +1,15 @@
 #pragma once
 
+#if defined UME_RENDER_BACKEND_VULKAN
+#include <vulkan/vulkan_core.h>
+#endif
+
 #include <string>
 #include <memory>
 
 struct SDL_Window;
 
-#ifdef UME_RENDER_BACKEND_METAL
+#if defined UME_RENDER_BACKEND_METAL
 // NOLINTBEGIN(readability-identifier-naming)
 namespace CA {
 class MetalLayer;
@@ -57,8 +61,10 @@ public:
     bool pollEvents();
     [[nodiscard]] void *getNativeHandle() const;
 
-#ifdef UME_RENDER_BACKEND_METAL
+#if defined UME_RENDER_BACKEND_METAL
     [[nodiscard]] MetalSurface createMetalSurface() const;
+#elif defined UME_RENDER_BACKEND_VULKAN
+    [[nodiscard]] VkSurfaceKHR createVulkanSurface(VkInstance instance) const;
 #endif
 
     [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; };
