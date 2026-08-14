@@ -28,7 +28,7 @@ void Planet::generate() {
     meshes_.clear();
     meshes_.reserve(6);
 
-    uint32_t resolution = 8;
+    uint32_t resolution = 32;
 
     const std::array<glm::dvec3, 6> face_normals{{
         glm::dvec3(0.0f, 0.0f, 1.0f),
