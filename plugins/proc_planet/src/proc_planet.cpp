@@ -119,12 +119,14 @@ void Planet::generate() {
         std::vector<float> y_positions(vertices.size());
         std::vector<float> z_positions(vertices.size());
 
+        float freq = 180.0f;
+
         for (size_t i = 0; i < vertices.size(); i++) {
             UmeVertex &v = vertices[i];
 
-            x_positions[i] = v.position[0];
-            y_positions[i] = v.position[1];
-            z_positions[i] = v.position[2];
+            x_positions[i] = v.position[0] * freq;
+            y_positions[i] = v.position[1] * freq;
+            z_positions[i] = v.position[2] * freq;
         }
 
         std::vector<float> noise_values(vertices.size());
@@ -135,7 +137,7 @@ void Planet::generate() {
 
         for (size_t i = 0; i < vertices.size(); i++) {
             float n = noise_values[i];
-            float amp = 100.0f;
+            float amp = 0.05f;
             float height = amp * n;
 
             UmeVertex &v = vertices[i];
@@ -143,6 +145,12 @@ void Planet::generate() {
             vertices[i].position[0] += height * v.normal[0];
             vertices[i].position[1] += height * v.normal[1];
             vertices[i].position[2] += height * v.normal[2];
+
+            // this is a hacky way to get a different solid color for each face
+            // of the cube sphere
+            vertices[i].normal[0] = static_cast<float>(normal.x);
+            vertices[i].normal[1] = static_cast<float>(normal.y);
+            vertices[i].normal[2] = static_cast<float>(normal.z);
         }
 
         UmeMeshDescription desc{
