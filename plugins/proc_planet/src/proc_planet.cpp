@@ -1,9 +1,12 @@
 #include "proc_planet.hpp"
 
+#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
+#include <FastNoise/FastNoise.h>
 
-#include <array>
 #include <cmath>
+#include <array>
 
 namespace proc_planet {
 
@@ -105,6 +108,41 @@ void Planet::generate() {
                 indices.push_back(s + 3);
                 indices.push_back(s);
             }
+        }
+
+        auto simplex = FastNoise::New<FastNoise::Simplex>();
+        auto fractal = FastNoise::New<FastNoise::FractalFBm>();
+        fractal->SetSource(simplex);
+        fractal->SetOctaveCount(5);
+
+        std::vector<float> x_positions(vertices.size());
+        std::vector<float> y_positions(vertices.size());
+        std::vector<float> z_positions(vertices.size());
+
+        for (size_t i = 0; i < vertices.size(); i++) {
+            UmeVertex &v = vertices[i];
+
+            x_positions[i] = v.position[0];
+            y_positions[i] = v.position[1];
+            z_positions[i] = v.position[2];
+        }
+
+        std::vector<float> noise_values(vertices.size());
+        fractal->GenPositionArray3D(noise_values.data(),
+                                    static_cast<int>(vertices.size()),
+                                    x_positions.data(), y_positions.data(),
+                                    z_positions.data(), 0, 0, 0, 0);
+
+        for (size_t i = 0; i < vertices.size(); i++) {
+            float n = noise_values[i];
+            float amp = 100.0f;
+            float height = amp * n;
+
+            UmeVertex &v = vertices[i];
+
+            vertices[i].position[0] += height * v.normal[0];
+            vertices[i].position[1] += height * v.normal[1];
+            vertices[i].position[2] += height * v.normal[2];
         }
 
         UmeMeshDescription desc{
