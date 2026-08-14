@@ -27,7 +27,7 @@ const UmeParams PluginHost::kDefaultParams{
 PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
     api_.abi_version = UME_PLUGIN_ABI_VERSION;
     api_.struct_size = sizeof(UmePluginApi);
-    api_.context = this;
+    api_.context = nullptr;
     api_.registerObjectType = &registerObjectTypeTrampoline;
     api_.createMesh = &createMeshTrampoline;
     api_.destroyMesh = &destroyMeshTrampoline;
@@ -56,9 +56,23 @@ bool PluginHost::registerStatic(const char *name,
         return false;
     }
 
+    if (!finishRegistration(name, register_function)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool PluginHost::finishRegistration(
+    const char *name, UmePluginRegisterFunction register_function) {
+
     registering_id_ = next_plugin_id_++;
     registering_types_.clear();
     registration_failed_ = false;
+
+    Plugin plugin{.id = registering_id_};
+
+    plugins_.push_back(std::move(plugin));
 
     struct Scope {
         PluginHost *host;
@@ -71,13 +85,18 @@ bool PluginHost::registerStatic(const char *name,
     const auto rollback = [this] {
         for (const auto &type : registering_types_) {
             types_.erase(type);
+            plugins_.pop_back();
         }
     };
+
+    auto context = std::make_unique<PluginContext>(this, registering_id_);
+    UmePluginApi api = api_;
+    api.context = context.get();
 
     UmePluginDescription description{};
     description.struct_size = sizeof(UmePluginDescription);
 
-    if (register_function(&api_, &description) == UME_FALSE) {
+    if (register_function(&api, &description) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
         rollback();
         return false;
@@ -90,9 +109,9 @@ bool PluginHost::registerStatic(const char *name,
     }
 
     if (description.abi_version != UME_PLUGIN_ABI_VERSION) {
-        UME_LOG_ERROR(Plugin,
-                      "plugin '{}' reported abi version {} (expected {})", name,
-                      description.abi_version, UME_PLUGIN_ABI_VERSION);
+        UME_LOG_ERROR(
+            Plugin, "plugin '{}' reported abi version {} (expected {})",
+            description.name, description.abi_version, UME_PLUGIN_ABI_VERSION);
 
         if (description.shutdown != nullptr) {
             description.shutdown(description.state);
@@ -102,16 +121,38 @@ bool PluginHost::registerStatic(const char *name,
         return false;
     }
 
-    Plugin plugin{
-        .id = registering_id_,
-        .name = description.name,
-        .state = description.state,
-        .shutdown = description.shutdown,
-        .registered_types = std::move(registering_types_),
-    };
+    Plugin &p = plugins_[plugins_.size() - 1];
+    p.name = description.name;
+    p.state = description.state;
+    p.shutdown = description.shutdown;
+    p.context = std::move(context);
+    p.registered_types = std::move(registering_types_);
 
-    plugins_.push_back(std::move(plugin));
-    UME_LOG_INFO(Plugin, "registered plugin '{}'", name);
+    UME_LOG_INFO(Plugin, "registered plugin '{}'", description.name);
+    return true;
+}
+
+bool PluginHost::loadPlugin(const std::filesystem::path &path) {
+    void *library = openLibrary(path);
+    if (library == nullptr) {
+        UME_LOG_ERROR(Plugin, "failed to open plugin library: {}",
+                      path.string());
+        return false;
+    }
+
+    auto entry = reinterpret_cast<UmePluginRegisterFunction>(
+        findSymbol(library, "umePluginRegister"));
+    if (entry == nullptr) {
+        UME_LOG_ERROR(Plugin, "library '{}' has no umePluginRegister symbol",
+                      path.string());
+        return false;
+    }
+
+    if (!finishRegistration(path.c_str(), entry)) {
+        closeLibrary(library);
+        return false;
+    }
+
     return true;
 }
 
@@ -122,9 +163,7 @@ bool PluginHost::unloadPlugin(uint64_t id) {
         return false;
     }
 
-    const auto it = std::ranges::find_if(
-        plugins_, [id](const Plugin &plugin) { return plugin.id == id; });
-
+    const auto it = std::ranges::find(plugins_, id, &Plugin::id);
     if (it == plugins_.end()) {
         UME_LOG_WARN(Plugin, "attempted to unload unknown plugin (id {})", id);
         return false;
@@ -154,6 +193,15 @@ void PluginHost::unloadPluginAt(size_t index) {
     }
     to_delete.clear();
 
+    if (!plugin.meshes.empty()) {
+        UME_LOG_WARN(Plugin, "plugin '{}' leaked {} mesh(es); reclaiming",
+                     plugin.name, plugin.meshes.size());
+        for (const uint32_t id : plugin.meshes) {
+            renderer_.destroyMesh({.id = id});
+        }
+        plugin.meshes.clear();
+    }
+
     for (const auto &type_name : plugin.registered_types) {
         types_.erase(type_name);
     }
@@ -167,6 +215,11 @@ void PluginHost::unloadPluginAt(size_t index) {
     }
 
     plugins_.erase(plugins_.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+PluginHost::Plugin *PluginHost::findPlugin(uint64_t id) {
+    const auto it = std::ranges::find(plugins_, id, &Plugin::id);
+    return it != plugins_.end() ? std::to_address(it) : nullptr;
 }
 
 PluginHost::Object *PluginHost::createObject(const char *type_name,
@@ -255,7 +308,9 @@ PluginHost::registerObjectTypeTrampoline(void *context,
         return UME_FALSE;
     }
 
-    auto *self = static_cast<PluginHost *>(context);
+    auto *ctx = static_cast<PluginContext *>(context);
+    auto *self = ctx->host;
+
     if (self->registering_id_ == kInvalidPluginID) {
         UME_LOG_ERROR(Plugin, "attempted to register object type outside of "
                               "plugin registration flow");
@@ -286,7 +341,9 @@ PluginHost::registerObjectTypeTrampoline(void *context,
 
 UmeMeshHandle PluginHost::createMeshTrampoline(
     void *context, const UmeMeshDescription *description) noexcept {
-    auto *self = static_cast<PluginHost *>(context);
+
+    auto *ctx = static_cast<PluginContext *>(context);
+    auto *self = ctx->host;
 
     if (description == nullptr) {
         UME_LOG_ERROR(Plugin,
@@ -312,18 +369,38 @@ UmeMeshHandle PluginHost::createMeshTrampoline(
     MeshHandle handle =
         self->renderer_.createMesh({.vertices = vertices, .indices = indices});
 
+    if (handle.id != UME_MESH_HANDLE_INVALID) {
+        if (Plugin *plugin = self->findPlugin(ctx->plugin_id)) {
+            plugin->meshes.insert(handle.id);
+        }
+    }
+
     return UmeMeshHandle{handle.id};
 }
 
 void PluginHost::destroyMeshTrampoline(void *context,
                                        UmeMeshHandle handle) noexcept {
-    auto *self = static_cast<PluginHost *>(context);
+
+    auto *ctx = static_cast<PluginContext *>(context);
+    auto *self = ctx->host;
+
+    Plugin *plugin = self->findPlugin(ctx->plugin_id);
+    if (plugin == nullptr || plugin->meshes.erase(handle) == 0) {
+        UME_LOG_ERROR(Plugin,
+                      "plugin attempted to destroy mesh {} it does not own",
+                      handle);
+        return;
+    }
+
     self->renderer_.destroyMesh({.id = handle});
 }
 
 void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
                                   const double *world_position) noexcept {
-    auto *self = static_cast<PluginHost *>(context);
+
+    auto *ctx = static_cast<PluginContext *>(context);
+    auto *self = ctx->host;
+
     self->renderer_.submit(
         {.id = handle},
         glm::dvec3(world_position[0], world_position[1], world_position[2]),

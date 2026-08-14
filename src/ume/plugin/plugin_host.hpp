@@ -4,21 +4,31 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <memory>
+#include <filesystem>
 
 namespace ume {
 class Renderer;
 
 class PluginHost {
 public:
+    static constexpr uint64_t kInvalidPluginID = 0;
+    struct PluginContext {
+        PluginHost *host = nullptr;
+        uint64_t plugin_id = kInvalidPluginID;
+    };
+
     struct Plugin {
         uint64_t id;
         void *library = nullptr;
         std::string name;
         void *state = nullptr;
         void (*shutdown)(void *) = nullptr;
+        std::unique_ptr<PluginContext> context;
         std::vector<std::string> registered_types;
+        std::unordered_set<UmeMeshHandle> meshes;
     };
 
     struct ObjectType {
@@ -47,8 +57,12 @@ public:
     [[nodiscard]] bool
     registerStatic(const char *name,
                    UmePluginRegisterFunction register_function);
+    bool finishRegistration(const char *name,
+                            UmePluginRegisterFunction register_function);
 
+    bool loadPlugin(const std::filesystem::path &path);
     bool unloadPlugin(uint64_t id);
+    [[nodiscard]] Plugin *findPlugin(uint64_t id);
 
     [[nodiscard]] Object *createObject(const char *type_name,
                                        const UmeParams *params);
@@ -62,7 +76,6 @@ private:
     UmePluginApi api_{};
 
     std::vector<Plugin> plugins_;
-    static constexpr uint64_t kInvalidPluginID = 0;
     uint64_t next_plugin_id_ = 1;
     uint64_t registering_id_ = kInvalidPluginID;
     std::vector<std::string> registering_types_;

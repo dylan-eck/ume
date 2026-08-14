@@ -42,8 +42,21 @@
         "UME_RENDER_BACKEND": "vulkan"
       }
     },
+    {
+      "name": "plugin-dynamic",
+      "hidden": true,
+      "cacheVariables": { "UME_PLUGIN_LINK_TYPE": "MODULE" }
+    },
     { "name": "debug-metal", "inherits": ["debug-config", "metal-backend"] },
     { "name": "debug-vulkan", "inherits": ["debug-config", "vulkan-backend"] },
+    {
+      "name": "debug-metal-dynamic",
+      "inherits": ["debug-config", "metal-backend", "plugin-dynamic"]
+    },
+    {
+      "name": "debug-vulkan-dynamic",
+      "inherits": ["debug-config", "vulkan-backend", "plugin-dynamic"]
+    },
     {
       "name": "release-metal",
       "inherits": ["release-config", "metal-backend"]
@@ -61,6 +74,14 @@
     {
       "name": "debug-vulkan",
       "configurePreset": "debug-vulkan"
+    },
+    {
+      "name": "debug-metal-dynamic",
+      "configurePreset": "debug-metal-dynamic"
+    },
+    {
+      "name": "debug-vulkan-dynamic",
+      "configurePreset": "debug-vulkan-dynamic"
     },
     {
       "name": "release-metal",

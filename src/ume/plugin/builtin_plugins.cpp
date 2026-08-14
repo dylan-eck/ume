@@ -1,6 +1,8 @@
 #include "ume/plugin/plugin_host.hpp"
 #include "ume/core/logger.hpp"
 
+#include <filesystem>
+
 #ifdef UME_PLUGIN_STATIC
 extern "C" UME_PLUGIN_BOOL
     UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
@@ -14,7 +16,8 @@ void registerBuiltinPlugins(PluginHost &host) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'proc_planet'");
     }
 #else
-    (void)host;
+    const std::filesystem::path &path("plugins/proc_planet/proc_planet.so");
+    host.loadPlugin(path);
 #endif
 }
 } // namespace ume

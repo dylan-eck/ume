@@ -1,9 +1,9 @@
 #pragma once
 
+#include <filesystem>
+
 namespace ume {
-[[nodiscard]] void *openLibrary(const char *path) { return nullptr; }
-[[nodiscard]] void *findSymbol(void *library, const char *symbol) {
-    return nullptr;
-}
-void closeLibrary(void *library) {}
+[[nodiscard]] void *openLibrary(const std::filesystem::path &path);
+[[nodiscard]] void *findSymbol(void *library, const char *symbol);
+void closeLibrary(void *library);
 } // namespace ume

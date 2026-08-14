@@ -6,6 +6,7 @@
 # build dirs
 build/
 generated/
+sandbox/plugins/
 
 # cmake files
 compile_commands.json

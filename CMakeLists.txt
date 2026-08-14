@@ -61,13 +61,17 @@ target_compile_options(
 add_library(
   ume_engine STATIC
   src/ume/core/logger.cpp src/ume/core/application.cpp
-  src/ume/platform/window.cpp src/ume/renderer/renderer.cpp
-  src/ume/scripting/script_engine.cpp)
+  src/ume/core/dynamic_library.cpp src/ume/platform/window.cpp
+  src/ume/renderer/renderer.cpp src/ume/scripting/script_engine.cpp)
+target_compile_options(
+  ume_engine PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra
+                     -Wpedantic> $<$<CXX_COMPILER_ID:MSVC>:/W4>)
 target_include_directories(ume_engine PUBLIC src)
 target_link_libraries(
   ume_engine
   PUBLIC ume_config ume_plugin_api
-  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren)
+  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren
+          ${CMAKE_DL_LIBS})
 
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
@@ -139,13 +143,17 @@ set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 
 target_sources(ume_engine PRIVATE src/ume/plugin/plugin_host.cpp
                                   src/ume/plugin/builtin_plugins.cpp)
-if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
-  target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
-endif()
 
 add_subdirectory(plugins/proc_planet)
 
 add_executable(ume src/main.cpp)
+
+if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
+  target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
+else()
+  add_dependencies(ume proc_planet)
+endif()
+
 target_link_libraries(ume PRIVATE ume_engine)
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_link_libraries(ume PRIVATE proc_planet)

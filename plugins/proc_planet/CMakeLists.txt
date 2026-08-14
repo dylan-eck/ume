@@ -7,6 +7,12 @@ set_target_properties(
              VISIBILITY_INLINES_HIDDEN ON
              POSITION_INDEPENDENT_CODE ON)
 
+if(APPLE)
+  target_link_options(proc_planet PRIVATE -Wl,-undefined,error)
+elseif(NOT MSVC)
+  target_link_options(proc_planet PRIVATE -Wl,--no-undefined)
+endif()
+
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_compile_definitions(proc_planet PRIVATE UME_PLUGIN_STATIC)
 else()
