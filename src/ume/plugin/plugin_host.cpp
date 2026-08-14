@@ -1,6 +1,7 @@
 #include "plugin_host.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/dynamic_library.hpp"
 
 #include <algorithm>
 #include <ranges>
@@ -35,20 +36,15 @@ PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
 }
 
 PluginHost::~PluginHost() {
-    for (auto &object : live_ | std::views::reverse) {
-        if (object->type->destroy != nullptr) {
-            object->type->destroy(object->type->user_data, object->instance);
-        }
+    while (!plugins_.empty()) {
+        unloadPluginAt(plugins_.size() - 1);
     }
-    live_.clear();
-    types_.clear();
-
-    for (auto &plugin : plugins_ | std::views::reverse) {
-        if (plugin.shutdown != nullptr) {
-            plugin.shutdown(plugin.state);
-        }
+    if (!live_.empty() || !types_.empty()) {
+        UME_LOG_ERROR(Plugin,
+                      "{} orphaned object(s) and {} orphaned type(s) after all "
+                      "plugins unloaded",
+                      live_.size(), types_.size());
     }
-    plugins_.clear();
 };
 
 bool PluginHost::registerStatic(const char *name,
@@ -117,6 +113,60 @@ bool PluginHost::registerStatic(const char *name,
     plugins_.push_back(std::move(plugin));
     UME_LOG_INFO(Plugin, "registered plugin '{}'", name);
     return true;
+}
+
+bool PluginHost::unloadPlugin(uint64_t id) {
+    if (registering_id_ != kInvalidPluginID) {
+        UME_LOG_ERROR(Plugin,
+                      "cannot unload plugin while registration is in progress");
+        return false;
+    }
+
+    const auto it = std::ranges::find_if(
+        plugins_, [id](const Plugin &plugin) { return plugin.id == id; });
+
+    if (it == plugins_.end()) {
+        UME_LOG_WARN(Plugin, "attempted to unload unknown plugin (id {})", id);
+        return false;
+    }
+
+    unloadPluginAt(static_cast<size_t>(it - plugins_.begin()));
+    return true;
+}
+
+void PluginHost::unloadPluginAt(size_t index) {
+    Plugin &plugin = plugins_[index];
+    UME_LOG_INFO(Plugin, "unloading plugin at index {} (id {})", index,
+                 plugin.id);
+
+    std::vector<std::unique_ptr<Object>> to_delete;
+    for (auto &object : live_) {
+        if (object != nullptr && object->type->owner == plugin.id) {
+            to_delete.push_back(std::move(object));
+        }
+    }
+    std::erase(live_, nullptr);
+
+    for (auto &object : to_delete | std::views::reverse) {
+        if (object->type->destroy != nullptr) {
+            object->type->destroy(object->type->user_data, object->instance);
+        }
+    }
+    to_delete.clear();
+
+    for (const auto &type_name : plugin.registered_types) {
+        types_.erase(type_name);
+    }
+
+    if (plugin.shutdown != nullptr) {
+        plugin.shutdown(plugin.state);
+    }
+
+    if (plugin.library != nullptr) {
+        closeLibrary(plugin.library);
+    }
+
+    plugins_.erase(plugins_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
 PluginHost::Object *PluginHost::createObject(const char *type_name,

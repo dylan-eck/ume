@@ -48,6 +48,8 @@ public:
     registerStatic(const char *name,
                    UmePluginRegisterFunction register_function);
 
+    bool unloadPlugin(uint64_t id);
+
     [[nodiscard]] Object *createObject(const char *type_name,
                                        const UmeParams *params);
     void destroyObject(Object *object);
@@ -68,6 +70,8 @@ private:
 
     std::unordered_map<std::string, ObjectType> types_;
     std::vector<std::unique_ptr<Object>> live_;
+
+    void unloadPluginAt(size_t index);
 
     static UME_PLUGIN_BOOL
     registerObjectTypeTrampoline(void *context,
