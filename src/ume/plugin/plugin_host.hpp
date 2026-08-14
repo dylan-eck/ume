@@ -12,8 +12,26 @@ class Renderer;
 
 class PluginHost {
 public:
+    struct Plugin {
+        uint64_t id;
+        void *library = nullptr;
+        std::string name;
+        void *state = nullptr;
+        void (*shutdown)(void *) = nullptr;
+        std::vector<std::string> registered_types;
+    };
+
+    struct ObjectType {
+        std::string name;
+        uint64_t owner;
+        void *user_data = nullptr;
+        void *(*create)(void *, const UmeParams *);
+        void (*destroy)(void *, void *);
+        void (*update)(void *, void *, const UmeFrameContext *);
+    };
+
     struct Object {
-        const UmeObjectType *type;
+        const ObjectType *type;
         void *instance;
     };
 
@@ -40,11 +58,18 @@ public:
 private:
     Renderer &renderer_;
     UmePluginApi api_{};
-    std::vector<UmePluginDescription> plugins_;
-    std::unordered_map<std::string, UmeObjectType> types_;
+
+    std::vector<Plugin> plugins_;
+    static constexpr uint64_t kInvalidPluginID = 0;
+    uint64_t next_plugin_id_ = 1;
+    uint64_t registering_id_ = kInvalidPluginID;
+    std::vector<std::string> registering_types_;
+    bool registration_failed_ = false;
+
+    std::unordered_map<std::string, ObjectType> types_;
     std::vector<std::unique_ptr<Object>> live_;
 
-    static void
+    static UME_PLUGIN_BOOL
     registerObjectTypeTrampoline(void *context,
                                  const UmeObjectType *type) noexcept;
     static UmeMeshHandle

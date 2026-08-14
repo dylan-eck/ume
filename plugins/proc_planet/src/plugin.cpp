@@ -38,11 +38,6 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
 
     auto *self = new ProcPlanetPlugin{*api};
 
-    description->abi_version = UME_PLUGIN_ABI_VERSION;
-    description->name = "proc_planet";
-    description->state = self;
-    description->shutdown = &shutDownProcPlanet;
-
     const UmeObjectType planet_type{
         .struct_size = sizeof(UmeObjectType),
         .name = "Planet",
@@ -52,7 +47,14 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
         .update = &updatePlanet,
     };
 
-    api->registerObjectType(api->context, &planet_type);
+    if (api->registerObjectType(api->context, &planet_type) == UME_FALSE) {
+        delete self;
+        return UME_FALSE;
+    }
 
+    description->abi_version = UME_PLUGIN_ABI_VERSION;
+    description->name = "proc_planet";
+    description->state = self;
+    description->shutdown = &shutDownProcPlanet;
     return UME_TRUE;
 }

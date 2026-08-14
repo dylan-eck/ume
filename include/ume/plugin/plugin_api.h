@@ -52,7 +52,6 @@ typedef struct UmeMeshDescription {
 } UmeMeshDescription;
 
 typedef struct UmeFrameContext {
-    uint32_t struct_size;
     uint64_t frame_index;
     double camera_position[3];
     float camera_orientation[9];
@@ -78,7 +77,8 @@ typedef struct UmePluginApi {
     uint32_t struct_size;
     uint32_t abi_version;
     void *context;
-    void (*registerObjectType)(void *context, const UmeObjectType *type);
+    UME_PLUGIN_BOOL (*registerObjectType)(void *context,
+                                          const UmeObjectType *type);
     UmeMeshHandle (*createMesh)(void *context,
                                 const UmeMeshDescription *description);
     void (*destroyMesh)(void *context, UmeMeshHandle handle);
@@ -95,6 +95,10 @@ typedef struct UmePluginDescription {
     void (*shutdown)(void *state);
 } UmePluginDescription;
 
+/* Returns UME_TRUE on success.
+ * If UME_FALSE is returned, the plugin must have freed any resources that it
+ * allocated. The plugin host will unregister any already registered types.
+ */
 typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
     const UmePluginApi *api, UmePluginDescription *description);
 

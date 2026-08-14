@@ -60,11 +60,36 @@ bool PluginHost::registerStatic(const char *name,
         return false;
     }
 
+    registering_id_ = next_plugin_id_++;
+    registering_types_.clear();
+    registration_failed_ = false;
+
+    struct Scope {
+        PluginHost *host;
+        ~Scope() {
+            host->registering_id_ = kInvalidPluginID;
+            host->registering_types_.clear();
+        }
+    } scope{this};
+
+    const auto rollback = [this] {
+        for (const auto &type : registering_types_) {
+            types_.erase(type);
+        }
+    };
+
     UmePluginDescription description{};
     description.struct_size = sizeof(UmePluginDescription);
 
     if (register_function(&api_, &description) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
+        rollback();
+        return false;
+    }
+
+    if (description.name == nullptr) {
+        UME_LOG_ERROR(Plugin, "plugin '{}' did not set a name", name);
+        rollback();
         return false;
     }
 
@@ -76,10 +101,20 @@ bool PluginHost::registerStatic(const char *name,
         if (description.shutdown != nullptr) {
             description.shutdown(description.state);
         }
+
+        rollback();
         return false;
     }
 
-    plugins_.push_back(description);
+    Plugin plugin{
+        .id = registering_id_,
+        .name = description.name,
+        .state = description.state,
+        .shutdown = description.shutdown,
+        .registered_types = std::move(registering_types_),
+    };
+
+    plugins_.push_back(std::move(plugin));
     UME_LOG_INFO(Plugin, "registered plugin '{}'", name);
     return true;
 }
@@ -97,7 +132,7 @@ PluginHost::Object *PluginHost::createObject(const char *type_name,
         return nullptr;
     }
 
-    const UmeObjectType &type = it->second;
+    const ObjectType &type = it->second;
     if (type.create == nullptr) {
         UME_LOG_ERROR(Plugin, "object type '{}' has no create function",
                       type_name);
@@ -147,18 +182,56 @@ void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
     }
 }
 
-void PluginHost::registerObjectTypeTrampoline(
-    void *context, const UmeObjectType *type) noexcept {
+UME_PLUGIN_BOOL
+PluginHost::registerObjectTypeTrampoline(void *context,
+                                         const UmeObjectType *type) noexcept {
 
-    if (type == nullptr || type->struct_size < sizeof(UmeObjectType)) {
+    if (type == nullptr) {
+        UME_LOG_ERROR(
+            Plugin, "attempted to register object type with null type struct");
+        return UME_FALSE;
+    }
+
+    if (type->struct_size < sizeof(UmeObjectType)) {
         UME_LOG_ERROR(Plugin,
                       "object registration rejected, invalid structsize {} "
                       "(expected >= {})",
-                      type ? type->struct_size : 0, sizeof(UmeObjectType));
+                      type->struct_size, sizeof(UmeObjectType));
+        return UME_FALSE;
+    }
+
+    if (type->name == nullptr) {
+        UME_LOG_ERROR(Plugin, "attempted to register object type with no name");
+        return UME_FALSE;
     }
 
     auto *self = static_cast<PluginHost *>(context);
-    self->types_.insert_or_assign(type->name, *type);
+    if (self->registering_id_ == kInvalidPluginID) {
+        UME_LOG_ERROR(Plugin, "attempted to register object type outside of "
+                              "plugin registration flow");
+        return UME_FALSE;
+    }
+
+    ObjectType object{
+        .name = type->name,
+        .owner = self->registering_id_,
+        .user_data = type->user_data,
+        .create = type->create,
+        .destroy = type->destroy,
+        .update = type->update,
+    };
+
+    auto [it, inserted] =
+        self->types_.try_emplace(object.name, std::move(object));
+
+    if (!inserted) {
+        UME_LOG_ERROR(Plugin,
+                      "attempted to register already registered object type");
+        return UME_FALSE;
+    }
+
+    self->registering_types_.push_back(it->first);
+    return UME_TRUE;
 }
 
 UmeMeshHandle PluginHost::createMeshTrampoline(
