@@ -108,6 +108,7 @@ void Planet::generate() {
         }
 
         UmeMeshDescription desc{
+            .struct_size = sizeof(UmeMeshDescription),
             .vertices = vertices.data(),
             .vertex_count = static_cast<uint32_t>(vertices.size()),
             .indices = indices.data(),

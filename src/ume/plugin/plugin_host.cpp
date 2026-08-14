@@ -238,6 +238,20 @@ UmeMeshHandle PluginHost::createMeshTrampoline(
     void *context, const UmeMeshDescription *description) noexcept {
     auto *self = static_cast<PluginHost *>(context);
 
+    if (description == nullptr) {
+        UME_LOG_ERROR(Plugin,
+                      "null description passed to createMeshTrampoline");
+        return UME_MESH_HANDLE_INVALID;
+    }
+
+    if (description->struct_size < sizeof(UmeMeshDescription)) {
+        UME_LOG_ERROR(Plugin,
+                      "wrong size struct passed to createMeshTrampoline: "
+                      "received {} bytes, expected {}",
+                      description->struct_size, sizeof(UmeMeshDescription));
+        return UME_MESH_HANDLE_INVALID;
+    }
+
     std::span<const Vertex> vertices{
         reinterpret_cast<const Vertex *>(description->vertices),
         description->vertex_count};

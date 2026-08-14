@@ -36,6 +36,10 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
         return UME_FALSE;
     }
 
+    if (description->struct_size < sizeof(UmePluginDescription)) {
+        return UME_FALSE;
+    }
+
     auto *self = new ProcPlanetPlugin{*api};
 
     const UmeObjectType planet_type{
@@ -56,5 +60,6 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     description->name = "proc_planet";
     description->state = self;
     description->shutdown = &shutDownProcPlanet;
+
     return UME_TRUE;
 }
