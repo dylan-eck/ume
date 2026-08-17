@@ -1,6 +1,7 @@
 #include "application.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
+#include "ume/plugin/plugin_params.hpp"
 
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
@@ -18,8 +19,10 @@ Application::Application(const ApplicationConfig &config)
 
     registerBuiltinPlugins(plugin_host_);
 
-    if (plugin_host_.createObject("Planet", &PluginHost::kDefaultParams) ==
-        nullptr) {
+    const NumberMap planet_params{{"radius", 7000000.0}};
+    const UmeParams params = makeNumberParams(planet_params);
+
+    if (plugin_host_.createObject("Planet", &params) == nullptr) {
         UME_LOG_ERROR(Core, "failed to create the planet object");
     }
 

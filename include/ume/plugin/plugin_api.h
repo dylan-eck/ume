@@ -68,8 +68,8 @@ typedef struct UmeFrameContext {
 
 typedef struct UmeParams {
     uint32_t struct_size;
-    double (*number)(const struct UmeParams *params, const char *key,
-                     double fallback);
+    const void *impl;
+    double (*number)(const void *impl, const char *key, double fallback);
 } UmeParams;
 
 typedef struct UmeObjectType {

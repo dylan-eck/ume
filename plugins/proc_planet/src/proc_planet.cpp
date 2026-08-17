@@ -7,7 +7,10 @@
 
 namespace proc_planet {
 
-Planet::Planet(const UmePluginApi *api) : api_(api) { generate(); }
+Planet::Planet(const UmePluginApi *api, double radius)
+    : api_(api), radius_(radius) {
+    generate();
+}
 
 namespace {
 glm::dvec3 cubeToSphere(glm::dvec3 p) {
@@ -51,16 +54,21 @@ void Planet::generate() {
                 double t = (i * step) - 0.5;
                 double u = (j * step) - 0.5;
 
-                glm::dvec3 p00 = cubeToSphere(normal + a * t + b * u);
-                glm::dvec3 p10 = cubeToSphere(normal + a * (t + step) + b * u);
-                glm::dvec3 p11 =
+                glm::dvec3 u00 = cubeToSphere(normal + a * t + b * u);
+                glm::dvec3 u10 = cubeToSphere(normal + a * (t + step) + b * u);
+                glm::dvec3 u11 =
                     cubeToSphere(normal + a * (t + step) + b * (u + step));
-                glm::dvec3 p01 = cubeToSphere(normal + a * t + b * (u + step));
+                glm::dvec3 u01 = cubeToSphere(normal + a * t + b * (u + step));
 
-                glm::dvec3 n00 = glm::normalize(p00);
-                glm::dvec3 n10 = glm::normalize(p10);
-                glm::dvec3 n11 = glm::normalize(p11);
-                glm::dvec3 n01 = glm::normalize(p01);
+                glm::dvec3 p00 = u00 * radius_;
+                glm::dvec3 p10 = u10 * radius_;
+                glm::dvec3 p11 = u11 * radius_;
+                glm::dvec3 p01 = u01 * radius_;
+
+                glm::dvec3 n00 = glm::normalize(u00);
+                glm::dvec3 n10 = glm::normalize(u10);
+                glm::dvec3 n11 = glm::normalize(u11);
+                glm::dvec3 n01 = glm::normalize(u01);
 
                 size_t s = vertices.size();
 

@@ -8,7 +8,7 @@ class Renderer {
 
 class Sandbox {
     static init() {
-        __camera_distance = 8
+        __camera_distance = 40000000
         __fov_y = 30
 
         __t = 0

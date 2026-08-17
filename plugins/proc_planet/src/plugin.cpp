@@ -12,9 +12,22 @@ struct ProcPlanetPlugin {
 void *createPlanet(void *user_data, const UmeParams *params) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
 
+    double radius = 1.0;
+    if (params != nullptr && params->struct_size >= sizeof(UmeParams) &&
+        params->number != nullptr) {
+        radius = params->number(params->impl, "radius", radius);
+    }
+
+    // the check is structure this way so that NaN is not a valid radius
+    if (!(radius > 0.0)) {
+        self->api.log(self->api.context, UME_LOG_LEVEL_WARN,
+                      "proc_planet: radius is non-positive, using 1.0 instead");
+        radius = 1.0;
+    }
+
     proc_planet::Planet *planet = nullptr;
     try {
-        planet = new proc_planet::Planet(&self->api);
+        planet = new proc_planet::Planet(&self->api, radius);
     } catch (...) {
         self->api.log(
             self->api.context, UME_LOG_LEVEL_ERROR,

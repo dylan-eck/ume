@@ -47,7 +47,7 @@ private:
 
 class Planet {
 public:
-    explicit Planet(const UmePluginApi *api);
+    explicit Planet(const UmePluginApi *api, double radius);
     ~Planet() = default;
 
     Planet(const Planet &) = delete;
@@ -61,7 +61,7 @@ public:
 
 private:
     const UmePluginApi *api_;
-    double radius_ = 0;
+    double radius_;
 
     std::vector<MeshRef> meshes_;
 };

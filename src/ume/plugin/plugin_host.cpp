@@ -13,14 +13,14 @@ static_assert(alignof(Vertex) == alignof(UmeVertex));
 static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
 
 namespace {
-double alwaysFallback(const struct UmeParams *params, const char *key,
-                      double fallback) {
+double alwaysFallback(const void *impl, const char *key, double fallback) {
     return fallback;
 }
 } // namespace
 
 const UmeParams PluginHost::kDefaultParams{
     .struct_size = sizeof(UmeParams),
+    .impl = nullptr,
     .number = alwaysFallback,
 };
 

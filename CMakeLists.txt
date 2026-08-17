@@ -141,8 +141,10 @@ set(UME_PLUGIN_LINK_TYPE
     CACHE STRING "STATIC or MODULE")
 set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 
-target_sources(ume_engine PRIVATE src/ume/plugin/plugin_host.cpp
-                                  src/ume/plugin/builtin_plugins.cpp)
+target_sources(
+  ume_engine
+  PRIVATE src/ume/plugin/plugin_host.cpp src/ume/plugin/plugin_params.cpp
+          src/ume/plugin/builtin_plugins.cpp)
 
 add_subdirectory(plugins/proc_planet)
 
