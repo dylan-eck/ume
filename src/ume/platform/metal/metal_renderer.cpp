@@ -138,7 +138,7 @@ void MetalRenderer::beginFrame() {
     color_attachment->setTexture(drawable_->texture());
     color_attachment->setLoadAction(MTL::LoadActionClear);
     color_attachment->setStoreAction(MTL::StoreActionStore);
-    color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
+    color_attachment->setClearColor(MTL::ClearColor(0.1, 0.1, 0.1, 1));
 
     auto *depth_attachment = pass_descriptor->depthAttachment();
     depth_attachment->setTexture(depth_texture_.get());

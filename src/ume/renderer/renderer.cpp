@@ -6,6 +6,7 @@ namespace ume {
 
 struct DrawUniforms {
     glm::mat4 model_view_projection;
+    glm::mat4 normal;
 };
 
 Renderer::Renderer(const Window &window)
@@ -87,7 +88,8 @@ void Renderer::render() {
 
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
-                                  projection * view_rotation * model};
+                                  projection * view_rotation * model,
+                              .normal = glm::transpose(glm::inverse(model))};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,

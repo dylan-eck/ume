@@ -119,7 +119,7 @@ void Planet::generate() {
         std::vector<float> y_positions(vertices.size());
         std::vector<float> z_positions(vertices.size());
 
-        float freq = 180.0f;
+        float freq = 0.00002f;
 
         for (size_t i = 0; i < vertices.size(); i++) {
             UmeVertex &v = vertices[i];
@@ -135,9 +135,11 @@ void Planet::generate() {
                                     x_positions.data(), y_positions.data(),
                                     z_positions.data(), 0, 0, 0, 0);
 
+        float amp = 800000.0f;
+
         for (size_t i = 0; i < vertices.size(); i++) {
             float n = noise_values[i];
-            float amp = 0.05f;
+
             float height = amp * n;
 
             UmeVertex &v = vertices[i];
