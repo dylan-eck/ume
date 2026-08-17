@@ -66,10 +66,17 @@ bool PluginHost::registerStatic(const char *name,
 bool PluginHost::finishRegistration(
     const char *name, UmePluginRegisterFunction register_function) {
 
+    if (registering_id_ != kInvalidPluginID) {
+        UME_LOG_ERROR(Plugin,
+                      "cannot register plugin '{}': registration of plugin "
+                      "id {} is already in progress",
+                      name, registering_id_);
+        return false;
+    }
+
     // next_plugin_id is incremented unconditionally to avoid confusing log
     // messages
     registering_id_ = next_plugin_id_++;
-    registering_types_.clear();
 
     // we need to add the plugin provisionally so that it can register types
     plugins_.emplace_back(Plugin{.id = registering_id_});
@@ -178,6 +185,7 @@ bool PluginHost::loadPlugin(const std::filesystem::path &path) {
     if (entry == nullptr) {
         UME_LOG_ERROR(Plugin, "library '{}' has no umePluginRegister symbol",
                       path.string());
+        closeLibrary(library);
         return false;
     }
 
@@ -185,6 +193,14 @@ bool PluginHost::loadPlugin(const std::filesystem::path &path) {
         closeLibrary(library);
         return false;
     }
+
+    Plugin *p = findPlugin(registering_id_);
+    if (p == nullptr) {
+        UME_LOG_ERROR(Plugin, "could not find currently registering plugin to "
+                              "set library pointer");
+        return false;
+    }
+    p->library = library;
 
     return true;
 }
@@ -343,9 +359,11 @@ PluginHost::registerObjectTypeTrampoline(void *context,
     auto *ctx = static_cast<PluginContext *>(context);
     auto *self = ctx->host;
 
-    if (self->registering_id_ == kInvalidPluginID) {
-        UME_LOG_ERROR(Plugin, "attempted to register object type outside of "
-                              "plugin registration flow");
+    if (ctx->plugin_id != self->registering_id_) {
+        UME_LOG_ERROR(Plugin,
+                      "plugin id {} attempted to register object type '{}' "
+                      "outside its own registration",
+                      ctx->plugin_id, type->name);
         return UME_FALSE;
     }
 

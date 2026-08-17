@@ -57,8 +57,6 @@ public:
     [[nodiscard]] bool
     registerStatic(const char *name,
                    UmePluginRegisterFunction register_function);
-    bool finishRegistration(const char *name,
-                            UmePluginRegisterFunction register_function);
 
     bool loadPlugin(const std::filesystem::path &path);
     bool unloadPlugin(uint64_t id);
@@ -82,6 +80,12 @@ private:
 
     std::unordered_map<std::string, ObjectType> types_;
     std::vector<std::unique_ptr<Object>> live_;
+
+    // nested registration is not allowed
+    // it must not be initiated from with a plugin registration function or
+    // any plugin callback
+    bool finishRegistration(const char *name,
+                            UmePluginRegisterFunction register_function);
 
     void unloadPluginAt(size_t index);
 
