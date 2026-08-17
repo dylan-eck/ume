@@ -376,8 +376,8 @@ PluginHost::registerObjectTypeTrampoline(void *context,
         .update = type->update,
     };
 
-    auto [it, inserted] =
-        self->types_.try_emplace(object.name, std::move(object));
+    const auto key = object.name;
+    auto [it, inserted] = self->types_.try_emplace(key, std::move(object));
 
     if (!inserted) {
         UME_LOG_ERROR(Plugin,
