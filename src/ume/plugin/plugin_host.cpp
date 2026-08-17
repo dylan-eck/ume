@@ -13,14 +13,14 @@ static_assert(alignof(Vertex) == alignof(UmeVertex));
 static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
 
 namespace {
-double alwaysFallback(void *impl, const char *key, double fallback) {
+double alwaysFallback(const struct UmeParams *params, const char *key,
+                      double fallback) {
     return fallback;
 }
 } // namespace
 
 const UmeParams PluginHost::kDefaultParams{
     .struct_size = sizeof(UmeParams),
-    .impl = nullptr,
     .number = alwaysFallback,
 };
 
@@ -66,14 +66,16 @@ bool PluginHost::registerStatic(const char *name,
 bool PluginHost::finishRegistration(
     const char *name, UmePluginRegisterFunction register_function) {
 
+    // next_plugin_id is incremented unconditionally to avoid confusing log
+    // messages
     registering_id_ = next_plugin_id_++;
     registering_types_.clear();
-    registration_failed_ = false;
 
-    Plugin plugin{.id = registering_id_};
+    // we need to add the plugin provisionally so that it can register types
+    plugins_.emplace_back(Plugin{.id = registering_id_});
 
-    plugins_.push_back(std::move(plugin));
-
+    // this struct ensures that registering_id_ and registering_types_ are reset
+    // regardless of how we leave this function
     struct Scope {
         PluginHost *host;
         ~Scope() {
@@ -82,11 +84,36 @@ bool PluginHost::finishRegistration(
         }
     } scope{this};
 
-    const auto rollback = [this] {
+    const auto rollback = [this, name](const UmePluginDescription &desc,
+                                       bool call_shutdown) {
+        auto it = std::ranges::find(plugins_, registering_id_, &Plugin::id);
+        if (it == plugins_.end()) {
+            UME_LOG_ERROR(Plugin,
+                          "plugin not found during registration rollback");
+            return;
+        }
+
+        // we call the plugin's shutdown before host cleanup to avoid double
+        // freeing of host resources
+        if (call_shutdown && desc.shutdown != nullptr) {
+            desc.shutdown(desc.state);
+        }
+
         for (const auto &type : registering_types_) {
             types_.erase(type);
-            plugins_.pop_back();
         }
+
+        if (!it->meshes.empty()) {
+            UME_LOG_WARN(Plugin,
+                         "plugin '{}' leaked {} mesh(es) during failed "
+                         "registration; reclaiming",
+                         name, it->meshes.size());
+
+            for (const uint32_t id : it->meshes) {
+                renderer_.destroyMesh({.id = id});
+            }
+        }
+        plugins_.erase(it);
     };
 
     auto context = std::make_unique<PluginContext>(this, registering_id_);
@@ -98,13 +125,15 @@ bool PluginHost::finishRegistration(
 
     if (register_function(&api, &description) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
-        rollback();
+        // plugins that decline to register are responsible for freeing any
+        // memory they have allocated
+        rollback(description, false);
         return false;
     }
 
     if (description.name == nullptr) {
         UME_LOG_ERROR(Plugin, "plugin '{}' did not set a name", name);
-        rollback();
+        rollback(description, true);
         return false;
     }
 
@@ -112,21 +141,25 @@ bool PluginHost::finishRegistration(
         UME_LOG_ERROR(
             Plugin, "plugin '{}' reported abi version {} (expected {})",
             description.name, description.abi_version, UME_PLUGIN_ABI_VERSION);
-
-        if (description.shutdown != nullptr) {
-            description.shutdown(description.state);
-        }
-
-        rollback();
+        rollback(description, true);
         return false;
     }
 
-    Plugin &p = plugins_[plugins_.size() - 1];
-    p.name = description.name;
-    p.state = description.state;
-    p.shutdown = description.shutdown;
-    p.context = std::move(context);
-    p.registered_types = std::move(registering_types_);
+    Plugin *p = findPlugin(registering_id_);
+    if (p == nullptr) {
+        // we should never get here
+        UME_LOG_ERROR(
+            Plugin,
+            "could not find provisional plugin entry during registration");
+        rollback(description, true);
+        return false;
+    }
+
+    p->name = description.name;
+    p->state = description.state;
+    p->shutdown = description.shutdown;
+    p->context = std::move(context);
+    p->registered_types = std::move(registering_types_);
 
     UME_LOG_INFO(Plugin, "registered plugin '{}'", description.name);
     return true;
@@ -288,7 +321,6 @@ void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
 UME_PLUGIN_BOOL
 PluginHost::registerObjectTypeTrampoline(void *context,
                                          const UmeObjectType *type) noexcept {
-
     if (type == nullptr) {
         UME_LOG_ERROR(
             Plugin, "attempted to register object type with null type struct");
@@ -398,6 +430,11 @@ void PluginHost::destroyMeshTrampoline(void *context,
 void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
                                   const double *world_position) noexcept {
 
+    if (handle == UME_MESH_HANDLE_INVALID) {
+        UME_LOG_WARN(Plugin, "plugin submitted null mesh handle");
+        return;
+    }
+
     auto *ctx = static_cast<PluginContext *>(context);
     auto *self = ctx->host;
 
@@ -413,15 +450,17 @@ void PluginHost::logTrampoline(void *context, UmeLogLevel log_level,
         return;
     }
 
+    auto *ctx = static_cast<PluginContext *>(context);
+
     switch (log_level) {
     case UME_LOG_LEVEL_INFO:
-        UME_LOG_INFO(Plugin, "{}", message);
+        UME_LOG_INFO(Plugin, "id {}: {}", ctx->plugin_id, message);
         break;
     case UME_LOG_LEVEL_WARN:
-        UME_LOG_WARN(Plugin, "{}", message);
+        UME_LOG_WARN(Plugin, "id {}: {}", ctx->plugin_id, message);
         break;
     case UME_LOG_LEVEL_ERROR:
-        UME_LOG_ERROR(Plugin, "{}", message);
+        UME_LOG_ERROR(Plugin, "id {}: {}", ctx->plugin_id, message);
         break;
     default:
         break;

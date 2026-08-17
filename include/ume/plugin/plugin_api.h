@@ -60,8 +60,8 @@ typedef struct UmeFrameContext {
 
 typedef struct UmeParams {
     uint32_t struct_size;
-    void *impl;
-    double (*number)(void *impl, const char *key, double fallback);
+    double (*number)(const struct UmeParams *params, const char *key,
+                     double fallback);
 } UmeParams;
 
 typedef struct UmeObjectType {
@@ -73,6 +73,9 @@ typedef struct UmeObjectType {
     void (*update)(void *user_data, void *object, const UmeFrameContext *frame);
 } UmeObjectType;
 
+// this struct and its contents are only valid during plugin registration unless
+// registration succeeds, in which case they should be valid for the life of the
+// plugin
 typedef struct UmePluginApi {
     uint32_t struct_size;
     uint32_t abi_version;

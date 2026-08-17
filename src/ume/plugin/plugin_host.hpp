@@ -79,7 +79,6 @@ private:
     uint64_t next_plugin_id_ = 1;
     uint64_t registering_id_ = kInvalidPluginID;
     std::vector<std::string> registering_types_;
-    bool registration_failed_ = false;
 
     std::unordered_map<std::string, ObjectType> types_;
     std::vector<std::unique_ptr<Object>> live_;
