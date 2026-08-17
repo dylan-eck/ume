@@ -14,6 +14,8 @@ StructuredBuffer<Vertex> vertices;
 
 struct VertexOutput {
     float4 sv_position : SV_Position;
+    float3 world_position;
+    float3 normal;
     float4 color;
 };
 
@@ -22,10 +24,18 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
     VertexOutput output;
     output.sv_position =
         mul(draw.model_view_projection, vertices[vid].position);
+    output.normal = vertices[vid].normal.xyz;
     output.color = float4(vertices[vid].normal.xyz * 0.5 + 0.5, 1.0f);
     return output;
 }
 
 [shader("fragment")]
-float4 fragMain(VertexOutput input) : SV_Target { return input.color; }
+float4 fragMain(VertexOutput input) : SV_Target {
+    float3 dir_to_light = normalize(float3(1, 1, 1));
+
+    float intensity = max(dot(input.normal, dir_to_light), 0.0) + 0.2;
+    intensity = clamp(intensity, 0.0, 1.0);
+
+    return input.color * intensity;
+}
 
