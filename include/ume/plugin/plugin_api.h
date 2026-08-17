@@ -100,7 +100,8 @@ typedef struct UmePluginApi {
                                 const UmeMeshDescription *description);
     void (*destroyMesh)(void *context, UmeMeshHandle handle);
     void (*submit)(void *context, UmeMeshHandle mesh,
-                   const double world_position[3]);
+                   const double world_position[3],
+                   const float local_transform[16]);
     void (*log)(void *context, UmeLogLevel log_level, const char *message);
 } UmePluginApi;
 

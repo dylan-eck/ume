@@ -18,12 +18,12 @@ class Sandbox {
     }
 
     static update(delta) {
-        __t = __t + __rotation_speed * delta
+        // __t = __t + __rotation_speed * delta
 
-        var r = __camera_distance
-        var cam_x = __camera_distance * __t.cos
-        var cam_z = __camera_distance * __t.sin
+        // var r = __camera_distance
+        // var cam_x = __camera_distance * __t.cos
+        // var cam_z = __camera_distance * __t.sin
 
-        Renderer.setCamera(cam_x, 0, cam_z, 0, 0, 0, __fov_y)
+        // Renderer.setCamera(cam_x, 0, cam_z, 0, 0, 0, __fov_y)
     }
 }

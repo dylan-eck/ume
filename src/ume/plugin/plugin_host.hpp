@@ -98,7 +98,8 @@ private:
     static void destroyMeshTrampoline(void *context,
                                       UmeMeshHandle handle) noexcept;
     static void submitTrampoline(void *context, UmeMeshHandle handle,
-                                 const double *world_position) noexcept;
+                                 const double *world_position,
+                                 const float *local_transform) noexcept;
     static void logTrampoline(void *context, UmeLogLevel log_level,
                               const char *message) noexcept;
 };

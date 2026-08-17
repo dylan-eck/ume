@@ -1,6 +1,6 @@
 #include "proc_planet.hpp"
 
-#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <array>
 #include <cmath>
@@ -128,8 +128,11 @@ void Planet::update(const UmeFrameContext *frame_context) {
             continue;
         }
 
+        transform_ = glm::rotate(transform_, 0.0005f, glm::vec3(0, 1, 0));
+
         const std::array<double, 3> world_position = {0.0, 0.0, 0.0};
-        api_->submit(api_->context, ref.getHandle(), world_position.data());
+        api_->submit(api_->context, ref.getHandle(), world_position.data(),
+                     glm::value_ptr(transform_));
     }
 }
 } // namespace proc_planet

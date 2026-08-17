@@ -1,7 +1,10 @@
 #pragma once
 #include "ume/plugin/plugin_api.h"
 
+#include <glm/glm.hpp>
+
 #include <vector>
+
 namespace proc_planet {
 
 class MeshRef {
@@ -62,6 +65,8 @@ public:
 private:
     const UmePluginApi *api_;
     double radius_;
+
+    glm::mat4 transform_ = glm::mat4(1.0f);
 
     std::vector<MeshRef> meshes_;
 };

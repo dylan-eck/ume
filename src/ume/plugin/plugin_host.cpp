@@ -3,6 +3,8 @@
 #include "ume/core/logger.hpp"
 #include "ume/core/dynamic_library.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <algorithm>
 #include <ranges>
 
@@ -446,20 +448,36 @@ void PluginHost::destroyMeshTrampoline(void *context,
 }
 
 void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
-                                  const double *world_position) noexcept {
+                                  const double *world_position,
+                                  const float *local_transform) noexcept {
 
     if (handle == UME_MESH_HANDLE_INVALID) {
         UME_LOG_WARN(Plugin, "plugin submitted null mesh handle");
         return;
     }
 
+    if (world_position == nullptr || local_transform == nullptr) {
+        UME_LOG_WARN(Plugin,
+                     "mesh submitted with null world position or transform");
+        return;
+    }
+
     auto *ctx = static_cast<PluginContext *>(context);
     auto *self = ctx->host;
+
+    Plugin *plugin = self->findPlugin(ctx->plugin_id);
+
+    if (plugin == nullptr || !plugin->meshes.contains(handle)) {
+        UME_LOG_ERROR(Plugin,
+                      "plugin attempted to submit mesh {} it does not own",
+                      handle);
+        return;
+    }
 
     self->renderer_.submit(
         {.id = handle},
         glm::dvec3(world_position[0], world_position[1], world_position[2]),
-        glm::mat4(1.0f));
+        glm::make_mat4(local_transform));
 }
 
 void PluginHost::logTrampoline(void *context, UmeLogLevel log_level,
