@@ -58,8 +58,8 @@ public:
     registerStatic(const char *name,
                    UmePluginRegisterFunction register_function);
 
-    bool loadPlugin(const std::filesystem::path &path);
-    bool unloadPlugin(uint64_t id);
+    [[nodiscard]] bool loadPlugin(const std::filesystem::path &path);
+    [[nodiscard]] bool unloadPlugin(uint64_t id);
     [[nodiscard]] Plugin *findPlugin(uint64_t id);
 
     [[nodiscard]] Object *createObject(const char *type_name,

@@ -21,5 +21,3 @@ void registerBuiltinPlugins(PluginHost &host) {
 #endif
 }
 } // namespace ume
-
-namespace ume {}

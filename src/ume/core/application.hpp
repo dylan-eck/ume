@@ -10,7 +10,6 @@
 #include <chrono>
 
 struct SDL_Window;
-struct WrenVM;
 
 namespace ume {
 
@@ -43,8 +42,7 @@ private:
     Renderer renderer_;
     PluginHost plugin_host_;
 
-    std::unique_ptr<ScriptEngine> script_engine_ = nullptr;
-    WrenVM *vm_ = nullptr;
+    ScriptEngine script_engine_;
 
     uint64_t frame_index_ = 0;
     std::chrono::steady_clock::time_point last_frame_time_;

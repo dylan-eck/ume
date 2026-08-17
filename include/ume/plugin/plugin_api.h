@@ -9,11 +9,11 @@
  * noexcept and catch internally.
  */
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 #include <cstdint>
 extern "C" {
+#else
+#include <stdint.h>
 #endif
 
 #define UME_PLUGIN_ABI_VERSION 0

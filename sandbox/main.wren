@@ -20,7 +20,6 @@ class Sandbox {
     static update(delta) {
         // __t = __t + __rotation_speed * delta
 
-        // var r = __camera_distance
         // var cam_x = __camera_distance * __t.cos
         // var cam_z = __camera_distance * __t.sin
 

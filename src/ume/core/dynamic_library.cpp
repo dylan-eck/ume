@@ -37,7 +37,7 @@ void *findSymbol(void *library, const char *symbol) {
     ::dlerror();
     void *address = ::dlsym(library, symbol);
     if (const char *error = ::dlerror(); error != nullptr) {
-        UME_LOG_ERROR(Plugin, "symbol '{}' no found: {}", symbol, error);
+        UME_LOG_ERROR(Plugin, "symbol '{}' not found: {}", symbol, error);
     }
 
     return address;

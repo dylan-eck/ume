@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 namespace ume {
 
@@ -34,7 +35,7 @@ void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
                       module, line, msg);
         break;
     case WREN_ERROR_STACK_TRACE:
-        UME_LOG_ERROR(Script, "ren stack trace error [{} line {}] in {}",
+        UME_LOG_ERROR(Script, "wren stack trace error [{} line {}] in {}",
                       module, line, msg);
         break;
     case WREN_ERROR_RUNTIME:

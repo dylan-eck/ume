@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <ranges>
+#include <cstddef>
 
 namespace ume {
 

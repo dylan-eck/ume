@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <format>
 #include <string_view>
+#include <cstdint>
 
 #define UME_LOG_CATEGORY_LIST(X)                                               \
     X(Core, "core")                                                            \

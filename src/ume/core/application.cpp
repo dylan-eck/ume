@@ -9,13 +9,16 @@
 #include <wren.hpp>
 
 #include <string>
+#include <cstring>
 
 namespace ume {
 
 Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)), renderer_(window_),
-      plugin_host_(renderer_) {
+      plugin_host_(renderer_),
+      script_engine_(renderer_,
+                     config.working_dir + "/" + project_.main_script) {
 
     registerBuiltinPlugins(plugin_host_);
 
@@ -26,9 +29,7 @@ Application::Application(const ApplicationConfig &config)
         UME_LOG_ERROR(Core, "failed to create the planet object");
     }
 
-    script_engine_ = std::make_unique<ScriptEngine>(
-        renderer_, config.working_dir + "/" + project_.main_script);
-    script_engine_->init();
+    script_engine_.init();
 
     last_frame_time_ = std::chrono::steady_clock::now();
 
@@ -45,7 +46,7 @@ void Application::run() {
             std::chrono::duration<float>(now - last_frame_time_).count();
         last_frame_time_ = now;
 
-        script_engine_->update(delta);
+        script_engine_.update(delta);
 
         const CameraState &camera_state = renderer_.getCamera();
 
