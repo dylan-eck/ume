@@ -2,21 +2,25 @@
 
 #include <cstdint>
 #include <vector>
+#include <optional>
+
+namespace ume {
 
 inline constexpr uint32_t kHandleIndexBits = 20;
 inline constexpr uint32_t kHandleIndexMask = (1u << kHandleIndexBits) - 1;
 inline constexpr uint32_t kHandleMaxGeneration =
     (1u << (32 - kHandleIndexBits)) - 1;
-
-namespace ume {
 template <typename T, typename HandleT> class ResourcePool {
 public:
-    HandleT insert(T value) {
+    [[nodiscard]] HandleT insert(T value) {
         uint32_t index = 0;
         if (!free_list_.empty()) {
             index = free_list_.back();
             free_list_.pop_back();
         } else {
+            if (slots_.size() > kHandleIndexMask) {
+                return HandleT{};
+            }
             index = static_cast<uint32_t>(slots_.size());
             slots_.emplace_back();
         }
@@ -28,7 +32,7 @@ public:
         return HandleT{(slot.generation << kHandleIndexBits) | index};
     }
 
-    T *get(HandleT handle) {
+    [[nodiscard]] T *get(HandleT handle) {
         const uint32_t index = handle.id & kHandleIndexMask;
         const uint32_t generation = handle.id >> kHandleIndexBits;
 
@@ -44,22 +48,24 @@ public:
         return &slot.value;
     }
 
-    T *retire(HandleT handle) {
+    [[nodiscard]] std::optional<T> remove(HandleT handle) {
         T *value = get(handle);
         if (value == nullptr) {
-            return nullptr;
+            return std::nullopt;
         }
 
-        Slot &slot = slots_[handle.id & kHandleIndexMask];
+        const uint32_t index = handle.id & kHandleIndexMask;
+        Slot &slot = slots_[index];
+
+        T out = std::move(slot.value);
+        slot.value = T{};
         slot.alive = false;
+
         slot.generation =
-            slot.generation >= kHandleMaxGeneration ? 1 : slot.generation + 1;
+            slot.generation > kHandleMaxGeneration ? 1 : slot.generation + 1;
 
-        return value;
-    }
-
-    void reclaim(HandleT handle) {
-        free_list_.push_back(handle.id & kHandleIndexMask);
+        free_list_.push_back(index);
+        return out;
     }
 
 private:

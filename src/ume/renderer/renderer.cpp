@@ -41,8 +41,8 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
 }
 
 void Renderer::destroyMesh(MeshHandle handle) {
-    Mesh *mesh = meshes_.retire(handle);
-    if (mesh == nullptr) {
+    std::optional<Mesh> mesh = meshes_.remove(handle);
+    if (!mesh) {
         UME_LOG_WARN(Renderer, "attempted to destroy stale mesh handle: {}",
                      handle.id);
         return;
@@ -50,8 +50,6 @@ void Renderer::destroyMesh(MeshHandle handle) {
 
     backend_->destroyBuffer(mesh->vertex_buffer);
     backend_->destroyBuffer(mesh->index_buffer);
-
-    meshes_.reclaim(handle);
 }
 
 void Renderer::setCamera(const CameraState &camera_state) {

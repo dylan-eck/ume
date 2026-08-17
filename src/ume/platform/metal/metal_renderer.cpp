@@ -231,16 +231,13 @@ BufferHandle MetalRenderer::createBuffer(const BufferDescription &desc) {
 }
 
 void MetalRenderer::destroyBuffer(BufferHandle handle) {
-    MetalBuffer *entry = buffers_.retire(handle);
+    std::optional<MetalBuffer> entry = buffers_.remove(handle);
 
-    if (entry == nullptr) {
+    if (!entry) {
         UME_LOG_WARN(Renderer, "attempted to destroy stale handle: {}",
                      handle.id);
         return;
     }
-
-    entry->buffer.reset();
-    buffers_.reclaim(handle);
 }
 
 std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {
