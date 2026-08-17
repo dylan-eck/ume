@@ -64,6 +64,14 @@
     {
       "name": "release-vulkan",
       "inherits": ["release-config", "vulkan-backend"]
+    },
+    {
+      "name": "release-metal-dynamic",
+      "inherits": ["release-config", "metal-backend", "plugin-dynamic"]
+    },
+    {
+      "name": "release-vulkan-dynamic",
+      "inherits": ["release-config", "vulkan-backend", "plugin-dynamic"]
     }
   ],
   "buildPresets": [
@@ -90,6 +98,14 @@
     {
       "name": "release-vulkan",
       "configurePreset": "release-vulkan"
+    },
+    {
+      "name": "release-metal-dynamic",
+      "configurePreset": "release-metal-dynamic"
+    },
+    {
+      "name": "release-vulkan-dynamic",
+      "configurePreset": "release-vulkan-dynamic"
     }
   ]
 }

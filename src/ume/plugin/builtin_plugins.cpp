@@ -16,8 +16,11 @@ void registerBuiltinPlugins(PluginHost &host) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'proc_planet'");
     }
 #else
+    // TODO: dynamic plugin discovery
     const std::filesystem::path &path("plugins/proc_planet/proc_planet.so");
-    host.loadPlugin(path);
+    if (!host.loadPlugin(path)) {
+        UME_LOG_ERROR(Plugin, "error registering loading 'proc_planet'");
+    }
 #endif
 }
 } // namespace ume

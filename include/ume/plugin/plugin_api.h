@@ -20,8 +20,6 @@ extern "C" {
 
 #ifdef UME_PLUGIN_STATIC
 #define UME_PLUGIN_EXPORT
-#elif defined(_WIN32)
-#define UME_PLUGIN_EXPORT __declspec(dllexport)
 #else
 #define UME_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif
