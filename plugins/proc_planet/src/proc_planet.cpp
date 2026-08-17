@@ -1,25 +1,13 @@
 #include "proc_planet.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include <array>
+#include <cmath>
 
 namespace proc_planet {
 
-Planet::Planet(const UmePluginApi *api) {
-    api_ = api;
-
-    generate();
-}
-
-Planet::~Planet() {
-    for (const auto &mesh : meshes_) {
-        if (mesh != UME_MESH_HANDLE_INVALID) {
-            api_->destroyMesh(api_->context, mesh);
-        }
-    }
-}
+Planet::Planet(const UmePluginApi *api) : api_(api) { generate(); }
 
 namespace {
 glm::dvec3 cubeToSphere(glm::dvec3 p) {
@@ -33,6 +21,9 @@ glm::dvec3 cubeToSphere(glm::dvec3 p) {
 } // namespace
 
 void Planet::generate() {
+    meshes_.clear();
+    meshes_.reserve(6);
+
     uint32_t resolution = 8;
 
     const std::array<glm::dvec3, 6> face_normals{{
@@ -115,22 +106,22 @@ void Planet::generate() {
             .index_count = static_cast<uint32_t>(indices.size()),
         };
 
-        UmeMeshHandle mesh = api_->createMesh(api_->context, &desc);
+        UmeMeshHandle handle = api_->createMesh(api_->context, &desc);
 
-        if (mesh != UME_MESH_HANDLE_INVALID) {
-            meshes_.push_back(mesh);
+        if (handle != UME_MESH_HANDLE_INVALID) {
+            meshes_.emplace_back(api_, handle);
         }
     }
 }
 
 void Planet::update(const UmeFrameContext *frame_context) {
-    for (const auto &mesh : meshes_) {
-        if (mesh == UME_MESH_HANDLE_INVALID) {
+    for (const auto &ref : meshes_) {
+        if (ref.getHandle() == UME_MESH_HANDLE_INVALID) {
             continue;
         }
 
         const std::array<double, 3> world_position = {0.0, 0.0, 0.0};
-        api_->submit(api_->context, mesh, world_position.data());
+        api_->submit(api_->context, ref.getHandle(), world_position.data());
     }
 }
 } // namespace proc_planet
