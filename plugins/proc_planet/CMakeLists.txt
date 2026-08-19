@@ -1,6 +1,7 @@
 add_library(proc_planet ${UME_PLUGIN_LINK_TYPE} src/plugin.cpp
                         src/proc_planet.cpp)
-target_link_libraries(proc_planet PRIVATE ume_plugin_api ume_config)
+target_link_libraries(proc_planet PRIVATE ume_config ume_plugin_config
+                                          ume_plugin_api)
 set_target_properties(
   proc_planet
   PROPERTIES CXX_VISIBILITY_PRESET hidden

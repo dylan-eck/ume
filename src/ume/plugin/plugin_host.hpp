@@ -25,6 +25,7 @@ public:
         void *library = nullptr;
         std::string name;
         void *state = nullptr;
+        UME_PLUGIN_BOOL (*init)(void *) = nullptr;
         void (*shutdown)(void *) = nullptr;
         std::unique_ptr<PluginContext> context;
         std::vector<std::string> registered_types;
@@ -76,7 +77,6 @@ private:
     std::vector<Plugin> plugins_;
     uint64_t next_plugin_id_ = 1;
     uint64_t registering_id_ = kInvalidPluginID;
-    std::vector<std::string> registering_types_;
 
     std::unordered_map<std::string, ObjectType> types_;
     std::vector<std::unique_ptr<Object>> live_;
@@ -84,7 +84,7 @@ private:
     // nested registration is not allowed
     // it must not be initiated from with a plugin registration function or
     // any plugin callback
-    bool finishRegistration(const char *name,
+    bool finishRegistration(const char *name, void *library,
                             UmePluginRegisterFunction register_function);
 
     void unloadPluginAt(size_t index);
@@ -104,5 +104,7 @@ private:
                               const char *message) noexcept;
 };
 
-void registerBuiltinPlugins(PluginHost &host);
+// TODO: why is this declared here?
+void registerBuiltinPlugins(PluginHost &host,
+                            const std::filesystem::path &plugin_dir);
 } // namespace ume

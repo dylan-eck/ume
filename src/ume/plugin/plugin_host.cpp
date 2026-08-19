@@ -16,7 +16,8 @@ static_assert(alignof(Vertex) == alignof(UmeVertex));
 static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
 
 namespace {
-double alwaysFallback(const void *impl, const char *key, double fallback) {
+double alwaysFallback(const void *impl, const char *key,
+                      double fallback) noexcept {
     return fallback;
 }
 } // namespace
@@ -59,120 +60,7 @@ bool PluginHost::registerStatic(const char *name,
         return false;
     }
 
-    if (!finishRegistration(name, register_function)) {
-        return false;
-    }
-
-    return true;
-}
-
-bool PluginHost::finishRegistration(
-    const char *name, UmePluginRegisterFunction register_function) {
-
-    if (registering_id_ != kInvalidPluginID) {
-        UME_LOG_ERROR(Plugin,
-                      "cannot register plugin '{}': registration of plugin "
-                      "id {} is already in progress",
-                      name, registering_id_);
-        return false;
-    }
-
-    // next_plugin_id is incremented unconditionally to avoid confusing log
-    // messages
-    registering_id_ = next_plugin_id_++;
-
-    // we need to add the plugin provisionally so that it can register types
-    plugins_.emplace_back(Plugin{.id = registering_id_});
-
-    // this struct ensures that registering_id_ and registering_types_ are reset
-    // regardless of how we leave this function
-    struct Scope {
-        PluginHost *host;
-        ~Scope() {
-            host->registering_id_ = kInvalidPluginID;
-            host->registering_types_.clear();
-        }
-    } scope{this};
-
-    const auto rollback = [this, name](const UmePluginDescription &desc,
-                                       bool call_shutdown) {
-        auto it = std::ranges::find(plugins_, registering_id_, &Plugin::id);
-        if (it == plugins_.end()) {
-            UME_LOG_ERROR(Plugin,
-                          "plugin not found during registration rollback");
-            return;
-        }
-
-        // we call the plugin's shutdown before host cleanup to avoid double
-        // freeing of host resources
-        if (call_shutdown && desc.shutdown != nullptr) {
-            desc.shutdown(desc.state);
-        }
-
-        for (const auto &type : registering_types_) {
-            types_.erase(type);
-        }
-
-        if (!it->meshes.empty()) {
-            UME_LOG_WARN(Plugin,
-                         "plugin '{}' leaked {} mesh(es) during failed "
-                         "registration; reclaiming",
-                         name, it->meshes.size());
-
-            for (const uint32_t id : it->meshes) {
-                renderer_.destroyMesh({.id = id});
-            }
-        }
-        plugins_.erase(it);
-    };
-
-    auto context = std::make_unique<PluginContext>(this, registering_id_);
-    UmePluginApi api = api_;
-    api.context = context.get();
-
-    UmePluginDescription description{};
-    description.struct_size = sizeof(UmePluginDescription);
-
-    if (register_function(&api, &description) == UME_FALSE) {
-        UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
-        // plugins that decline to register are responsible for freeing any
-        // memory they have allocated
-        rollback(description, false);
-        return false;
-    }
-
-    if (description.name == nullptr) {
-        UME_LOG_ERROR(Plugin, "plugin '{}' did not set a name", name);
-        rollback(description, true);
-        return false;
-    }
-
-    if (description.abi_version != UME_PLUGIN_ABI_VERSION) {
-        UME_LOG_ERROR(
-            Plugin, "plugin '{}' reported abi version {} (expected {})",
-            description.name, description.abi_version, UME_PLUGIN_ABI_VERSION);
-        rollback(description, true);
-        return false;
-    }
-
-    Plugin *p = findPlugin(registering_id_);
-    if (p == nullptr) {
-        // we should never get here
-        UME_LOG_ERROR(
-            Plugin,
-            "could not find provisional plugin entry during registration");
-        rollback(description, true);
-        return false;
-    }
-
-    p->name = description.name;
-    p->state = description.state;
-    p->shutdown = description.shutdown;
-    p->context = std::move(context);
-    p->registered_types = std::move(registering_types_);
-
-    UME_LOG_INFO(Plugin, "registered plugin '{}'", description.name);
-    return true;
+    return finishRegistration(name, nullptr, register_function);
 }
 
 bool PluginHost::loadPlugin(const std::filesystem::path &path) {
@@ -192,18 +80,100 @@ bool PluginHost::loadPlugin(const std::filesystem::path &path) {
         return false;
     }
 
-    if (!finishRegistration(path.c_str(), entry)) {
+    if (!finishRegistration(path.c_str(), library, entry)) {
         closeLibrary(library);
         return false;
     }
+    return true;
+}
 
-    Plugin *p = findPlugin(registering_id_);
-    if (p == nullptr) {
-        UME_LOG_ERROR(Plugin, "could not find currently registering plugin to "
-                              "set library pointer");
+bool PluginHost::finishRegistration(
+    const char *name, void *library,
+    UmePluginRegisterFunction register_function) {
+
+    if (registering_id_ != kInvalidPluginID) {
+        UME_LOG_ERROR(Plugin,
+                      "cannot register plugin '{}': registration of plugin "
+                      "id {} is already in progress",
+                      name, registering_id_);
         return false;
     }
-    p->library = library;
+
+    // next_plugin_id is incremented unconditionally to avoid confusing log
+    // messages
+    registering_id_ = next_plugin_id_++;
+
+    struct Scope {
+        PluginHost *host;
+        ~Scope() { host->registering_id_ = kInvalidPluginID; }
+    } scope{this};
+
+    const auto rollback = [](const UmePluginDescription &desc,
+                             bool call_shutdown) {
+        if (call_shutdown && desc.shutdown != nullptr) {
+            desc.shutdown(desc.state);
+        }
+    };
+
+    auto context = std::make_unique<PluginContext>(this, registering_id_);
+    UmePluginApi api = api_;
+    api.context = context.get();
+
+    UmePluginDescription description{};
+    description.struct_size = sizeof(UmePluginDescription);
+
+    if (register_function(&api, &description) == UME_FALSE) {
+        UME_LOG_ERROR(Plugin, "plugin '{}' declined to register", name);
+        rollback(description, false);
+        return false;
+    }
+
+    if (description.name == nullptr) {
+        UME_LOG_ERROR(Plugin, "plugin '{}' did not set a name", name);
+        rollback(description, true);
+        return false;
+    }
+
+    if (description.abi_version != UME_PLUGIN_ABI_VERSION) {
+        UME_LOG_ERROR(
+            Plugin, "plugin '{}' reported abi version {} (expected {})",
+            description.name, description.abi_version, UME_PLUGIN_ABI_VERSION);
+        rollback(description, true);
+        return false;
+    }
+
+    if (std::string(description.name).find('.') != std::string::npos) {
+        UME_LOG_ERROR(Plugin, "plugin names must not contain periods");
+        return false;
+    }
+
+    auto it = std::ranges::find(plugins_, description.name, &Plugin::name);
+    if (it != plugins_.end()) {
+        UME_LOG_ERROR(Plugin,
+                      "currently registering plugin '{}' has the same name as "
+                      "an already registered plugin",
+                      description.name);
+        return false;
+    }
+
+    plugins_.emplace_back(Plugin{
+        .id = registering_id_,
+        .library = library,
+        .name = description.name,
+        .state = description.state,
+        .init = description.init,
+        .shutdown = description.shutdown,
+        .context = std::move(context),
+    });
+
+    Plugin *p = findPlugin(registering_id_);
+    if (p->init != nullptr && p->init(p->state) == UME_FALSE) {
+        UME_LOG_ERROR(Plugin, "plugin '{}' failed to initialize", p->name);
+        unloadPluginAt(plugins_.size() - 1);
+        return false;
+    }
+
+    UME_LOG_INFO(Plugin, "registered plugin '{}'", p->name);
 
     return true;
 }
@@ -370,8 +340,11 @@ PluginHost::registerObjectTypeTrampoline(void *context,
         return UME_FALSE;
     }
 
+    Plugin *plugin = self->findPlugin(ctx->plugin_id);
+    // TODO: check nullptr
+
     ObjectType object{
-        .name = type->name,
+        .name = plugin->name + "." + type->name,
         .owner = self->registering_id_,
         .user_data = type->user_data,
         .create = type->create,
@@ -388,7 +361,9 @@ PluginHost::registerObjectTypeTrampoline(void *context,
         return UME_FALSE;
     }
 
-    self->registering_types_.push_back(it->first);
+    plugin->registered_types.push_back(it->first);
+
+    UME_LOG_INFO(Plugin, "registered object type '{}'", it->second.name);
     return UME_TRUE;
 }
 

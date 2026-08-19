@@ -1,12 +1,12 @@
 #ifndef UME_PLUGIN_API_H
 #define UME_PLUGIN_API_H
 
-/* NOTE: this is a C ABI. No function pointer in this header may
- * allow an exception to escape, in either direction. The host guarantees this
- * for every function in UmePluginApi and UmeParams; the plugin must guarantee
- * it for its register function and for every callback it installs in
- * UmeObjectType and UmePluginDescription. C++ plugins should mark these
- * noexcept and catch internally.
+/* NOTE: this is a C ABI. No function pointer in this header may allow an
+ * exception to escape, in either direction. The host guarantees this for every
+ * function in UmePluginApi and UmeParams; the plugin must guarantee it for its
+ * register function and for every callback it installs in UmeObjectType and
+ * UmePluginDescription. C++ plugins should mark these noexcept and catch
+ * internally.
  */
 
 #ifdef __cplusplus
@@ -58,6 +58,7 @@ typedef struct UmeMeshDescription {
 } UmeMeshDescription;
 
 typedef struct UmeFrameContext {
+    uint32_t struct_size;
     uint64_t frame_index;
     double camera_position[3];
     float camera_orientation[9];
@@ -105,22 +106,26 @@ typedef struct UmePluginApi {
 
 /* The plugin description is owned by the host and is valid only during the
  * register call. The host copies name, so the plugin's buffer need not outlive
- * the call. state and shutdown are retained and shutdown is called with state
- * when the plugin is unloaded.
+ * the call. init, state, and shutdown are retained by the host. init is called
+ * after the plugin successfully registers and shutdown is called with when the
+ * plugin is unloaded.
  */
 typedef struct UmePluginDescription {
     uint32_t struct_size;
     uint32_t abi_version;
     const char *name;
     void *state;
+    UME_PLUGIN_BOOL (*init)(void *state);
     void (*shutdown)(void *state);
 } UmePluginDescription;
 
 /* Returns UME_TRUE on success.
  * If UME_FALSE is returned, the plugin must have freed any resources that
-it
- * allocated. The plugin host will unregister any already registered types.
- */
+ * it allocated.
+ *
+ * The plugin may not call any API function from its register function; the API
+ * becomes usable once init is called.
+ */
 typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
     const UmePluginApi *api, UmePluginDescription *description);
 

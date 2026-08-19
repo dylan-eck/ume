@@ -17,7 +17,7 @@ void *openLibrary(const std::filesystem::path &path) {
     const std::filesystem::path full = absolutePath(path);
 
     ::dlerror();
-    void *library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    void *library = dlopen(full.c_str(), RTLD_NOW | RTLD_LOCAL);
 
     if (library == nullptr) {
         const char *error = ::dlerror();

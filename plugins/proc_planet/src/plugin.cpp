@@ -70,7 +70,31 @@ void updatePlanet(void *user_data, void *object,
     }
 }
 
-void shutDownProcPlanet(void *state) noexcept {
+UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
+    auto *self = static_cast<ProcPlanetPlugin *>(state);
+    if (self == nullptr) {
+        return UME_FALSE;
+    }
+
+    const UmePluginApi api = self->api;
+
+    const UmeObjectType planet_type{
+        .struct_size = sizeof(UmeObjectType),
+        .name = "Planet",
+        .user_data = self,
+        .create = &createPlanet,
+        .destroy = &destroyPlanet,
+        .update = &updatePlanet,
+    };
+
+    if (api.registerObjectType(api.context, &planet_type) == UME_FALSE) {
+        // TODO: do something here
+    }
+
+    return UME_TRUE;
+}
+
+void shutdownProcPlanet(void *state) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(state);
     if (self == nullptr) {
         return;
@@ -102,25 +126,11 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
         }
 
         self = new ProcPlanetPlugin{*api};
-
-        const UmeObjectType planet_type{
-            .struct_size = sizeof(UmeObjectType),
-            .name = "Planet",
-            .user_data = self,
-            .create = &createPlanet,
-            .destroy = &destroyPlanet,
-            .update = &updatePlanet,
-        };
-
-        if (api->registerObjectType(api->context, &planet_type) == UME_FALSE) {
-            delete self;
-            return UME_FALSE;
-        }
-
         description->abi_version = UME_PLUGIN_ABI_VERSION;
         description->name = "proc_planet";
         description->state = self;
-        description->shutdown = &shutDownProcPlanet;
+        description->init = &initProcPlanet;
+        description->shutdown = &shutdownProcPlanet;
     } catch (...) {
         delete self;
 

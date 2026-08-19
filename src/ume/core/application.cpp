@@ -20,13 +20,14 @@ Application::Application(const ApplicationConfig &config)
       script_engine_(renderer_,
                      config.working_dir + "/" + project_.main_script) {
 
-    registerBuiltinPlugins(plugin_host_);
+    registerBuiltinPlugins(
+        plugin_host_, std::filesystem::path(config.working_dir) / "plugins");
 
     const NumberMap planet_params{{"radius", 7000000.0}};
     const UmeParams params = makeNumberParams(planet_params);
 
-    if (plugin_host_.createObject("Planet", &params) == nullptr) {
-        UME_LOG_ERROR(Core, "failed to create the planet object");
+    if (plugin_host_.createObject("proc_planet.Planet", &params) == nullptr) {
+        UME_LOG_ERROR(Core, "failed to create planet object");
     }
 
     script_engine_.init();

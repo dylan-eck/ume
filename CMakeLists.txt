@@ -43,6 +43,12 @@ target_compile_definitions(
             GLM_ENABLE_EXPERIMENTAL $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
 target_link_libraries(ume_config INTERFACE glm::glm)
 
+add_library(ume_plugin_config INTERFACE)
+target_compile_options(
+  ume_plugin_config
+  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+            $<$<CXX_COMPILER_ID:MSVC>:/W4>)
+
 add_library(ume_plugin_api INTERFACE)
 target_include_directories(ume_plugin_api INTERFACE include)
 
@@ -72,6 +78,8 @@ target_link_libraries(
   PUBLIC ume_config ume_plugin_api
   PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren
           ${CMAKE_DL_LIBS})
+target_compile_definitions(
+  ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}")
 
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
