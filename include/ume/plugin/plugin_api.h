@@ -16,6 +16,28 @@ extern "C" {
 #include <stdint.h>
 #endif
 
+/* NOTE: struct_size and abi_version are the first two fields of UmePluginApi
+ * and UmePluginDescription and must remain at those offsets permanently. They
+ * are the only fields readable across an ABI version mismatch, and are what
+ * makes an ABI mismatch detectable.
+ *
+ * Host and plugin ABI versions must match exactly. There is no compatibility
+ * range.
+ *
+ * ABI version is bumped for any change that is not backward compatible. Such as
+ * removing, reordering, or retyping a struct field, changing a function
+ * pointer signature, changing the semantics of an existing function or changing
+ * the value or meaning of an enum constant.
+ *
+ * ABI version is not bumped for purely additive changes. such as appending a
+ * field to the end of a struct that carries struct_size. Those are detected by
+ * comparing struct_size, and both sides must tolerate a peer whose struct is
+ * smaller than their own.
+ *
+ * NOTE: ABI version is not being incremented right now since there are no
+ * official engine releases yet.
+ */
+
 #define UME_PLUGIN_ABI_VERSION 0
 
 #ifdef UME_PLUGIN_STATIC

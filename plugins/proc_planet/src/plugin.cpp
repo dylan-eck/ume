@@ -88,7 +88,7 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
     };
 
     if (api.registerObjectType(api.context, &planet_type) == UME_FALSE) {
-        // TODO: do something here
+        return UME_FALSE;
     }
 
     return UME_TRUE;
@@ -117,6 +117,12 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     ProcPlanetPlugin *self = nullptr;
 
     try {
+        // if abi version doesn't match, we can't call api-log in the catch
+        // because function pointer locations are not guaranteed to match
+        if (api->abi_version != UME_PLUGIN_ABI_VERSION) {
+            return UME_FALSE;
+        }
+
         if (api->struct_size < sizeof(UmePluginApi)) {
             return UME_FALSE;
         }
