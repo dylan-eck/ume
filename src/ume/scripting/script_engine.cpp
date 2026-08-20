@@ -278,9 +278,9 @@ void scriptDestroyObject(WrenVM *vm) {
         abortWithError(vm, "object handle must be a number");
     }
 
-    double objectID = wrenGetSlotDouble(vm, 1);
+    double object_id = wrenGetSlotDouble(vm, 1);
 
-    ObjectHandle handle{.id = static_cast<uint32_t>(objectID)};
+    ObjectHandle handle{.id = static_cast<uint32_t>(object_id)};
 
     getScriptContext(vm).plugin_host->destroyObject(handle);
 }

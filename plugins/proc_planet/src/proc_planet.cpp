@@ -7,8 +7,9 @@
 
 namespace proc_planet {
 
-Planet::Planet(const UmePluginApi *api, double radius)
-    : api_(api), radius_(radius) {
+Planet::Planet(const UmePluginApi *api, double radius, double x, double y,
+               double z)
+    : api_(api), radius_(radius), position_(x, y, z) {
     generate();
 }
 
@@ -123,14 +124,17 @@ void Planet::generate() {
 }
 
 void Planet::update(const UmeFrameContext *frame_context) {
+
+    transform_ = glm::rotate(transform_, 0.0005f, glm::vec3(0, 1, 0));
+
+    const std::array<double, 3> world_position = {position_.x, position_.y,
+                                                  position_.z};
+
     for (const auto &ref : meshes_) {
         if (ref.getHandle() == UME_MESH_HANDLE_INVALID) {
             continue;
         }
 
-        transform_ = glm::rotate(transform_, 0.0005f, glm::vec3(0, 1, 0));
-
-        const std::array<double, 3> world_position = {0.0, 0.0, 0.0};
         api_->submit(api_->context, ref.getHandle(), world_position.data(),
                      glm::value_ptr(transform_));
     }

@@ -50,7 +50,8 @@ private:
 
 class Planet {
 public:
-    explicit Planet(const UmePluginApi *api, double radius);
+    explicit Planet(const UmePluginApi *api, double radius, double x, double y,
+                    double z);
     ~Planet() = default;
 
     Planet(const Planet &) = delete;
@@ -66,6 +67,7 @@ private:
     const UmePluginApi *api_;
     double radius_;
 
+    glm::dvec3 position_ = glm::dvec3(0.0);
     glm::mat4 transform_ = glm::mat4(1.0f);
 
     std::vector<MeshRef> meshes_;
