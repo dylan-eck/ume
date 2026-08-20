@@ -6,6 +6,7 @@
 #include "ume/plugin/plugin_host.hpp"
 
 #include <wren.hpp>
+#include <battery/embed.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -50,6 +51,18 @@ void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
 void abortWithError(WrenVM *vm, const char *message) {
     wrenSetSlotString(vm, 0, message);
     wrenAbortFiber(vm, 0);
+}
+
+WrenLoadModuleResult loadModuleFn(WrenVM *vm, const char *name) {
+    WrenLoadModuleResult result{};
+
+    if (strcmp(name, "ume") == 0) {
+        static const std::string source =
+            b::embed<"src/ume/scripting/ume.wren">().str();
+        result.source = source.c_str();
+    }
+
+    return result;
 }
 
 ScriptContext &getScriptContext(WrenVM *vm) {
@@ -294,7 +307,7 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
 
-    if (strcmp(module, "main") != 0 || !is_static) {
+    if (strcmp(module, "ume") != 0 || !is_static) {
         return nullptr;
     }
 
@@ -332,6 +345,7 @@ WrenVMPtr createWrenVM(ScriptContext &context) {
     config.errorFn = &errorFn;
     config.bindForeignMethodFn = &bindForeignMethodFn;
     config.userData = &context;
+    config.loadModuleFn = &loadModuleFn;
 
     WrenVMPtr vm(wrenNewVM(&config));
 

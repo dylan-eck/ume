@@ -81,6 +81,8 @@ target_link_libraries(
 target_compile_definitions(
   ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}")
 
+b_embed(ume_engine src/ume/scripting/ume.wren)
+
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
   target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_METAL)
