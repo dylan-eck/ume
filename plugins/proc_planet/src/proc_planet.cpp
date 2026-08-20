@@ -174,7 +174,7 @@ void Planet::generate() {
 
 void Planet::update(const UmeFrameContext *frame_context) {
 
-    transform_ = glm::rotate(transform_, 0.0005f, glm::vec3(0, 1, 0));
+    transform_ = glm::rotate(transform_, 0.002f, glm::vec3(0, 1, 0));
 
     const std::array<double, 3> world_position = {position_.x, position_.y,
                                                   position_.z};

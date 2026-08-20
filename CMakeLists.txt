@@ -170,3 +170,12 @@ target_link_libraries(ume PRIVATE ume_engine)
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_link_libraries(ume PRIVATE proc_planet)
 endif()
+
+include(GNUInstallDirs)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  install(TARGETS ume RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+else()
+  message(STATUS "ume: install rules omitted for non-Release build "
+                 "(embedded resources are loaded from the source tree)")
+endif()
