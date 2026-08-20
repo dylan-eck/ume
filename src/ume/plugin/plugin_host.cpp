@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <ranges>
 #include <cstddef>
+#include <optional>
 
 namespace ume {
 
@@ -43,12 +44,11 @@ PluginHost::~PluginHost() {
     while (!plugins_.empty()) {
         unloadPluginAt(plugins_.size() - 1);
     }
-    if (!live_.empty() || !types_.empty()) {
-        UME_LOG_ERROR(Plugin,
-                      "{} orphaned object(s) and {} orphaned type(s) after all "
-                      "plugins unloaded",
-                      live_.size(), types_.size());
-    }
+    // if (!live_.empty() || !types_.empty()) {
+    //     UME_LOG_ERROR(Plugin,
+    //                   "{} orphaned object(s) and {} orphaned type(s) after
+    //                   all " "plugins unloaded", live_.size(), types_.size());
+    // }
 };
 
 bool PluginHost::registerStatic(const char *name,
@@ -180,6 +180,11 @@ bool PluginHost::finishRegistration(
     return true;
 }
 
+PluginHost::Plugin *PluginHost::findPlugin(uint64_t id) {
+    const auto it = std::ranges::find(plugins_, id, &Plugin::id);
+    return it != plugins_.end() ? std::to_address(it) : nullptr;
+}
+
 bool PluginHost::unloadPlugin(uint64_t id) {
     if (registering_id_ != kInvalidPluginID) {
         UME_LOG_ERROR(Plugin,
@@ -202,18 +207,16 @@ void PluginHost::unloadPluginAt(size_t index) {
     UME_LOG_INFO(Plugin, "unloading plugin at index {} (id {})", index,
                  plugin.id);
 
-    std::vector<std::unique_ptr<Object>> to_delete;
-    for (auto &object : live_) {
+    std::vector<ObjectHandle> to_delete;
+    for (auto &handle : live_) {
+        Object *object = objects_.get(handle);
         if (object != nullptr && object->type->owner == plugin.id) {
-            to_delete.push_back(std::move(object));
+            to_delete.push_back(handle);
         }
     }
-    std::erase(live_, nullptr);
 
-    for (auto &object : to_delete | std::views::reverse) {
-        if (object->type->destroy != nullptr) {
-            object->type->destroy(object->type->user_data, object->instance);
-        }
+    for (auto &handle : to_delete | std::views::reverse) {
+        destroyObject(handle);
     }
     to_delete.clear();
 
@@ -241,29 +244,24 @@ void PluginHost::unloadPluginAt(size_t index) {
     plugins_.erase(plugins_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
-PluginHost::Plugin *PluginHost::findPlugin(uint64_t id) {
-    const auto it = std::ranges::find(plugins_, id, &Plugin::id);
-    return it != plugins_.end() ? std::to_address(it) : nullptr;
-}
-
-PluginHost::Object *PluginHost::createObject(const char *type_name,
-                                             const UmeParams *params) {
+ObjectHandle PluginHost::createObject(const char *type_name,
+                                      const UmeParams *params) {
     if (type_name == nullptr) {
         UME_LOG_ERROR(Plugin, "createObject called with null type name");
-        return nullptr;
+        return {};
     }
 
     const auto it = types_.find(type_name);
     if (it == types_.end()) {
         UME_LOG_ERROR(Plugin, "no registered type with name '{}'", type_name);
-        return nullptr;
+        return {};
     }
 
     const ObjectType &type = it->second;
     if (type.create == nullptr) {
         UME_LOG_ERROR(Plugin, "object type '{}' has no create function",
                       type_name);
-        return nullptr;
+        return {};
     }
 
     void *instance = type.create(type.user_data,
@@ -271,37 +269,35 @@ PluginHost::Object *PluginHost::createObject(const char *type_name,
     if (instance == nullptr) {
         UME_LOG_ERROR(Plugin, "failed to create instance of object type '{}'",
                       type_name);
-        return nullptr;
+        return {};
     }
 
-    live_.push_back(
-        std::make_unique<Object>(Object{.type = &type, .instance = instance}));
-    return live_.back().get();
+    const ObjectHandle handle =
+        objects_.insert(Object{.type = &type, .instance = instance});
+
+    live_.push_back(handle);
+    return handle;
 }
 
-void PluginHost::destroyObject(Object *object) {
-    if (object == nullptr) {
-        return;
+bool PluginHost::destroyObject(ObjectHandle handle) {
+    std::optional<Object> object = objects_.remove(handle);
+    if (!object) {
+        UME_LOG_ERROR(Plugin, "attempted to destroy stale object handle '{}'",
+                      handle.id);
+        return false;
     }
 
-    const auto it =
-        std::ranges::find_if(live_, [object](const std::unique_ptr<Object> &o) {
-            return o.get() == object;
-        });
-
-    if (it == live_.end()) {
-        UME_LOG_WARN(Plugin, "attempted to destroy unknown object");
-        return;
-    }
+    std::erase(live_, handle);
 
     if (object->type->destroy != nullptr) {
         object->type->destroy(object->type->user_data, object->instance);
     }
-    live_.erase(it);
+    return true;
 }
 
 void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
-    for (const auto &object : live_) {
+    for (const auto handle : live_) {
+        Object *object = objects_.get(handle);
         if (object->type->update != nullptr) {
             object->type->update(object->type->user_data, object->instance,
                                  &frame_context);

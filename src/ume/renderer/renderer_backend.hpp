@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ume/renderer/resource_handle.hpp"
+#include "ume/core/resource_handle.hpp"
 
 #include <memory>
 #include <span>

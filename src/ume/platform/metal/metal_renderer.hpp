@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ume/renderer/renderer_backend.hpp"
-#include "ume/renderer/resource_pool.hpp"
+#include "ume/core/resource_pool.hpp"
 #include "ume/platform/window.hpp"
 
 #include <Foundation/NSSharedPtr.hpp>

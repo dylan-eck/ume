@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ume/plugin/plugin_api.h"
+#include "ume/core/resource_handle.hpp"
+#include "ume/core/resource_pool.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -63,9 +65,9 @@ public:
     [[nodiscard]] bool unloadPlugin(uint64_t id);
     [[nodiscard]] Plugin *findPlugin(uint64_t id);
 
-    [[nodiscard]] Object *createObject(const char *type_name,
-                                       const UmeParams *params);
-    void destroyObject(Object *object);
+    [[nodiscard]] ObjectHandle createObject(const char *type_name,
+                                            const UmeParams *params);
+    bool destroyObject(ObjectHandle handle);
     void updateObjects(const UmeFrameContext &frame_context);
 
     static const UmeParams kDefaultParams;
@@ -79,7 +81,8 @@ private:
     uint64_t registering_id_ = kInvalidPluginID;
 
     std::unordered_map<std::string, ObjectType> types_;
-    std::vector<std::unique_ptr<Object>> live_;
+    ResourcePool<Object, ObjectHandle> objects_;
+    std::vector<ObjectHandle> live_;
 
     // nested registration is not allowed
     // it must not be initiated from with a plugin registration function or

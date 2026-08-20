@@ -26,7 +26,7 @@ Application::Application(const ApplicationConfig &config)
     const NumberMap planet_params{{"radius", 7000000.0}};
     const UmeParams params = makeNumberParams(planet_params);
 
-    if (plugin_host_.createObject("proc_planet.Planet", &params) == nullptr) {
+    if (!plugin_host_.createObject("proc_planet.Planet", &params)) {
         UME_LOG_ERROR(Core, "failed to create planet object");
     }
 

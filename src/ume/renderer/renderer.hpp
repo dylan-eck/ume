@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer_backend.hpp"
-#include "ume/renderer/resource_pool.hpp"
+#include "ume/core/resource_pool.hpp"
 #include "ume/renderer/camera.hpp"
 
 #include <glm/glm.hpp>
