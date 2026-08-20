@@ -17,6 +17,7 @@ namespace ume {
 
 void WrenVMDeleter::operator()(WrenVM *vm) const { wrenFreeVM(vm); }
 
+// TODO: wren binding functions should be noexcept
 namespace {
 void writeFn(WrenVM *vm, const char *text) {
     static std::string buffer;
@@ -166,6 +167,7 @@ void scriptCreateMesh(WrenVM *vm) {
         return;
     }
 
+    getScriptContext(vm).meshes.push_back(handle);
     wrenSetSlotDouble(vm, 0, static_cast<double>(handle.id));
 }
 
@@ -269,13 +271,16 @@ void scriptCreateObject(WrenVM *vm) {
         return;
     }
 
+    getScriptContext(vm).objects.push_back(handle);
     wrenSetSlotDouble(vm, 0, static_cast<double>(handle.id));
 }
 
 void scriptDestroyObject(WrenVM *vm) {
-    // TODO: handles probably should be number since number is floating point?
+    // TODO: handles probably should not be number since number is floating
+    // point?
     if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM) {
         abortWithError(vm, "object handle must be a number");
+        return;
     }
 
     double object_id = wrenGetSlotDouble(vm, 1);
@@ -336,54 +341,73 @@ WrenVMPtr createWrenVM(ScriptContext &context) {
 
     return vm;
 }
-} // namespace
 
-ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                           const std::string &main_script_path)
-    : context_(
-          ScriptContext{.renderer = &renderer, .plugin_host = &plugin_host}),
-      wren_vm_(createWrenVM(context_)) {
-    std::ifstream main_script(main_script_path);
+struct LoadedVM {
+    WrenVMPtr vm;
+    WrenHandle *main_class = nullptr;
+    WrenHandle *main_init = nullptr;
+    WrenHandle *main_update = nullptr;
+};
 
-    if (!main_script.is_open()) {
-        throw Error(logger::Category::Script, "failed to open main script: {}",
-                    main_script_path);
+LoadedVM loadVM(ScriptContext &context, const std::string &path) {
+    LoadedVM loaded;
+    loaded.vm = createWrenVM(context);
+    WrenVM *vm = loaded.vm.get();
+
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        throw Error(logger::Category::Script, "failed to open main script: '{}",
+                    path);
     }
 
     std::stringstream buffer;
-    buffer << main_script.rdbuf();
-    std::string main_script_src = buffer.str();
-    main_script.close();
+    buffer << file.rdbuf();
+    const std::string source = buffer.str();
 
-    WrenInterpretResult result =
-        wrenInterpret(wren_vm_.get(), "main", main_script_src.c_str());
-
-    switch (result) {
+    switch (wrenInterpret(vm, "main", source.c_str())) {
     case WREN_RESULT_COMPILE_ERROR:
         throw Error(logger::Category::Script,
-                    "wren compile error during loading of main script: {}",
-                    main_script_path);
+                    "compile error while loading '{}'", path);
     case WREN_RESULT_RUNTIME_ERROR:
         throw Error(logger::Category::Script,
-                    "wren runtime error during loading of main script: {}",
-                    main_script_path);
+                    "runtime error while loading '{}'", path);
     case WREN_RESULT_SUCCESS:
         break;
     }
 
-    main_init_ = wrenMakeCallHandle(wren_vm_.get(), "init()");
-    main_update_ = wrenMakeCallHandle(wren_vm_.get(), "update(_)");
-    wrenEnsureSlots(wren_vm_.get(), 1);
-    wrenGetVariable(wren_vm_.get(), "main", "Sandbox", 0);
-    main_class_ = wrenGetSlotHandle(wren_vm_.get(), 0);
+    if (!wrenHasVariable(vm, "main", "Sandbox")) {
+        throw Error(logger::Category::Script,
+                    "'{}' does not define a Sandbox class", path);
+    }
+
+    loaded.main_init = wrenMakeCallHandle(vm, "init()");
+    loaded.main_update = wrenMakeCallHandle(vm, "update(_)");
+
+    wrenEnsureSlots(vm, 1);
+    wrenGetVariable(vm, "main", "Sandbox", 0);
+    loaded.main_class = wrenGetSlotHandle(vm, 0);
+
+    return loaded;
+}
+} // namespace
+
+ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
+                           std::string main_script_path)
+    : main_script_path_(std::move(main_script_path)),
+      context_(
+          ScriptContext{.renderer = &renderer, .plugin_host = &plugin_host}) {
+
+    LoadedVM loaded = loadVM(context_, main_script_path_);
+
+    wren_vm_ = std::move(loaded.vm);
+    main_class_ = loaded.main_class;
+    main_init_ = loaded.main_init;
+    main_update_ = loaded.main_update;
 }
 
 ScriptEngine::~ScriptEngine() {
-    for (WrenHandle *handle : {main_class_, main_init_, main_update_}) {
-        if (handle != nullptr) {
-            wrenReleaseHandle(wren_vm_.get(), handle);
-        }
-    }
+    destroyScriptResources();
+    releaseVM();
 }
 
 void ScriptEngine::init() {
@@ -420,5 +444,57 @@ void ScriptEngine::update(float delta) {
     case WREN_RESULT_SUCCESS:
         break;
     }
+}
+
+bool ScriptEngine::reload() {
+    LoadedVM loaded;
+    try {
+        loaded = loadVM(context_, main_script_path_);
+    } catch (const Error &err) {
+        UME_LOG_ERROR(Script, "reload failed, keeping current script: {}",
+                      err.what());
+        return false;
+    }
+
+    destroyScriptResources();
+    releaseVM();
+
+    wren_vm_ = std::move(loaded.vm);
+    main_class_ = loaded.main_class;
+    main_init_ = loaded.main_init;
+    main_update_ = loaded.main_update;
+    main_script_failed_ = false;
+
+    init();
+
+    UME_LOG_INFO(Script, "reloaded '{}'", main_script_path_);
+    return true;
+}
+
+void ScriptEngine::destroyScriptResources() {
+    for (const ObjectHandle handle : context_.objects) {
+        context_.plugin_host->destroyObject(handle);
+    }
+    context_.objects.clear();
+
+    for (const MeshHandle handle : context_.meshes) {
+        context_.renderer->destroyMesh(handle);
+    }
+    context_.meshes.clear();
+}
+
+void ScriptEngine::releaseVM() {
+    if (wren_vm_) {
+        for (WrenHandle *handle : {main_class_, main_init_, main_update_}) {
+            if (handle != nullptr) {
+                wrenReleaseHandle(wren_vm_.get(), handle);
+            }
+        }
+    }
+
+    main_class_ = nullptr;
+    main_init_ = nullptr;
+    main_update_ = nullptr;
+    wren_vm_.reset();
 }
 } // namespace ume

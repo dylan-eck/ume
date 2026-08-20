@@ -1,7 +1,10 @@
 #pragma once
 
+#include "ume/plugin/plugin_host.hpp"
+
 #include <string>
 #include <memory>
+#include <vector>
 
 struct WrenVM;
 struct WrenHandle;
@@ -20,12 +23,15 @@ using WrenVMPtr = std::unique_ptr<WrenVM, WrenVMDeleter>;
 struct ScriptContext {
     Renderer *renderer;
     PluginHost *plugin_host;
+
+    std::vector<ObjectHandle> objects;
+    std::vector<MeshHandle> meshes;
 };
 
 class ScriptEngine {
 public:
     ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                 const std::string &main_script_path);
+                 std::string main_script_path);
     ~ScriptEngine();
 
     ScriptEngine(const ScriptEngine &) = delete;
@@ -37,7 +43,11 @@ public:
     void init();
     void update(float delta);
 
+    bool reload();
+
 private:
+    // TODO: use std::filesystem::path?
+    std::string main_script_path_;
     ScriptContext context_;
 
     WrenVMPtr wren_vm_;
@@ -46,5 +56,8 @@ private:
     WrenHandle *main_update_ = nullptr;
 
     bool main_script_failed_ = false;
+
+    void destroyScriptResources();
+    void releaseVM();
 };
 } // namespace ume

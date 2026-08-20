@@ -72,10 +72,18 @@ Window::Window(const WindowConfig &config) : window_(createSDLWindow(config)) {
 }
 
 bool Window::pollEvents() {
+    keys_pressed_.fill(false);
+
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) {
             return false;
+        }
+
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+            if (e.key.scancode == SDL_SCANCODE_R) {
+                keys_pressed_[static_cast<size_t>(Key::Reload)] = true;
+            }
         }
     }
 

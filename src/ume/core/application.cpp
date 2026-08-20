@@ -1,7 +1,6 @@
 #include "application.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
-#include "ume/plugin/plugin_params.hpp"
 
 #include <glaze/toml.hpp>
 #include <glm/glm.hpp>
@@ -34,6 +33,11 @@ Application::~Application() {}
 
 void Application::run() {
     while (window_.pollEvents()) {
+        if (window_.keyPressed(Key::Reload)) {
+            UME_LOG_INFO(Core, "reloading script engine");
+            script_engine_.reload();
+        }
+
         frame_index_++;
         auto now = std::chrono::steady_clock::now();
         float delta =
