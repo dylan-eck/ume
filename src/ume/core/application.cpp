@@ -53,6 +53,7 @@ void Application::run() {
 
         UmeFrameContext context{};
 
+        context.struct_size = sizeof(UmeFrameContext);
         context.frame_index = frame_index_;
         context.camera_position[0] = camera_state.position.x;
         context.camera_position[1] = camera_state.position.y;

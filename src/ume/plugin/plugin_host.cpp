@@ -144,6 +144,7 @@ bool PluginHost::finishRegistration(
 
     if (std::string(description.name).find('.') != std::string::npos) {
         UME_LOG_ERROR(Plugin, "plugin names must not contain periods");
+        rollback(description, true);
         return false;
     }
 
@@ -153,6 +154,7 @@ bool PluginHost::finishRegistration(
                       "currently registering plugin '{}' has the same name as "
                       "an already registered plugin",
                       description.name);
+        rollback(description, true);
         return false;
     }
 
@@ -341,7 +343,13 @@ PluginHost::registerObjectTypeTrampoline(void *context,
     }
 
     Plugin *plugin = self->findPlugin(ctx->plugin_id);
-    // TODO: check nullptr
+
+    if (plugin == nullptr) {
+        UME_LOG_ERROR(Plugin,
+                      "could not find owner (plugin id'{}') while registering "
+                      "object type '{}'",
+                      ctx->plugin_id, type->name);
+    }
 
     ObjectType object{
         .name = plugin->name + "." + type->name,

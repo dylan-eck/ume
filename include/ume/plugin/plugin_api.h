@@ -7,6 +7,55 @@
  * register function and for every callback it installs in UmeObjectType and
  * UmePluginDescription. C++ plugins should mark these noexcept and catch
  * internally.
+ *
+ * Threading
+ *
+ * The plugin API is not thread safe and has no internal synchronisation. Every
+ * function in UmePluginApi must be called from the same thread the host used
+ * to call into the plugin. The host calls every plugin callback from a single
+ * thread. A plugin that uses worker threads must marshal all API calls back to
+ * the thread it was called on.
+ *
+ * Reentrancy
+ *
+ * No function in UmePluginApi invokes a plugin callback, so plugin callbacks
+ * are never entered reentrantly by the host and a plugin need not guard
+ * against it.
+ *
+ * Lifecycle
+ *
+ * A plugin is driven through the following sequence:
+ *
+ *   register  -- fill in the description; no API call is permitted here
+ *   init      -- register object types; other API functions become available
+ *   create / update / destroy   -- once per object, any number of objects
+ *   shutdown  -- last call the plugin receives
+ *
+ * registerObjectType is valid only during init and is rejected at any other
+ * time. All other API functions are valid from init until shutdown returns.
+ *
+ * Every live object's destroy callback is invoked before shutdown, so
+ * user_data and the plugin's state are still valid inside destroy. This holds
+ * during host teardown as well: a plugin cannot assume shutdown is the first
+ * notice it gets that the host is going away.
+ *
+ * shutdown must only release resources. Objects have already been destroyed
+ * and meshes already reclaimed by the time it runs; creating anything new
+ * there will leak.
+ *
+ * Pointer lifetimes
+ *
+ * Unless stated otherwise, every pointer the host passes to a plugin is valid
+ * only for the duration of the call it appears in, and every pointer the
+ * plugin passes to the host is read before that call returns and never
+ * retained. A plugin that needs any of this data later must copy it.
+ *
+ * Resource ownership
+ *
+ * Meshes are owned by the plugin that created them and must be destroyed with
+ * destroyMesh before shutdown returns. A plugin may only destroy or submit
+ * meshes it created. The host reclaims meshes still outstanding at unload and
+ * logs a warning; that is leak detection, not a substitute for cleanup.
  */
 
 #ifdef __cplusplus
@@ -79,6 +128,7 @@ typedef struct UmeMeshDescription {
     uint32_t index_count;
 } UmeMeshDescription;
 
+// Valid only for the duration of the update call.
 typedef struct UmeFrameContext {
     uint32_t struct_size;
     uint64_t frame_index;
@@ -87,12 +137,17 @@ typedef struct UmeFrameContext {
     float fov_y, z_near, aspect, delta_time;
 } UmeFrameContext;
 
+// Valid only for the duration of the create call.
 typedef struct UmeParams {
     uint32_t struct_size;
     const void *impl;
     double (*number)(const void *impl, const char *key, double fallback);
 } UmeParams;
 
+/* The host copies everything it needs from this struct, including name, before
+ * registerObjectType returns. The struct and the string need not outlive the
+ * call. user_data is retained and passed back to create, destroy, and update.
+ */
 typedef struct UmeObjectType {
     uint32_t struct_size;
     const char *name;
