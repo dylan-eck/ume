@@ -6,6 +6,11 @@ class Renderer {
     foreign static setCamera(px, py, pz, tx, ty, tz, fovYDegrees)
 }
 
+class Engine {
+    foreign static createObject(typeName, params)
+    // foreign static destroyObject(handle)
+}
+
 class Sandbox {
     static init() {
         __camera_distance = 40000000
@@ -15,6 +20,10 @@ class Sandbox {
         __rotation_speed = 0.2
 
         Renderer.setCamera(0, 0, __camera_distance, 0, 0, 0, __fov_y)
+
+        var a = 0
+        var b = 0
+        Engine.createObject(a, b)
     }
 
     static update(delta) {

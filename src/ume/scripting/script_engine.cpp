@@ -2,6 +2,8 @@
 #include "ume/core/logger.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/error.hpp"
+#include "ume/plugin/plugin_params.hpp"
+#include "ume/plugin/plugin_host.hpp"
 
 #include <wren.hpp>
 
@@ -49,8 +51,8 @@ void abortWithError(WrenVM *vm, const char *message) {
     wrenAbortFiber(vm, 0);
 }
 
-Renderer &rendererFromVM(WrenVM *vm) {
-    return *static_cast<Renderer *>(wrenGetUserData(vm));
+ScriptContext &getScriptContext(WrenVM *vm) {
+    return *static_cast<ScriptContext *>(wrenGetUserData(vm));
 }
 
 bool readNumberList(WrenVM *vm, int list_slot, int scratch_slot,
@@ -156,7 +158,7 @@ void scriptCreateMesh(WrenVM *vm) {
         }
     }
 
-    MeshHandle handle = rendererFromVM(vm).createMesh(
+    MeshHandle handle = getScriptContext(vm).renderer->createMesh(
         MeshDescription{.vertices = vertices, .indices = indices});
 
     if (!handle) {
@@ -180,7 +182,8 @@ void scriptSubmit(WrenVM *vm) {
     };
 
     MeshHandle handle{static_cast<uint32_t>(wrenGetSlotDouble(vm, 1))};
-    rendererFromVM(vm).submit(handle, world_position, glm::mat4(1.0f));
+    getScriptContext(vm).renderer->submit(handle, world_position,
+                                          glm::mat4(1.0f));
 }
 
 void scriptSetCamera(WrenVM *vm) {
@@ -206,39 +209,57 @@ void scriptSetCamera(WrenVM *vm) {
         lookAtCamera(camera_world_position, target_world_position,
                      glm::dvec3(0.0f, 1.0f, 0.0f), fov_y_degrees, 1.0f);
 
-    rendererFromVM(vm).setCamera(camera_state);
+    getScriptContext(vm).renderer->setCamera(camera_state);
+}
+
+void scriptCreateObject(WrenVM *vm) {
+    ScriptContext context = getScriptContext(vm);
+
+    const NumberMap planet_params{{"radius", 7000000.0}};
+    const UmeParams params = makeNumberParams(planet_params);
+
+    if (!context.plugin_host->createObject("proc_planet.Planet", &params)) {
+        UME_LOG_ERROR(Script, "failed to create planet object");
+    }
+    UME_LOG_INFO(Script, "created planet object from script");
 }
 
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
-    if (strcmp(module, "main") != 0 || strcmp(class_name, "Renderer") != 0 ||
-        !is_static) {
+
+    if (strcmp(module, "main") != 0 || !is_static) {
         return nullptr;
     }
 
-    if (strcmp(signature, "createMesh(_,_,_)") == 0) {
-        return &scriptCreateMesh;
-    }
+    if (strcmp(class_name, "Renderer") == 0) {
+        if (strcmp(signature, "createMesh(_,_,_)") == 0) {
+            return &scriptCreateMesh;
+        }
 
-    if (strcmp(signature, "submit(_,_,_,_)") == 0) {
-        return &scriptSubmit;
-    }
+        if (strcmp(signature, "submit(_,_,_,_)") == 0) {
+            return &scriptSubmit;
+        }
 
-    if (strcmp(signature, "setCamera(_,_,_,_,_,_,_)") == 0) {
-        return &scriptSetCamera;
+        if (strcmp(signature, "setCamera(_,_,_,_,_,_,_)") == 0) {
+            return &scriptSetCamera;
+        }
+    } else if (strcmp(class_name, "Engine") == 0) {
+        if (strcmp(signature, "createObject(_,_)") == 0) {
+            return &scriptCreateObject;
+        }
     }
 
     return nullptr;
 }
 
-WrenVMPtr createWrenVM(Renderer &renderer) {
+WrenVMPtr createWrenVM(ScriptContext &context) {
     WrenConfiguration config;
     wrenInitConfiguration(&config);
     config.writeFn = &writeFn;
     config.errorFn = &errorFn;
     config.bindForeignMethodFn = &bindForeignMethodFn;
-    config.userData = &renderer;
+    config.userData = &context;
 
     WrenVMPtr vm(wrenNewVM(&config));
 
@@ -250,9 +271,11 @@ WrenVMPtr createWrenVM(Renderer &renderer) {
 }
 } // namespace
 
-ScriptEngine::ScriptEngine(Renderer &renderer,
+ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
                            const std::string &main_script_path)
-    : wren_vm_(createWrenVM(renderer)) {
+    : context_(
+          ScriptContext{.renderer = &renderer, .plugin_host = &plugin_host}),
+      wren_vm_(createWrenVM(context_)) {
     std::ifstream main_script(main_script_path);
 
     if (!main_script.is_open()) {
