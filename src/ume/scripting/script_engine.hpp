@@ -41,9 +41,9 @@ private:
     ScriptContext context_;
 
     WrenVMPtr wren_vm_;
-    WrenHandle *main_class_;
-    WrenHandle *main_init_;
-    WrenHandle *main_update_;
+    WrenHandle *main_class_ = nullptr;
+    WrenHandle *main_init_ = nullptr;
+    WrenHandle *main_update_ = nullptr;
 
     bool main_script_failed_ = false;
 };

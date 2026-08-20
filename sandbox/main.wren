@@ -1,14 +1,28 @@
 class Renderer {
     foreign static createMesh(positions, normals, indices)
-
     foreign static submit(mesh, px, py, pz)
-
     foreign static setCamera(px, py, pz, tx, ty, tz, fovYDegrees)
 }
 
 class Engine {
-    foreign static createObject(typeName, params)
+    foreign static createObject_(type_name, keys, values)
     // foreign static destroyObject(handle)
+
+    static createObject(type_name) {
+        return createObject_(type_name, [], [])
+    }
+
+    static createObject(type_name, params) {
+        var keys = []
+        var values = []
+
+        for (entry in params) {
+            keys.add(entry.key)
+            values.add(entry.value)
+        }
+
+        return createObject_(type_name, keys, values)
+    }
 }
 
 class Sandbox {
@@ -23,7 +37,7 @@ class Sandbox {
 
         var a = 0
         var b = 0
-        Engine.createObject(a, b)
+        __planet = Engine.createObject("proc_planet.Planet", {"radius": 7000000})
     }
 
     static update(delta) {

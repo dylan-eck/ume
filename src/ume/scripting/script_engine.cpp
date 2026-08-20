@@ -213,15 +213,63 @@ void scriptSetCamera(WrenVM *vm) {
 }
 
 void scriptCreateObject(WrenVM *vm) {
-    ScriptContext context = getScriptContext(vm);
-
-    const NumberMap planet_params{{"radius", 7000000.0}};
-    const UmeParams params = makeNumberParams(planet_params);
-
-    if (!context.plugin_host->createObject("proc_planet.Planet", &params)) {
-        UME_LOG_ERROR(Script, "failed to create planet object");
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+        abortWithError(vm, "createObject: type name must be a string");
+        return;
     }
-    UME_LOG_INFO(Script, "created planet object from script");
+
+    if (wrenGetSlotType(vm, 2) != WREN_TYPE_LIST ||
+        wrenGetSlotType(vm, 3) != WREN_TYPE_LIST) {
+        abortWithError(vm, "createObject: params must be a map");
+        return;
+    }
+
+    const int count = wrenGetListCount(vm, 2);
+    if (wrenGetListCount(vm, 3) != count) {
+        abortWithError(vm, "createObject: internal key/value length mismatch");
+        return;
+    }
+
+    wrenEnsureSlots(vm, 5);
+    constexpr int scratch_slot = 4;
+
+    NumberMap params;
+    try {
+        for (int i = 0; i < count; ++i) {
+            wrenGetListElement(vm, 2, i, scratch_slot);
+            if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_STRING) {
+                abortWithError(vm, "createObject: param keys must be strings");
+                return;
+            }
+            std::string key = wrenGetSlotString(vm, scratch_slot);
+
+            wrenGetListElement(vm, 3, i, scratch_slot);
+            if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
+                abortWithError(vm,
+                               "createObject: param values must be numbers");
+                return;
+            }
+
+            params.insert_or_assign(std::move(key),
+                                    wrenGetSlotDouble(vm, scratch_slot));
+        }
+    } catch (...) {
+        abortWithError(vm, "createObject: out of memory reading params");
+        return;
+    }
+
+    const char *type_name = wrenGetSlotString(vm, 1);
+
+    const UmeParams ume_params = makeNumberParams(params);
+    const ObjectHandle handle =
+        getScriptContext(vm).plugin_host->createObject(type_name, &ume_params);
+
+    if (!handle) {
+        abortWithError(vm, "createObject: failed to create object");
+        return;
+    }
+
+    wrenSetSlotDouble(vm, 0, static_cast<double>(handle.id));
 }
 
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
@@ -245,7 +293,7 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
             return &scriptSetCamera;
         }
     } else if (strcmp(class_name, "Engine") == 0) {
-        if (strcmp(signature, "createObject(_,_)") == 0) {
+        if (strcmp(signature, "createObject_(_,_,_)") == 0) {
             return &scriptCreateObject;
         }
     }
