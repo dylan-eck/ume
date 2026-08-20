@@ -272,6 +272,19 @@ void scriptCreateObject(WrenVM *vm) {
     wrenSetSlotDouble(vm, 0, static_cast<double>(handle.id));
 }
 
+void scriptDestroyObject(WrenVM *vm) {
+    // TODO: handles probably should be number since number is floating point?
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM) {
+        abortWithError(vm, "object handle must be a number");
+    }
+
+    double objectID = wrenGetSlotDouble(vm, 1);
+
+    ObjectHandle handle{.id = static_cast<uint32_t>(objectID)};
+
+    getScriptContext(vm).plugin_host->destroyObject(handle);
+}
+
 WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
@@ -292,9 +305,15 @@ WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
         if (strcmp(signature, "setCamera(_,_,_,_,_,_,_)") == 0) {
             return &scriptSetCamera;
         }
-    } else if (strcmp(class_name, "Engine") == 0) {
+    }
+
+    if (strcmp(class_name, "Engine") == 0) {
         if (strcmp(signature, "createObject_(_,_,_)") == 0) {
             return &scriptCreateObject;
+        }
+
+        if (strcmp(signature, "destroyObject(_)") == 0) {
+            return &scriptDestroyObject;
         }
     }
 

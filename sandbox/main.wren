@@ -6,7 +6,7 @@ class Renderer {
 
 class Engine {
     foreign static createObject_(type_name, keys, values)
-    // foreign static destroyObject(handle)
+    foreign static destroyObject(handle)
 
     static createObject(type_name) {
         return createObject_(type_name, [], [])
@@ -30,22 +30,10 @@ class Sandbox {
         __camera_distance = 40000000
         __fov_y = 30
 
-        __t = 0
-        __rotation_speed = 0.2
-
         Renderer.setCamera(0, 0, __camera_distance, 0, 0, 0, __fov_y)
 
-        var a = 0
-        var b = 0
         __planet = Engine.createObject("proc_planet.Planet", {"radius": 7000000})
     }
 
-    static update(delta) {
-        // __t = __t + __rotation_speed * delta
-
-        // var cam_x = __camera_distance * __t.cos
-        // var cam_z = __camera_distance * __t.sin
-
-        // Renderer.setCamera(cam_x, 0, cam_z, 0, 0, 0, __fov_y)
-    }
+    static update(delta) {}
 }
