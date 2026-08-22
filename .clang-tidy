@@ -62,8 +62,9 @@ CheckOptions:
   - key: readability-identifier-naming.PrivateMemberSuffix
     value: "_"
 
-  # namespace
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
 
+  - key: bugprone-easily-swappable-parameters.ModelImplicitConversions
+    value: 'false'
 

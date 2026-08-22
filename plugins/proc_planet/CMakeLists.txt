@@ -6,7 +6,8 @@ add_subdirectory(vendor/FastNoise2)
 add_library(proc_planet ${UME_PLUGIN_LINK_TYPE} src/plugin.cpp
                         src/proc_planet.cpp)
 
-target_link_libraries(proc_planet PRIVATE ume_plugin_api ume_config FastNoise)
+target_link_libraries(proc_planet PRIVATE ume_plugin_api ume_config
+                                          ume_plugin_config FastNoise)
 
 set_target_properties(
   proc_planet
@@ -14,9 +15,7 @@ set_target_properties(
              VISIBILITY_INLINES_HIDDEN ON
              POSITION_INDEPENDENT_CODE ON)
 
-if(APPLE)
-  target_link_options(proc_planet PRIVATE -Wl,-undefined,error)
-elseif(NOT MSVC)
+if(NOT APPLE AND NOT MSVC)
   target_link_options(proc_planet PRIVATE -Wl,--no-undefined)
 endif()
 

@@ -1,8 +1,6 @@
 #include "ume/plugin/plugin_api.h"
 #include "proc_planet.hpp"
 
-#include <iostream>
-
 namespace {
 
 struct ProcPlanetPlugin {
@@ -33,7 +31,8 @@ void *createPlanet(void *user_data, const UmeParams *params) noexcept {
 
     proc_planet::Planet *planet = nullptr;
     try {
-        planet = new proc_planet::Planet(&self->api, radius, x, y, z);
+        planet =
+            new proc_planet::Planet(&self->api, radius, glm::dvec3(x, y, z));
     } catch (...) {
         self->api.log(
             self->api.context, UME_LOG_LEVEL_ERROR,
@@ -43,20 +42,16 @@ void *createPlanet(void *user_data, const UmeParams *params) noexcept {
     return planet;
 }
 
-void destroyPlanet(void *user_data, void *object) noexcept {
-    auto *self = static_cast<ProcPlanetPlugin *>(user_data);
-    try {
-        delete static_cast<proc_planet::Planet *>(object);
-    } catch (...) {
-        if (self != nullptr) {
-            self->api.log(self->api.context, UME_LOG_LEVEL_ERROR,
-                          "proc_planet: unknown exception thrown during "
-                          "planet destruction");
-        }
-    }
+// this function's signature is fixed by the plugin ABI (ume_plugin_api.h)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void destroyPlanet([[maybe_unused]] void *user_data, void *object) noexcept {
+    // destructors are implicitly noexcept, so no try catch needed here
+    delete static_cast<proc_planet::Planet *>(object);
 }
 
 // TODO: change frame_context to const reference?
+// this function's signature is fixed by the plugin ABI (ume_plugin_api.h)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void updatePlanet(void *user_data, void *object,
                   const UmeFrameContext *frame_context) noexcept {
 

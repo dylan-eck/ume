@@ -1,0 +1,3 @@
+{
+  "wren.additionalModuleDirectories": ["src/ume/scripting"]
+}

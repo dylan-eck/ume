@@ -86,7 +86,7 @@ b_embed(ume_engine src/ume/scripting/ume.wren)
 if(UME_RENDER_BACKEND STREQUAL "metal")
   target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
   target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_METAL)
-  target_include_directories(ume_engine PRIVATE vendor/metal-cpp)
+  target_include_directories(ume_engine SYSTEM PRIVATE vendor/metal-cpp)
 
   find_library(METAL_LIB Metal REQUIRED)
   find_library(FOUNDATION_LIB Foundation REQUIRED)

@@ -20,7 +20,7 @@ void WrenVMDeleter::operator()(WrenVM *vm) const { wrenFreeVM(vm); }
 
 // TODO: wren binding functions should be noexcept
 namespace {
-void writeFn(WrenVM *vm, const char *text) {
+void writeFn([[maybe_unused]] WrenVM *vm, const char *text) {
     static std::string buffer;
     buffer += text;
 
@@ -31,8 +31,8 @@ void writeFn(WrenVM *vm, const char *text) {
     }
 }
 
-void errorFn(WrenVM *vm, WrenErrorType error_type, const char *module,
-             const int line, const char *msg) {
+void errorFn([[maybe_unused]] WrenVM *vm, WrenErrorType error_type,
+             const char *module, const int line, const char *msg) {
     switch (error_type) {
     case WREN_ERROR_COMPILE:
         UME_LOG_ERROR(Script, "wren compile error [{} line {}] [error] {}",
@@ -53,7 +53,8 @@ void abortWithError(WrenVM *vm, const char *message) {
     wrenAbortFiber(vm, 0);
 }
 
-WrenLoadModuleResult loadModuleFn(WrenVM *vm, const char *name) {
+WrenLoadModuleResult loadModuleFn([[maybe_unused]] WrenVM *vm,
+                                  const char *name) {
     WrenLoadModuleResult result{};
 
     if (strcmp(name, "ume") == 0) {
@@ -303,7 +304,8 @@ void scriptDestroyObject(WrenVM *vm) {
     getScriptContext(vm).plugin_host->destroyObject(handle);
 }
 
-WrenForeignMethodFn bindForeignMethodFn(WrenVM *vm, const char *module,
+WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
+                                        const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
 

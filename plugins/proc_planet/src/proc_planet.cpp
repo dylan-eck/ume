@@ -10,9 +10,9 @@
 
 namespace proc_planet {
 
-Planet::Planet(const UmePluginApi *api, double radius, double x, double y,
-               double z)
-    : api_(api), radius_(radius), position_(x, y, z) {
+Planet::Planet(const UmePluginApi *api, double radius,
+               glm::dvec3 world_position)
+    : api_(api), radius_(radius), world_position_(world_position) {
     generate();
 }
 
@@ -53,8 +53,8 @@ void Planet::generate() {
         a *= 2.0f;
         b *= 2.0f;
 
-        for (int i = 0; i < resolution; i++) {
-            for (int j = 0; j < resolution; j++) {
+        for (uint32_t i = 0; i < resolution; i++) {
+            for (uint32_t j = 0; j < resolution; j++) {
                 double t = (i * step) - 0.5;
                 double u = (j * step) - 0.5;
 
@@ -174,10 +174,12 @@ void Planet::generate() {
 
 void Planet::update(const UmeFrameContext *frame_context) {
 
-    transform_ = glm::rotate(transform_, 0.002f, glm::vec3(0, 1, 0));
+    rotation_angle_ += 0.25f * frame_context->delta_time;
+    glm::mat4 transform =
+        glm::rotate(glm::mat4(1.0f), rotation_angle_, glm::vec3(0, 1, 0));
 
-    const std::array<double, 3> world_position = {position_.x, position_.y,
-                                                  position_.z};
+    const std::array<double, 3> world_position = {
+        world_position_.x, world_position_.y, world_position_.z};
 
     for (const auto &ref : meshes_) {
         if (ref.getHandle() == UME_MESH_HANDLE_INVALID) {
@@ -185,7 +187,7 @@ void Planet::update(const UmeFrameContext *frame_context) {
         }
 
         api_->submit(api_->context, ref.getHandle(), world_position.data(),
-                     glm::value_ptr(transform_));
+                     glm::value_ptr(transform));
     }
 }
 } // namespace proc_planet

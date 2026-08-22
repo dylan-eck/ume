@@ -17,7 +17,9 @@ static_assert(alignof(Vertex) == alignof(UmeVertex));
 static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
 
 namespace {
-double alwaysFallback(const void *impl, const char *key,
+// this function's signature is fixed by the plugin ABI (see ume_plugin_api.h)
+double alwaysFallback([[maybe_unused]] const void *impl,
+                      [[maybe_unused]] const char *key,
                       double fallback) noexcept {
     return fallback;
 }
