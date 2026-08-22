@@ -9,11 +9,11 @@ class Sandbox {
 
         __planet_1 = Engine.createObject(
             "proc_planet.Planet",
-            {"radius": 7000000, "x": 8000000, "y": 0, "z": 0})
+            {"radius": 7000000, "x": -8000000, "y": 0, "z": 0})
 
         __planet_2 = Engine.createObject(
             "proc_planet.Planet",
-            {"radius": 7000000, "x": -8000000, "y": 0, "z": 0})
+            {"radius": 7000000, "x": 8000000, "y": 0, "z": 0})
     }
 
     static update(delta) {}

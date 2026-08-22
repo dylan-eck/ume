@@ -378,6 +378,7 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
     buffer << file.rdbuf();
     const std::string source = buffer.str();
 
+    // TODO: use file name as module name?
     switch (wrenInterpret(vm, "main", source.c_str())) {
     case WREN_RESULT_COMPILE_ERROR:
         throw Error(logger::Category::Script,
@@ -389,6 +390,7 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
         break;
     }
 
+    // TODO: figure out a better way to handle class name
     if (!wrenHasVariable(vm, "main", "Sandbox")) {
         throw Error(logger::Category::Script,
                     "'{}' does not define a Sandbox class", path);
