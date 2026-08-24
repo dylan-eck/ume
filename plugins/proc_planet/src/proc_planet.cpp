@@ -7,6 +7,8 @@
 
 #include <cmath>
 #include <array>
+#include <iostream>
+
 namespace proc_planet {
 
 Planet::Planet(const UmePluginApi *api, double radius,
@@ -30,7 +32,7 @@ void Planet::generate() {
     meshes_.clear();
     meshes_.reserve(6);
 
-    uint32_t resolution = 8;
+    uint32_t resolution = 32;
 
     const std::array<glm::vec3, 6> face_normals{{
         glm::vec3(0.0f, 0.0f, 1.0f),
@@ -43,78 +45,88 @@ void Planet::generate() {
 
     float step = 1.0f / resolution;
     for (const auto &normal : face_normals) {
+        const uint32_t vertex_count = (resolution + 1) * (resolution + 1);
+
         std::vector<float> positions;
         std::vector<float> normals;
         std::vector<uint32_t> indices;
 
-        glm::vec3 a = 2.0f * glm::vec3(normal.y, normal.z, normal.x);
-        glm::vec3 b = 2.0f * glm::cross(normal, a);
+        glm::vec3 a = glm::vec3(normal.y, normal.z, normal.x);
+        glm::vec3 b = glm::cross(normal, a);
+
+        a *= 2.0f;
+        b *= 2.0f;
 
         auto push_vertex = [&](float t, float u) {
             const glm::vec3 dir = cubeToSphere(normal + a * t + b * u);
-            const glm::vec3 p = dir * (float)radius_;
+            const glm::vec3 p = dir; // * (float)radius_;
             const glm::vec3 n = glm::normalize(dir);
 
             positions.insert(positions.end(), {p.x, p.y, p.z});
             normals.insert(normals.end(), {n.x, n.y, n.z});
         };
 
-        for (uint32_t i = 0; i < resolution; i++) {
-            for (uint32_t j = 0; j < resolution; j++) {
+        for (uint32_t i = 0; i <= resolution; i++) {
+            for (uint32_t j = 0; j <= resolution; j++) {
                 float t = (i * step) - 0.5f;
                 float u = (j * step) - 0.5f;
 
-                const auto s = static_cast<uint32_t>(positions.size()) / 3;
-
                 push_vertex(t, u);
-                push_vertex(t + step, u);
-                push_vertex(t + step, u + step);
-                push_vertex(t, u + step);
-
-                indices.insert(indices.end(),
-                               {s, s + 1, s + 2, s + 2, s + 3, s});
             }
         }
 
-        auto simplex = FastNoise::New<FastNoise::Simplex>();
-        auto fractal = FastNoise::New<FastNoise::FractalFBm>();
-        fractal->SetSource(simplex);
-        fractal->SetOctaveCount(5);
+        uint32_t w = resolution + 1;
+        for (uint32_t i = 0; i < resolution; i++) {
+            const uint32_t base_idx = i * w;
 
-        const size_t vertex_count = positions.size() / 3;
+            for (uint32_t j = base_idx; j < base_idx + resolution; j++) {
+                indices.insert(indices.end(), {j, j + 1, j + w});
+            }
 
-        std::vector<float> x_positions(vertex_count);
-        std::vector<float> y_positions(vertex_count);
-        std::vector<float> z_positions(vertex_count);
-
-        float freq = 0.00002f;
-
-        for (size_t i = 0; i < vertex_count; i++) {
-            const size_t base_idx = i * 3;
-
-            x_positions[i] = positions[base_idx] * freq;
-            y_positions[i] = positions[base_idx + 1] * freq;
-            z_positions[i] = positions[base_idx + 2] * freq;
+            for (uint32_t j = base_idx + 1; j <= base_idx + resolution; j++) {
+                indices.insert(indices.end(), {j, j + w, j + w - 1});
+            }
         }
 
-        std::vector<float> noise_values(vertex_count);
-        fractal->GenPositionArray3D(noise_values.data(),
-                                    static_cast<int>(vertex_count),
-                                    x_positions.data(), y_positions.data(),
-                                    z_positions.data(), 0, 0, 0, 0);
+        // auto simplex = FastNoise::New<FastNoise::Simplex>();
+        // auto fractal = FastNoise::New<FastNoise::FractalFBm>();
+        // fractal->SetSource(simplex);
+        // fractal->SetOctaveCount(5);
 
-        float amp = 800000.0f;
+        // const size_t vertex_count = positions.size() / 3;
 
-        for (size_t i = 0; i < vertex_count; i++) {
-            float n = noise_values[i];
-            float height = amp * n;
+        // std::vector<float> x_positions(vertex_count);
+        // std::vector<float> y_positions(vertex_count);
+        // std::vector<float> z_positions(vertex_count);
 
-            const size_t base_idx = i * 3;
+        // float freq = 0.00002f;
 
-            positions[base_idx] += height * normals[base_idx];
-            positions[base_idx + 1] += height * normals[base_idx + 1];
-            positions[base_idx + 2] += height * normals[base_idx + 2];
-        }
+        // for (size_t i = 0; i < vertex_count; i++) {
+        //     const size_t base_idx = i * 3;
+
+        //     x_positions[i] = positions[base_idx] * freq;
+        //     y_positions[i] = positions[base_idx + 1] * freq;
+        //     z_positions[i] = positions[base_idx + 2] * freq;
+        // }
+
+        // std::vector<float> noise_values(vertex_count);
+        // fractal->GenPositionArray3D(noise_values.data(),
+        //                             static_cast<int>(vertex_count),
+        //                             x_positions.data(), y_positions.data(),
+        //                             z_positions.data(), 0, 0, 0, 0);
+
+        // float amp = 800000.0f;
+
+        // for (size_t i = 0; i < vertex_count; i++) {
+        //     float n = noise_values[i];
+        //     float height = amp * n;
+
+        //     const size_t base_idx = i * 3;
+
+        //     positions[base_idx] += height * normals[base_idx];
+        //     positions[base_idx + 1] += height * normals[base_idx + 1];
+        //     positions[base_idx + 2] += height * normals[base_idx + 2];
+        // }
 
         UmeMeshDescription desc{
             .struct_size = sizeof(UmeMeshDescription),

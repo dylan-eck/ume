@@ -45,7 +45,8 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
 
     output.normal = normal_world;
     // output.color = float4(normal_axis, 1);
-    output.color = float4(vertices[vid].normal.xyz, 1);
+    // output.color = float4(vertices[vid].normal.xyz, 1);
+    output.color = float4(1);
     return output;
 }
 
