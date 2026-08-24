@@ -11,13 +11,8 @@
 #include <optional>
 
 namespace ume {
-
-static_assert(sizeof(Vertex) == sizeof(UmeVertex));
-static_assert(alignof(Vertex) == alignof(UmeVertex));
-static_assert(offsetof(Vertex, normal) == offsetof(UmeVertex, normal));
-
 namespace {
-// this function's signature is fixed by the plugin ABI (see ume_plugin_api.h)
+// this function's signature is fixed by the plugin ABI (plugin_api.h)
 double alwaysFallback([[maybe_unused]] const void *impl,
                       [[maybe_unused]] const char *key,
                       double fallback) noexcept {
@@ -393,15 +388,19 @@ UmeMeshHandle PluginHost::createMeshTrampoline(
         return UME_MESH_HANDLE_INVALID;
     }
 
-    std::span<const Vertex> vertices{
-        reinterpret_cast<const Vertex *>(description->vertices),
-        description->vertex_count};
+    std::span<const float> positions{
+        description->positions,
+        static_cast<size_t>(description->vertex_count) * 3};
+
+    std::span<const float> normals{
+        description->normals,
+        static_cast<size_t>(description->vertex_count) * 3};
 
     std::span<const uint32_t> indices{description->indices,
                                       description->index_count};
 
-    MeshHandle handle =
-        self->renderer_.createMesh({.vertices = vertices, .indices = indices});
+    MeshHandle handle = self->renderer_.createMesh(
+        {.positions = positions, .normals = normals, .indices = indices});
 
     if (handle.id != UME_MESH_HANDLE_INVALID) {
         if (Plugin *plugin = self->findPlugin(ctx->plugin_id)) {

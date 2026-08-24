@@ -115,17 +115,14 @@ typedef enum UmeLogLevel {
     UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff
 } UmeLogLevel;
 
-typedef struct UmeVertex {
-    float position[4];
-    float normal[4];
-} UmeVertex;
-
 typedef struct UmeMeshDescription {
     uint32_t struct_size;
-    const UmeVertex *vertices;
     uint32_t vertex_count;
-    const uint32_t *indices;
+    const float *positions;
+    const float *normals;
     uint32_t index_count;
+    const uint32_t *indices;
+
 } UmeMeshDescription;
 
 // Valid only for the duration of the update call.

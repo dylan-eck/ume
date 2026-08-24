@@ -7,7 +7,6 @@
 
 #include <cmath>
 #include <array>
-
 namespace proc_planet {
 
 Planet::Planet(const UmePluginApi *api, double radius,
@@ -17,13 +16,13 @@ Planet::Planet(const UmePluginApi *api, double radius,
 }
 
 namespace {
-glm::dvec3 cubeToSphere(glm::dvec3 p) {
-    return glm::dvec3{p.x * std::sqrt(1 - (p.y * p.y / 2) - (p.z * p.z / 2) +
-                                      (p.y * p.y * p.z * p.z / 3)),
-                      p.y * std::sqrt(1 - (p.z * p.z / 2) - (p.x * p.x / 2) +
-                                      (p.z * p.z * p.x * p.x / 3)),
-                      p.z * std::sqrt(1 - (p.x * p.x / 2) - (p.y * p.y / 2) +
-                                      (p.x * p.x * p.y * p.y / 3))};
+glm::vec3 cubeToSphere(glm::vec3 p) {
+    return glm::vec3{p.x * std::sqrt(1 - (p.y * p.y / 2) - (p.z * p.z / 2) +
+                                     (p.y * p.y * p.z * p.z / 3)),
+                     p.y * std::sqrt(1 - (p.z * p.z / 2) - (p.x * p.x / 2) +
+                                     (p.z * p.z * p.x * p.x / 3)),
+                     p.z * std::sqrt(1 - (p.x * p.x / 2) - (p.y * p.y / 2) +
+                                     (p.x * p.x * p.y * p.y / 3))};
 }
 } // namespace
 
@@ -31,82 +30,49 @@ void Planet::generate() {
     meshes_.clear();
     meshes_.reserve(6);
 
-    uint32_t resolution = 32;
+    uint32_t resolution = 8;
 
-    const std::array<glm::dvec3, 6> face_normals{{
-        glm::dvec3(0.0f, 0.0f, 1.0f),
-        glm::dvec3(0.0f, 0.0f, -1.0f),
-        glm::dvec3(1.0f, 0.0f, 0.0f),
-        glm::dvec3(-1.0f, 0.0f, 0.0f),
-        glm::dvec3(0.0f, 1.0f, 0.0f),
-        glm::dvec3(0.0f, -1.0f, 0.0f),
+    const std::array<glm::vec3, 6> face_normals{{
+        glm::vec3(0.0f, 0.0f, 1.0f),
+        glm::vec3(0.0f, 0.0f, -1.0f),
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(-1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, -1.0f, 0.0f),
     }};
 
-    double step = 1.0 / resolution;
+    float step = 1.0f / resolution;
     for (const auto &normal : face_normals) {
-        std::vector<UmeVertex> vertices;
+        std::vector<float> positions;
+        std::vector<float> normals;
         std::vector<uint32_t> indices;
 
-        glm::dvec3 a = glm::dvec3(normal.y, normal.z, normal.x);
-        glm::dvec3 b = glm::cross(normal, a);
+        glm::vec3 a = 2.0f * glm::vec3(normal.y, normal.z, normal.x);
+        glm::vec3 b = 2.0f * glm::cross(normal, a);
 
-        a *= 2.0f;
-        b *= 2.0f;
+        auto push_vertex = [&](float t, float u) {
+            const glm::vec3 dir = cubeToSphere(normal + a * t + b * u);
+            const glm::vec3 p = dir * (float)radius_;
+            const glm::vec3 n = glm::normalize(dir);
+
+            positions.insert(positions.end(), {p.x, p.y, p.z});
+            normals.insert(normals.end(), {n.x, n.y, n.z});
+        };
 
         for (uint32_t i = 0; i < resolution; i++) {
             for (uint32_t j = 0; j < resolution; j++) {
-                double t = (i * step) - 0.5;
-                double u = (j * step) - 0.5;
+                float t = (i * step) - 0.5f;
+                float u = (j * step) - 0.5f;
 
-                glm::dvec3 u00 = cubeToSphere(normal + a * t + b * u);
-                glm::dvec3 u10 = cubeToSphere(normal + a * (t + step) + b * u);
-                glm::dvec3 u11 =
-                    cubeToSphere(normal + a * (t + step) + b * (u + step));
-                glm::dvec3 u01 = cubeToSphere(normal + a * t + b * (u + step));
+                const auto s = static_cast<uint32_t>(positions.size()) / 3;
 
-                glm::dvec3 p00 = u00 * radius_;
-                glm::dvec3 p10 = u10 * radius_;
-                glm::dvec3 p11 = u11 * radius_;
-                glm::dvec3 p01 = u01 * radius_;
+                push_vertex(t, u);
+                push_vertex(t + step, u);
+                push_vertex(t + step, u + step);
+                push_vertex(t, u + step);
 
-                glm::dvec3 n00 = glm::normalize(u00);
-                glm::dvec3 n10 = glm::normalize(u10);
-                glm::dvec3 n11 = glm::normalize(u11);
-                glm::dvec3 n01 = glm::normalize(u01);
-
-                size_t s = vertices.size();
-
-                vertices.emplace_back(
-                    UmeVertex{.position = {(float)p00[0], (float)p00[1],
-                                           (float)p00[2], 1.0f},
-                              .normal = {(float)n00[0], (float)n00[1],
-                                         (float)n00[2], 0.0f}});
-
-                vertices.emplace_back(
-                    UmeVertex{.position = {(float)p10[0], (float)p10[1],
-                                           (float)p10[2], 1.0f},
-                              .normal = {(float)n10[0], (float)n10[1],
-                                         (float)n10[2], 0.0f}});
-
-                vertices.emplace_back(
-                    UmeVertex{.position = {(float)p11[0], (float)p11[1],
-                                           (float)p11[2], 1.0f},
-                              .normal = {(float)n11[0], (float)n11[1],
-                                         (float)n11[2], 0.0f}});
-
-                vertices.emplace_back(
-                    UmeVertex{.position = {(float)p01[0], (float)p01[1],
-                                           (float)p01[2], 1.0f},
-                              .normal = {(float)n01[0], (float)n01[1],
-                                         (float)n01[2], 0.0f}});
-
-                indices.push_back(s);
-                indices.push_back(s + 1);
-                indices.push_back(s + 2);
-
-                indices.push_back(s + 2);
-                indices.push_back(s + 3);
-                indices.push_back(s);
+                indices.insert(indices.end(),
+                               {s, s + 1, s + 2, s + 2, s + 3, s});
             }
         }
 
@@ -115,53 +81,48 @@ void Planet::generate() {
         fractal->SetSource(simplex);
         fractal->SetOctaveCount(5);
 
-        std::vector<float> x_positions(vertices.size());
-        std::vector<float> y_positions(vertices.size());
-        std::vector<float> z_positions(vertices.size());
+        const size_t vertex_count = positions.size() / 3;
+
+        std::vector<float> x_positions(vertex_count);
+        std::vector<float> y_positions(vertex_count);
+        std::vector<float> z_positions(vertex_count);
 
         float freq = 0.00002f;
 
-        for (size_t i = 0; i < vertices.size(); i++) {
-            UmeVertex &v = vertices[i];
+        for (size_t i = 0; i < vertex_count; i++) {
+            const size_t base_idx = i * 3;
 
-            x_positions[i] = v.position[0] * freq;
-            y_positions[i] = v.position[1] * freq;
-            z_positions[i] = v.position[2] * freq;
+            x_positions[i] = positions[base_idx] * freq;
+            y_positions[i] = positions[base_idx + 1] * freq;
+            z_positions[i] = positions[base_idx + 2] * freq;
         }
 
-        std::vector<float> noise_values(vertices.size());
+        std::vector<float> noise_values(vertex_count);
         fractal->GenPositionArray3D(noise_values.data(),
-                                    static_cast<int>(vertices.size()),
+                                    static_cast<int>(vertex_count),
                                     x_positions.data(), y_positions.data(),
                                     z_positions.data(), 0, 0, 0, 0);
 
         float amp = 800000.0f;
 
-        for (size_t i = 0; i < vertices.size(); i++) {
+        for (size_t i = 0; i < vertex_count; i++) {
             float n = noise_values[i];
-
             float height = amp * n;
 
-            UmeVertex &v = vertices[i];
+            const size_t base_idx = i * 3;
 
-            vertices[i].position[0] += height * v.normal[0];
-            vertices[i].position[1] += height * v.normal[1];
-            vertices[i].position[2] += height * v.normal[2];
-
-            // // this is a hacky way to get a different solid color for each
-            // face
-            // // of the cube sphere
-            // vertices[i].normal[0] = static_cast<float>(normal.x);
-            // vertices[i].normal[1] = static_cast<float>(normal.y);
-            // vertices[i].normal[2] = static_cast<float>(normal.z);
+            positions[base_idx] += height * normals[base_idx];
+            positions[base_idx + 1] += height * normals[base_idx + 1];
+            positions[base_idx + 2] += height * normals[base_idx + 2];
         }
 
         UmeMeshDescription desc{
             .struct_size = sizeof(UmeMeshDescription),
-            .vertices = vertices.data(),
-            .vertex_count = static_cast<uint32_t>(vertices.size()),
-            .indices = indices.data(),
+            .vertex_count = static_cast<uint32_t>(positions.size() / 3),
+            .positions = positions.data(),
+            .normals = normals.data(),
             .index_count = static_cast<uint32_t>(indices.size()),
+            .indices = indices.data(),
         };
 
         UmeMeshHandle handle = api_->createMesh(api_->context, &desc);

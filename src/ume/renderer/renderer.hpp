@@ -16,7 +16,8 @@ struct Vertex {
 };
 
 struct MeshDescription {
-    std::span<const Vertex> vertices;
+    std::span<const float> positions;
+    std::span<const float> normals;
     std::span<const uint32_t> indices;
 };
 

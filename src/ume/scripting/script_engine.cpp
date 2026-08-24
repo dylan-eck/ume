@@ -110,7 +110,7 @@ void scriptCreateMesh(WrenVM *vm) {
     if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST ||
         wrenGetSlotType(vm, 2) != WREN_TYPE_LIST ||
         wrenGetSlotType(vm, 3) != WREN_TYPE_LIST) {
-        abortWithError(vm, "createMesh expects (positions, normals, indices) "
+        abortWithError(vm, "createMesh expects (positions, normals, indices)"
                            "as three lists");
         return;
     }
@@ -158,14 +158,6 @@ void scriptCreateMesh(WrenVM *vm) {
 
     const size_t vertex_count = positions.size() / 3;
 
-    std::vector<Vertex> vertices(vertex_count);
-    for (size_t i = 0; i < vertex_count; ++i) {
-        vertices[i].position = {positions[i * 3], positions[(i * 3) + 1],
-                                positions[(i * 3) + 2], 1.0f};
-        vertices[i].normal = {normals[i * 3], normals[(i * 3) + 1],
-                              normals[(i * 3) + 2], 0.0f};
-    }
-
     for (uint32_t index : indices) {
         if (index >= vertex_count) {
             abortWithError(vm, "createMesh: index out of range");
@@ -173,8 +165,9 @@ void scriptCreateMesh(WrenVM *vm) {
         }
     }
 
-    MeshHandle handle = getScriptContext(vm).renderer->createMesh(
-        MeshDescription{.vertices = vertices, .indices = indices});
+    MeshHandle handle =
+        getScriptContext(vm).renderer->createMesh(MeshDescription{
+            .positions = positions, .normals = normals, .indices = indices});
 
     if (!handle) {
         abortWithError(vm, "createMesh: renderer failed to create mesh");

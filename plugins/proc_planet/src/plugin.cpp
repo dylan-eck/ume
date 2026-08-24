@@ -42,7 +42,7 @@ void *createPlanet(void *user_data, const UmeParams *params) noexcept {
     return planet;
 }
 
-// this function's signature is fixed by the plugin ABI (ume_plugin_api.h)
+// this function's signature is fixed by the plugin ABI (plugin_api.h)
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void destroyPlanet([[maybe_unused]] void *user_data, void *object) noexcept {
     // destructors are implicitly noexcept, so no try catch needed here
@@ -50,7 +50,7 @@ void destroyPlanet([[maybe_unused]] void *user_data, void *object) noexcept {
 }
 
 // TODO: change frame_context to const reference?
-// this function's signature is fixed by the plugin ABI (ume_plugin_api.h)
+// this function's signature is fixed by the plugin ABI (plugin_api.h)
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void updatePlanet(void *user_data, void *object,
                   const UmeFrameContext *frame_context) noexcept {

@@ -17,9 +17,29 @@ Renderer::Renderer(const Window &window)
 Renderer::~Renderer() {}
 
 MeshHandle Renderer::createMesh(const MeshDescription &desc) {
+    // TODO: input validation / error handling
+
+    const size_t vertex_count = desc.positions.size() / 3;
+
+    std::vector<Vertex> vertices;
+    vertices.reserve(vertex_count);
+
+    for (size_t i = 0; i < vertex_count; i++) {
+        const size_t base_idx = i * 3;
+
+        vertices.push_back(Vertex{
+            .position = glm::vec4(desc.positions[base_idx],
+                                  desc.positions[base_idx + 1],
+                                  desc.positions[base_idx + 2], 1.0f),
+            .normal =
+                glm::vec4(desc.normals[base_idx], desc.normals[base_idx + 1],
+                          desc.normals[base_idx + 2], 0.0f),
+        });
+    }
+
     BufferHandle vertex_buffer =
-        backend_->createBuffer({.size = desc.vertices.size_bytes(),
-                                .initial_data = desc.vertices.data()});
+        backend_->createBuffer({.size = vertices.size() * sizeof(vertices[0]),
+                                .initial_data = vertices.data()});
     if (!vertex_buffer) {
         return {};
     }
@@ -39,6 +59,8 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
     });
 
     return handle;
+
+    return {};
 }
 
 void Renderer::destroyMesh(MeshHandle handle) {
