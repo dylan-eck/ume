@@ -48,6 +48,11 @@ private:
     UmeMeshHandle handle_;
 };
 
+struct Chunk {
+    MeshRef mesh;
+    glm::dvec3 local_origin;
+};
+
 class Planet {
 public:
     explicit Planet(const UmePluginApi *api, double radius,
@@ -70,6 +75,6 @@ private:
     glm::dvec3 world_position_ = glm::dvec3(0.0);
     float rotation_angle_ = 0.0f;
 
-    std::vector<MeshRef> meshes_;
+    std::vector<Chunk> chunks_;
 };
 } // namespace proc_planet
