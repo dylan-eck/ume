@@ -207,7 +207,7 @@ void scriptSetCamera(WrenVM *vm) {
         glm::dvec3(wrenGetSlotDouble(vm, 1), wrenGetSlotDouble(vm, 2),
                    wrenGetSlotDouble(vm, 3));
 
-    const glm::dvec3 target_world_position =
+    const glm::dvec3 camera_direction =
         glm::dvec3(wrenGetSlotDouble(vm, 4), wrenGetSlotDouble(vm, 5),
                    wrenGetSlotDouble(vm, 6));
 
@@ -215,10 +215,49 @@ void scriptSetCamera(WrenVM *vm) {
         glm::radians(static_cast<float>(wrenGetSlotDouble(vm, 7)));
 
     const CameraState camera_state =
-        lookAtCamera(camera_world_position, target_world_position,
-                     glm::dvec3(0.0f, 1.0f, 0.0f), fov_y_degrees, 1.0f);
+        lookAlongCamera(camera_world_position, camera_direction,
+                        glm::dvec3(0.0f, 1.0f, 0.0f), fov_y_degrees, 1.0f);
 
     getScriptContext(vm).renderer->setCamera(camera_state);
+}
+
+void scriptTranslateCameraLocal(WrenVM *vm) {
+    wrenEnsureSlots(vm, 4);
+
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM ||
+        wrenGetSlotType(vm, 2) != WREN_TYPE_NUM ||
+        wrenGetSlotType(vm, 3) != WREN_TYPE_NUM) {
+        abortWithError(vm, "translateCamera: all parameters must be numbers");
+        return;
+    }
+
+    const auto x = static_cast<float>(wrenGetSlotDouble(vm, 1));
+    const auto y = static_cast<float>(wrenGetSlotDouble(vm, 2));
+    const auto z = static_cast<float>(wrenGetSlotDouble(vm, 3));
+
+    CameraState state = getScriptContext(vm).renderer->getCamera();
+
+    translateCameraLocal(state, x, y, z);
+    getScriptContext(vm).renderer->setCamera(state);
+}
+
+void scriptRotateCameraLocal(WrenVM *vm) {
+    wrenEnsureSlots(vm, 4);
+
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM ||
+        wrenGetSlotType(vm, 2) != WREN_TYPE_NUM ||
+        wrenGetSlotType(vm, 3) != WREN_TYPE_NUM) {
+        abortWithError(vm, "rotateCameraLocal: all parameters must be numbers");
+        return;
+    }
+
+    const auto yaw = static_cast<float>(wrenGetSlotDouble(vm, 1));
+    const auto pitch = static_cast<float>(wrenGetSlotDouble(vm, 2));
+    const auto roll = static_cast<float>(wrenGetSlotDouble(vm, 3));
+
+    CameraState state = getScriptContext(vm).renderer->getCamera();
+    rotateCameraLocal(state, yaw, pitch, roll);
+    getScriptContext(vm).renderer->setCamera(state);
 }
 
 void scriptCreateObject(WrenVM *vm) {
@@ -297,6 +336,50 @@ void scriptDestroyObject(WrenVM *vm) {
     getScriptContext(vm).plugin_host->destroyObject(handle);
 }
 
+bool readKeyCode(WrenVM *vm, int slot, KeyCode &out) {
+    if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) {
+        return false;
+    }
+
+    const double value = wrenGetSlotDouble(vm, slot);
+    if (value < 0.0 || value > static_cast<double>(kKeyCodeCount)) {
+        return false;
+    }
+
+    out = static_cast<KeyCode>(value);
+    return true;
+}
+
+void scriptKeyCode(WrenVM *vm) {
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+        abortWithError(vm, "keyCode expects a key name string");
+        return;
+    }
+
+    const char *name = wrenGetSlotString(vm, 1);
+    const KeyCode code = keyCodeFromName(name);
+
+    if (code == kInvalidKeyCode) {
+        const std::string message =
+            std::string("keyCode: unknown key name '") + name + "'";
+        abortWithError(vm, message.c_str());
+        return;
+    }
+
+    wrenSetSlotDouble(vm, 0, static_cast<double>(code));
+}
+
+template <bool (Input::*Method)(KeyCode) const>
+void scriptKeyQuery(WrenVM *vm) {
+    KeyCode code = kInvalidKeyCode;
+    if (!readKeyCode(vm, 1, code)) {
+        abortWithError(vm, "scriptKeyQuery expects a key code number");
+        return;
+    }
+
+    wrenSetSlotBool(vm, 0, (getScriptContext(vm).input->*Method)(code));
+}
+
 WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
                                         const char *module,
                                         const char *class_name, bool is_static,
@@ -304,6 +387,34 @@ WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
 
     if (strcmp(module, "ume") != 0 || !is_static) {
         return nullptr;
+    }
+
+    if (strcmp(class_name, "Engine") == 0) {
+        if (strcmp(signature, "createObject_(_,_,_)") == 0) {
+            return &scriptCreateObject;
+        }
+
+        if (strcmp(signature, "destroyObject(_)") == 0) {
+            return &scriptDestroyObject;
+        }
+    }
+
+    if (strcmp(class_name, "Input") == 0) {
+        if (strcmp(signature, "keyCode(_)") == 0) {
+            return &scriptKeyCode;
+        }
+
+        if (strcmp(signature, "keyDown_(_)") == 0) {
+            return &scriptKeyQuery<&Input::keyDown>;
+        }
+
+        if (strcmp(signature, "keyPressed_(_)") == 0) {
+            return &scriptKeyQuery<&Input::keyPressed>;
+        }
+
+        if (strcmp(signature, "keyReleased_(_)") == 0) {
+            return &scriptKeyQuery<&Input::keyReleased>;
+        }
     }
 
     if (strcmp(class_name, "Renderer") == 0) {
@@ -318,15 +429,13 @@ WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
         if (strcmp(signature, "setCamera(_,_,_,_,_,_,_)") == 0) {
             return &scriptSetCamera;
         }
-    }
 
-    if (strcmp(class_name, "Engine") == 0) {
-        if (strcmp(signature, "createObject_(_,_,_)") == 0) {
-            return &scriptCreateObject;
+        if (strcmp(signature, "rotateCameraLocal(_,_,_)") == 0) {
+            return &scriptRotateCameraLocal;
         }
 
-        if (strcmp(signature, "destroyObject(_)") == 0) {
-            return &scriptDestroyObject;
+        if (strcmp(signature, "translateCameraLocal(_,_,_)") == 0) {
+            return &scriptTranslateCameraLocal;
         }
     }
 
@@ -403,10 +512,11 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
 } // namespace
 
 ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                           std::string main_script_path)
+                           const Input &input, std::string main_script_path)
     : main_script_path_(std::move(main_script_path)),
-      context_(
-          ScriptContext{.renderer = &renderer, .plugin_host = &plugin_host}) {
+      context_(ScriptContext{.renderer = &renderer,
+                             .plugin_host = &plugin_host,
+                             .input = &input}) {
 
     LoadedVM loaded = loadVM(context_, main_script_path_);
 

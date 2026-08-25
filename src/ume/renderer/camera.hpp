@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace ume {
 struct CameraState {
@@ -10,10 +11,11 @@ struct CameraState {
     float z_near = 1.0f;
 };
 
-inline CameraState lookAtCamera(const glm::dvec3 &position,
-                                const glm::dvec3 &target, const glm::dvec3 &up,
-                                float fov_y, float z_near) {
-    const glm::dvec3 forward = glm::normalize(target - position);
+inline CameraState lookAlongCamera(const glm::dvec3 &position,
+                                   const glm::dvec3 &direction,
+                                   const glm::dvec3 &up, float fov_y,
+                                   float z_near) {
+    const glm::dvec3 forward = glm::normalize(direction);
     const glm::dvec3 right = glm::normalize(glm::cross(forward, up));
     const glm::dvec3 camera_up = glm::cross(right, forward);
 
@@ -25,10 +27,29 @@ inline CameraState lookAtCamera(const glm::dvec3 &position,
                        .z_near = z_near};
 }
 
+inline CameraState lookAtCamera(const glm::dvec3 &position,
+                                const glm::dvec3 &target, const glm::dvec3 &up,
+                                float fov_y, float z_near) {
+    return lookAlongCamera(position, target - position, up, fov_y, z_near);
+}
+
 inline glm::mat4 perspectiveReverseZ(float fov_y, float aspect, float z_near) {
     const float f = 1.0f / std::tan(fov_y * 0.5f);
     auto mat = glm::mat4(f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, 0, -1, 0, 0,
                          z_near, 0);
     return mat;
+}
+
+inline void rotateCameraLocal(CameraState &camera, float yaw, float pitch,
+                              float roll) {
+    glm::quat q = glm::quat_cast(camera.orientation);
+    q = glm::normalize(q * glm::quat(glm::vec3(pitch, yaw, roll)));
+    camera.orientation = glm::mat3_cast(q);
+}
+
+inline void translateCameraLocal(CameraState &camera, float x, float y,
+                                 float z) {
+    const glm::vec3 delta = camera.orientation * glm::vec3(x, y, z);
+    camera.position += glm::dvec3(delta);
 }
 } // namespace ume

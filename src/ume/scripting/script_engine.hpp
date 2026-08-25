@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ume/plugin/plugin_host.hpp"
+#include "ume/platform/input.hpp"
 
 #include <string>
 #include <memory>
@@ -23,6 +24,7 @@ using WrenVMPtr = std::unique_ptr<WrenVM, WrenVMDeleter>;
 struct ScriptContext {
     Renderer *renderer;
     PluginHost *plugin_host;
+    const Input *input;
 
     std::vector<ObjectHandle> objects;
     std::vector<MeshHandle> meshes;
@@ -31,7 +33,7 @@ struct ScriptContext {
 class ScriptEngine {
 public:
     ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                 std::string main_script_path);
+                 const Input &input, std::string main_script_path);
     ~ScriptEngine();
 
     ScriptEngine(const ScriptEngine &) = delete;

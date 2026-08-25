@@ -176,7 +176,7 @@ void Planet::generate() {
 }
 
 void Planet::update(const UmeFrameContext *frame_context) {
-    rotation_angle_ += 0.25f * frame_context->delta_time;
+    rotation_angle_ += 0.0f * frame_context->delta_time;
     rotation_angle_ = std::fmod(rotation_angle_, glm::two_pi<float>());
 
     const glm::dmat3 rotation{glm::rotate(

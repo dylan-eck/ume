@@ -16,7 +16,7 @@ Application::Application(const ApplicationConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
-      script_engine_(renderer_, plugin_host_,
+      script_engine_(renderer_, plugin_host_, window_.input(),
                      config.working_dir + "/" + project_.main_script),
       reload_key_(keyCodeFromName("R")) {
 
