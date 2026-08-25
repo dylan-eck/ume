@@ -1,12 +1,13 @@
 #pragma once
 
+#include "ume/platform/input.hpp"
+
 #if defined UME_RENDER_BACKEND_VULKAN
 #include <vulkan/vulkan_core.h>
 #endif
 
 #include <string>
 #include <memory>
-#include <array>
 
 struct SDL_Window;
 
@@ -73,15 +74,13 @@ public:
     [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; };
     [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; };
 
-    [[nodiscard]] bool keyPressed(Key key) const {
-        return keys_pressed_[static_cast<size_t>(key)];
-    }
+    [[nodiscard]] const Input &input() const { return input_; }
 
 private:
     std::unique_ptr<SDL_Window, SDLWindowDeleter> window_;
     uint32_t pixel_width_ = 0;
     uint32_t pixel_height_ = 0;
 
-    std::array<bool, static_cast<size_t>(Key::Count)> keys_pressed_{};
+    Input input_;
 };
 } // namespace ume

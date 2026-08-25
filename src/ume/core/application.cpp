@@ -17,7 +17,8 @@ Application::Application(const ApplicationConfig &config)
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
       script_engine_(renderer_, plugin_host_,
-                     config.working_dir + "/" + project_.main_script) {
+                     config.working_dir + "/" + project_.main_script),
+      reload_key_(keyCodeFromName("R")) {
 
     registerBuiltinPlugins(
         plugin_host_, std::filesystem::path(config.working_dir) / "plugins");
@@ -33,7 +34,7 @@ Application::~Application() {}
 
 void Application::run() {
     while (window_.pollEvents()) {
-        if (window_.keyPressed(Key::Reload)) {
+        if (window_.input().keyPressed(reload_key_)) {
             UME_LOG_INFO(Core, "reloading script engine");
             script_engine_.reload();
         }

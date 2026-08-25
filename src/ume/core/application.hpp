@@ -1,12 +1,12 @@
 #pragma once
 
 #include "ume/platform/window.hpp"
+#include "ume/platform/input.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/plugin/plugin_host.hpp"
 #include "ume/scripting/script_engine.hpp"
 
 #include <string>
-#include <memory>
 #include <chrono>
 
 struct SDL_Window;
@@ -46,6 +46,8 @@ private:
 
     uint64_t frame_index_ = 0;
     std::chrono::steady_clock::time_point last_frame_time_;
+
+    KeyCode reload_key_ = kInvalidKeyCode;
 
     static ProjectDescription loadProject(const std::string &working_dir);
 };

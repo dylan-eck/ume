@@ -66,9 +66,13 @@ target_compile_options(
 
 add_library(
   ume_engine STATIC
-  src/ume/core/logger.cpp src/ume/core/application.cpp
-  src/ume/core/dynamic_library.cpp src/ume/platform/window.cpp
-  src/ume/renderer/renderer.cpp src/ume/scripting/script_engine.cpp)
+  src/ume/core/logger.cpp
+  src/ume/core/application.cpp
+  src/ume/core/dynamic_library.cpp
+  src/ume/platform/window.cpp
+  src/ume/platform/input.cpp
+  src/ume/renderer/renderer.cpp
+  src/ume/scripting/script_engine.cpp)
 target_compile_options(
   ume_engine PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra
                      -Wpedantic> $<$<CXX_COMPILER_ID:MSVC>:/W4>)
