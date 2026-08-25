@@ -5,7 +5,7 @@
 !.vscode/tasks.json
 
 # build dirs
-build/
+build*
 generated/
 sandbox/plugins/
 

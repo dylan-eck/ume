@@ -44,8 +44,8 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
                     "failed to create metal command queue");
     }
 
-    auto shader = b::embed<
-        "generated/src/ume/renderer/shaders/triangle.slang.metallib">();
+    auto shader =
+        b::embed<"generated/src/ume/renderer/shaders/default.slang.metallib">();
 
     dispatch_data_t data = dispatch_data_create(
         shader.data(), shader.size(),

@@ -148,7 +148,7 @@ function(add_slang_shader TARGET SHADER)
   b_embed(${TARGET} ${SHADER_REL_OUTPUT})
 endfunction()
 
-add_slang_shader(ume_engine "src/ume/renderer/shaders/triangle.slang")
+add_slang_shader(ume_engine "src/ume/renderer/shaders/default.slang")
 
 set(UME_PLUGIN_LINK_TYPE
     "STATIC"
@@ -163,6 +163,14 @@ target_sources(
 add_subdirectory(plugins/proc_planet)
 
 add_executable(ume src/main.cpp)
+
+if(CMAKE_GENERATOR STREQUAL "Xcode")
+  set_target_properties(
+    ume
+    PROPERTIES XCODE_GENERATE_SCHEME TRUE
+               XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/sandbox"
+               XCODE_SCHEME_ENVIRONMENT "MTL_DEBUG_LAYER=1")
+endif()
 
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
