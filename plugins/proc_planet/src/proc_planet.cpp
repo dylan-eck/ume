@@ -18,6 +18,7 @@ Planet::Planet(const UmePluginApi *api, double radius,
 
 namespace {
 glm::dvec3 cubeToSphere(glm::dvec3 p) {
+    // return p;
     return glm::dvec3{p.x * std::sqrt(1 - (p.y * p.y / 2) - (p.z * p.z / 2) +
                                       (p.y * p.y * p.z * p.z / 3)),
                       p.y * std::sqrt(1 - (p.z * p.z / 2) - (p.x * p.x / 2) +
@@ -33,7 +34,9 @@ void Planet::generate() {
 
     const uint32_t resolution = 32;
     const double inv_res = 1.0 / resolution;
-    const uint32_t grid_width = resolution + 1;
+    const uint32_t grid_width =
+        resolution +
+        3; // res x res quads + an extra ring for normal calculation
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
 
     const double noise_freq = 1.0 / 50000.0;  // 1 / feature wavelength
@@ -62,10 +65,10 @@ void Planet::generate() {
         std::vector<float> noise_input_y(vertex_count);
         std::vector<float> noise_input_z(vertex_count);
 
-        for (uint32_t i = 0; i <= resolution; i++) {
-            for (uint32_t j = 0; j <= resolution; j++) {
-                const double t = (2.0 * i * inv_res) - 1.0;
-                const double u = (2.0 * j * inv_res) - 1.0;
+        for (uint32_t i = 0; i <= resolution + 2; i++) {
+            for (uint32_t j = 0; j <= resolution + 2; j++) {
+                const double t = (2.0 * (i * inv_res - inv_res)) - 1.0;
+                const double u = (2.0 * (j * inv_res - inv_res)) - 1.0;
 
                 const glm::dvec3 local_cube = a * t + b * u;
 
@@ -91,38 +94,39 @@ void Planet::generate() {
         }
 
         std::vector<uint32_t> indices;
-        for (uint32_t i = 0; i < resolution; i++) {
-            for (uint32_t j = i * grid_width; j < (i * grid_width) + resolution;
-                 j++) {
+        for (uint32_t i = 0; i < resolution + 2; i++) {
+            for (uint32_t j = i * grid_width;
+                 j < (i * grid_width) + resolution + 2; j++) {
                 indices.insert(indices.end(), {j + 1, j, j + grid_width});
                 indices.insert(indices.end(),
                                {j + 1, j + grid_width, j + grid_width + 1});
             }
         }
 
-        auto simplex = FastNoise::New<FastNoise::Simplex>();
-        simplex->SetOutputMin(-1.0f);
-        simplex->SetOutputMax(1.0f);
+        // auto simplex = FastNoise::New<FastNoise::Simplex>();
+        // simplex->SetOutputMin(-1.0f);
+        // simplex->SetOutputMax(1.0f);
 
-        auto fractal = FastNoise::New<FastNoise::FractalFBm>();
-        fractal->SetSource(simplex);
-        fractal->SetOctaveCount(4);
+        // auto fractal = FastNoise::New<FastNoise::FractalFBm>();
+        // fractal->SetSource(simplex);
+        // fractal->SetOctaveCount(4);
 
-        std::vector<float> noise_values(vertex_count);
-        fractal->GenPositionArray3D(noise_values.data(),
-                                    static_cast<int>(vertex_count),
-                                    noise_input_x.data(), noise_input_y.data(),
-                                    noise_input_z.data(), 0, 0, 0, 0);
+        // std::vector<float> noise_values(vertex_count);
+        // fractal->GenPositionArray3D(noise_values.data(),
+        //                             static_cast<int>(vertex_count),
+        //                             noise_input_x.data(),
+        //                             noise_input_y.data(),
+        //                             noise_input_z.data(), 0, 0, 0, 0);
 
-        for (size_t i = 0; i < vertex_count; i++) {
-            float n = noise_values[i];
-            float height = noise_amp * n;
+        // for (size_t i = 0; i < vertex_count; i++) {
+        //     float n = noise_values[i];
+        //     float height = noise_amp * n;
 
-            const size_t base_idx = i * 3;
-            positions[base_idx] += height * normals[base_idx];
-            positions[base_idx + 1] += height * normals[base_idx + 1];
-            positions[base_idx + 2] += height * normals[base_idx + 2];
-        }
+        //     const size_t base_idx = i * 3;
+        //     positions[base_idx] += height * normals[base_idx];
+        //     positions[base_idx + 1] += height * normals[base_idx + 1];
+        //     positions[base_idx + 2] += height * normals[base_idx + 2];
+        // }
 
         std::ranges::fill(normals.begin(), normals.end(), 0.0f);
 

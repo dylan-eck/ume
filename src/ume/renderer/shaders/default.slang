@@ -30,7 +30,7 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
     float3 normal_world = normalize(mul(draw.normal_matrix, normal).xyz);
 
     output.normal = normal_world;
-    output.color = float4(1);
+    output.color = normal;
     return output;
 }
 
@@ -41,6 +41,7 @@ float4 fragMain(VertexOutput input) : SV_Target {
     float intensity = max(dot(input.normal, dir_to_light), 0.0) + 0.05;
     intensity = clamp(intensity, 0.0, 1.0);
 
-    return float4(input.color.rgb * intensity, input.color.a);
+    // return float4(input.color.rgb * intensity, input.color.a);
+    return float4(input.color.rgb, 1);
 }
 
