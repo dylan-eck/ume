@@ -108,6 +108,10 @@ typedef uint8_t UME_PLUGIN_BOOL;
 typedef uint32_t UmeMeshHandle;
 #define UME_MESH_HANDLE_INVALID ((UmeMeshHandle)0)
 
+typedef uint32_t UmePostEffectHandle;
+#define UME_POST_EFFECT_HANDLE_INVALID ((UmePostEffectHandle)0)
+#define UME_POST_EFFECT_MAX_PARAMS_SIZE 4096
+
 typedef enum UmeLogLevel {
     UME_LOG_LEVEL_INFO = 0,
     UME_LOG_LEVEL_WARN = 1,
@@ -176,6 +180,9 @@ typedef struct UmePluginApi {
                    const double world_position[3],
                    const float local_transform[16]);
     void (*log)(void *context, UmeLogLevel log_level, const char *message);
+    UmePostEffectHandle (*findPostEffect)(void *context, const char *name);
+    void (*submitPostEffect)(void *context, UmePostEffectHandle handle,
+                             const void *params, uint32_t params_size);
 } UmePluginApi;
 
 /* The plugin description is owned by the host and is valid only during the

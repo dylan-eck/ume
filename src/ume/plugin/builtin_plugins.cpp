@@ -72,7 +72,8 @@ void loadPluginsFrom(PluginHost &host,
 void registerBuiltinPlugins(PluginHost &host,
                             const std::filesystem::path &plugin_dir) {
 #ifdef UME_PLUGIN_STATIC
-    if (!host.registerStatic("proc_planet", &UME_PLUGIN_ENTRY(procPlanet))) {
+    if (!host.registerStatic("proc_planet", &UME_PLUGIN_ENTRY(procPlanet),
+                             plugin_dir / "proc_planet")) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'proc_planet'");
     }
 #else

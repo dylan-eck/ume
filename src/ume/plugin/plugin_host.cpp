@@ -35,6 +35,8 @@ PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
     api_.destroyMesh = &destroyMeshTrampoline;
     api_.submit = &submitTrampoline;
     api_.log = &logTrampoline;
+    api_.findPostEffect = &findPostEffectTrampoline;
+    api_.submitPostEffect = &submitPostEffectTrampoline;
 }
 
 PluginHost::~PluginHost() {
@@ -49,7 +51,8 @@ PluginHost::~PluginHost() {
 };
 
 bool PluginHost::registerStatic(const char *name,
-                                UmePluginRegisterFunction register_function) {
+                                UmePluginRegisterFunction register_function,
+                                const std::filesystem::path &dir) {
     if (name == nullptr || register_function == nullptr) {
         UME_LOG_ERROR(
             Plugin,
@@ -57,7 +60,7 @@ bool PluginHost::registerStatic(const char *name,
         return false;
     }
 
-    return finishRegistration(name, nullptr, register_function);
+    return finishRegistration(name, nullptr, register_function, dir);
 }
 
 bool PluginHost::loadPlugin(const std::filesystem::path &path) {
@@ -77,16 +80,16 @@ bool PluginHost::loadPlugin(const std::filesystem::path &path) {
         return false;
     }
 
-    if (!finishRegistration(path.c_str(), library, entry)) {
+    if (!finishRegistration(path.c_str(), library, entry, path.parent_path())) {
         closeLibrary(library);
         return false;
     }
     return true;
 }
 
-bool PluginHost::finishRegistration(
-    const char *name, void *library,
-    UmePluginRegisterFunction register_function) {
+bool PluginHost::finishRegistration(const char *name, void *library,
+                                    UmePluginRegisterFunction register_function,
+                                    const std::filesystem::path &dir) {
 
     if (registering_id_ != kInvalidPluginID) {
         UME_LOG_ERROR(Plugin,
@@ -166,6 +169,14 @@ bool PluginHost::finishRegistration(
     });
 
     Plugin *p = findPlugin(registering_id_);
+    p->dir = dir;
+
+    if (!p->dir.empty()) {
+        if (std::optional<PluginManifest> manifest = loadManifest(p->dir)) {
+            loadPostEffects(*p, *manifest);
+        }
+    }
+
     if (p->init != nullptr && p->init(p->state) == UME_FALSE) {
         UME_LOG_ERROR(Plugin, "plugin '{}' failed to initialize", p->name);
         unloadPluginAt(plugins_.size() - 1);
@@ -234,11 +245,111 @@ void PluginHost::unloadPluginAt(size_t index) {
         plugin.shutdown(plugin.state);
     }
 
+    for (const auto &[name, handle] : plugin.post_effects) {
+        renderer_.destroyPostEffect(handle);
+    }
+    plugin.post_effects.clear();
+
     if (plugin.library != nullptr) {
         closeLibrary(plugin.library);
     }
 
     plugins_.erase(plugins_.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+void PluginHost::loadPostEffects(Plugin &plugin,
+                                 const PluginManifest &manifest) {
+    for (const auto &entry : manifest.post_effects) {
+        if (entry.name.empty() || entry.name.contains('.')) {
+            UME_LOG_ERROR(Plugin, "plugin '{}': invalid post effect name '{}'",
+                          plugin.name, entry.name);
+            continue;
+        }
+        if (plugin.post_effects.contains(entry.name)) {
+            UME_LOG_ERROR(Plugin, "plugin '{}': duplicate post effect '{}'",
+                          plugin.name, entry.name);
+            continue;
+        }
+
+        PostEffectHandle handle =
+            renderer_.createPostEffect(plugin.dir / entry.shader);
+        if (!handle) {
+            UME_LOG_ERROR(Plugin,
+                          "plugin '{}': post effect '{}' failed to compile",
+                          plugin.name, entry.name);
+            continue;
+        }
+
+        plugin.post_effects.emplace(entry.name, handle);
+        UME_LOG_INFO(Plugin, "compiled post effect '{}.{}'", plugin.name,
+                     entry.name);
+    }
+}
+
+void PluginHost::reloadShaders() {
+    for (Plugin &plugin : plugins_) {
+        for (const auto &[name, handle] : plugin.post_effects) {
+            if (!renderer_.reloadPostEffect(handle)) {
+                UME_LOG_WARN(Plugin, "'{}.{}' kept its previous shader",
+                             plugin.name, name);
+            }
+        }
+    }
+}
+
+UmePostEffectHandle
+PluginHost::findPostEffectTrampoline(void *context, const char *name) noexcept {
+    if (name == nullptr) {
+        return UME_POST_EFFECT_HANDLE_INVALID;
+    }
+    auto *ctx = static_cast<PluginContext *>(context);
+    Plugin *plugin = ctx->host->findPlugin(ctx->plugin_id);
+    if (plugin == nullptr) {
+        return UME_POST_EFFECT_HANDLE_INVALID;
+    }
+    const auto it = plugin->post_effects.find(name);
+    return it != plugin->post_effects.end() ? it->second.id
+                                            : UME_POST_EFFECT_HANDLE_INVALID;
+}
+
+void PluginHost::submitPostEffectTrampoline(void *context,
+                                            UmePostEffectHandle handle,
+                                            const void *params,
+                                            uint32_t params_size) noexcept {
+    if (handle == UME_POST_EFFECT_HANDLE_INVALID) {
+        UME_LOG_WARN(Plugin, "plugin submitted null post effect handle");
+        return;
+    }
+    if ((params == nullptr) != (params_size == 0)) {
+        UME_LOG_WARN(Plugin,
+                     "post effect submitted with mismatched params/size");
+        return;
+    }
+    if (params_size > UME_POST_EFFECT_MAX_PARAMS_SIZE) {
+        UME_LOG_WARN(Plugin, "post effect params_size {} exceeds {}",
+                     params_size, UME_POST_EFFECT_MAX_PARAMS_SIZE);
+        return;
+    }
+
+    auto *ctx = static_cast<PluginContext *>(context);
+    auto *self = ctx->host;
+    Plugin *plugin = self->findPlugin(ctx->plugin_id);
+
+    const bool owned =
+        plugin != nullptr &&
+        std::ranges::any_of(plugin->post_effects, [&](const auto &kv) {
+            return kv.second.id == handle;
+        });
+    if (!owned) {
+        UME_LOG_ERROR(
+            Plugin, "plugin attempted to submit post effect {} it does not own",
+            handle);
+        return;
+    }
+
+    self->renderer_.submitPostEffect(
+        {.id = handle},
+        std::span(static_cast<const std::byte *>(params), params_size));
 }
 
 ObjectHandle PluginHost::createObject(const char *type_name,

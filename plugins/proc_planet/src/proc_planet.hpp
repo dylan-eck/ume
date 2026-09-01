@@ -5,6 +5,11 @@
 
 #include <vector>
 
+struct ProcPlanetPlugin {
+    UmePluginApi api;
+    UmePostEffectHandle atmosphere = UME_POST_EFFECT_HANDLE_INVALID;
+};
+
 namespace proc_planet {
 
 class MeshRef {
@@ -55,7 +60,7 @@ struct Chunk {
 
 class Planet {
 public:
-    explicit Planet(const UmePluginApi *api, double radius,
+    explicit Planet(const ProcPlanetPlugin *plugin, double radius,
                     glm::dvec3 world_position);
     ~Planet() = default;
 
@@ -69,7 +74,7 @@ public:
     void update(const UmeFrameContext *frame_context);
 
 private:
-    const UmePluginApi *api_;
+    const ProcPlanetPlugin *plugin_;
     double radius_;
 
     glm::dvec3 world_position_ = glm::dvec3(0.0);

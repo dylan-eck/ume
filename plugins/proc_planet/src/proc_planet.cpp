@@ -10,9 +10,9 @@
 
 namespace proc_planet {
 
-Planet::Planet(const UmePluginApi *api, double radius,
+Planet::Planet(const ProcPlanetPlugin *plugin, double radius,
                glm::dvec3 world_position)
-    : api_(api), radius_(radius), world_position_(world_position) {
+    : plugin_(plugin), radius_(radius), world_position_(world_position) {
     generate();
 }
 
@@ -196,10 +196,11 @@ void Planet::generate() {
             .indices = indices.data(),
         };
 
-        UmeMeshHandle handle = api_->createMesh(api_->context, &desc);
+        UmeMeshHandle handle =
+            plugin_->api.createMesh(plugin_->api.context, &desc);
 
         if (handle != UME_MESH_HANDLE_INVALID) {
-            chunks_.emplace_back(Chunk{.mesh = MeshRef(api_, handle),
+            chunks_.emplace_back(Chunk{.mesh = MeshRef(&plugin_->api, handle),
                                        .local_origin = face_origin});
         }
     }
@@ -224,8 +225,14 @@ void Planet::update(const UmeFrameContext *frame_context) {
         const glm::dvec3 world =
             world_position_ + rotation * chunk.local_origin;
 
-        api_->submit(api_->context, mesh.getHandle(), glm::value_ptr(world),
-                     glm::value_ptr(local_transform));
+        plugin_->api.submit(plugin_->api.context, mesh.getHandle(),
+                            glm::value_ptr(world),
+                            glm::value_ptr(local_transform));
+    }
+
+    if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
+                                      nullptr, 0);
     }
 }
 } // namespace proc_planet

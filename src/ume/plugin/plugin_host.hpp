@@ -3,6 +3,7 @@
 #include "ume/plugin/plugin_api.h"
 #include "ume/core/resource_handle.hpp"
 #include "ume/core/resource_pool.hpp"
+#include "ume/plugin/plugin_manifest.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -23,6 +24,7 @@ public:
     };
 
     struct Plugin {
+        std::filesystem::path dir;
         uint64_t id;
         void *library = nullptr;
         std::string name;
@@ -32,6 +34,7 @@ public:
         std::unique_ptr<PluginContext> context;
         std::vector<std::string> registered_types;
         std::unordered_set<UmeMeshHandle> meshes;
+        std::unordered_map<std::string, PostEffectHandle> post_effects;
     };
 
     struct ObjectType {
@@ -59,7 +62,8 @@ public:
 
     [[nodiscard]] bool
     registerStatic(const char *name,
-                   UmePluginRegisterFunction register_function);
+                   UmePluginRegisterFunction register_function,
+                   const std::filesystem::path &dir);
 
     [[nodiscard]] bool loadPlugin(const std::filesystem::path &path);
     [[nodiscard]] bool unloadPlugin(uint64_t id);
@@ -69,6 +73,8 @@ public:
                                             const UmeParams *params);
     bool destroyObject(ObjectHandle handle);
     void updateObjects(const UmeFrameContext &frame_context);
+
+    void reloadShaders();
 
     static const UmeParams kDefaultParams;
 
@@ -88,9 +94,18 @@ private:
     // it must not be initiated from with a plugin registration function or
     // any plugin callback
     bool finishRegistration(const char *name, void *library,
-                            UmePluginRegisterFunction register_function);
+                            UmePluginRegisterFunction register_function,
+                            const std::filesystem::path &dir);
 
     void unloadPluginAt(size_t index);
+
+    void loadPostEffects(Plugin &plugin, const PluginManifest &manifest);
+    static UmePostEffectHandle
+    findPostEffectTrampoline(void *context, const char *name) noexcept;
+    static void submitPostEffectTrampoline(void *context,
+                                           UmePostEffectHandle handle,
+                                           const void *params,
+                                           uint32_t params_size) noexcept;
 
     static UME_PLUGIN_BOOL
     registerObjectTypeTrampoline(void *context,

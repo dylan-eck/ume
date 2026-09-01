@@ -3,10 +3,6 @@
 
 namespace {
 
-struct ProcPlanetPlugin {
-    UmePluginApi api;
-};
-
 void *createPlanet(void *user_data, const UmeParams *params) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
 
@@ -31,8 +27,7 @@ void *createPlanet(void *user_data, const UmeParams *params) noexcept {
 
     proc_planet::Planet *planet = nullptr;
     try {
-        planet =
-            new proc_planet::Planet(&self->api, radius, glm::dvec3(x, y, z));
+        planet = new proc_planet::Planet(self, radius, glm::dvec3(x, y, z));
     } catch (...) {
         self->api.log(
             self->api.context, UME_LOG_LEVEL_ERROR,
@@ -90,6 +85,14 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
 
     if (api.registerObjectType(api.context, &planet_type) == UME_FALSE) {
         return UME_FALSE;
+    }
+
+    self->atmosphere = api.findPostEffect(api.context, "atmosphere");
+    if (self->atmosphere == UME_POST_EFFECT_HANDLE_INVALID) {
+        api.log(
+            api.context, UME_LOG_LEVEL_WARN,
+            "proc_planet: atmosphere effect unavailable, planets will render "
+            "without it");
     }
 
     return UME_TRUE;

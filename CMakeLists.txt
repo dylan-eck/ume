@@ -158,8 +158,29 @@ set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 
 target_sources(
   ume_engine
-  PRIVATE src/ume/plugin/plugin_host.cpp src/ume/plugin/plugin_params.cpp
+  PRIVATE src/ume/plugin/plugin_manifest.cpp src/ume/plugin/plugin_host.cpp src/ume/plugin/plugin_params.cpp
           src/ume/plugin/builtin_plugins.cpp)
+
+
+function(ume_plugin_assets TARGET)
+  set(dest "${CMAKE_SOURCE_DIR}/sandbox/plugins/${TARGET}")
+  set(outputs "")
+  foreach(asset IN LISTS ARGN)
+    set(src "${CMAKE_CURRENT_SOURCE_DIR}/${asset}")
+    set(dst "${dest}/${asset}")
+    get_filename_component(dst_dir "${dst}" DIRECTORY)
+    add_custom_command(
+      OUTPUT "${dst}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${src}" "${dst}"
+      DEPENDS "${src}"
+      COMMENT "Copying plugin asset: ${TARGET}/${asset}"
+      VERBATIM)
+    list(APPEND outputs "${dst}")
+  endforeach()
+  add_custom_target(${TARGET}_assets ALL DEPENDS ${outputs})
+  add_dependencies(${TARGET} ${TARGET}_assets)
+endfunction()
 
 add_subdirectory(plugins/proc_planet)
 
