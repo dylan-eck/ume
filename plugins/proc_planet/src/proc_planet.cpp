@@ -17,8 +17,48 @@ Planet::Planet(const UmePluginApi *api, double radius,
 }
 
 namespace {
+glm::dvec3 foldToCubeSurface(glm::dvec3 n, glm::dvec3 a, glm::dvec3 b, double t,
+                             double u) {
+    const bool t_out = std::abs(t) > 1.0;
+    const bool u_out = std::abs(u) > 1.0;
+    if (!t_out && !u_out) {
+        return n + a * t + b * u;
+    }
+
+    const bool fold_t =
+        t_out && (!u_out || std::abs(t) - 1.0 >= std::abs(u) - 1.0);
+
+    glm::dvec3 n2;
+    glm::dvec3 p_edge;
+
+    double excess;
+    if (fold_t) {
+        const double sign = (t > 0.0) ? 1.0 : -1.0;
+        excess = std::abs(t) - 1.0;
+        n2 = sign * a;
+        p_edge = n + a * sign + b * u;
+    } else {
+        const double sign = (u > 0.0) ? 1.0 : -1.0;
+        excess = std::abs(u) - 1.0;
+        n2 = sign * b;
+        p_edge = n + a * t + b * sign;
+    }
+    const glm::dvec3 a2(n2.y, n2.z, n2.x);
+    const glm::dvec3 b2 = glm::cross(n2, a2);
+
+    double t2 = glm::dot(p_edge, a2);
+    double u2 = glm::dot(p_edge, b2);
+
+    if (std::abs(glm::dot(n, a2)) > 0.5) {
+        t2 += (t2 >= 0.0 ? -excess : excess);
+    } else {
+        u2 += (u2 >= 0.0 ? -excess : excess);
+    }
+
+    return n2 + a2 * t2 + b2 * u2;
+}
+
 glm::dvec3 cubeToSphere(glm::dvec3 p) {
-    // return p;
     return glm::dvec3{p.x * std::sqrt(1 - (p.y * p.y / 2) - (p.z * p.z / 2) +
                                       (p.y * p.y * p.z * p.z / 3)),
                       p.y * std::sqrt(1 - (p.z * p.z / 2) - (p.x * p.x / 2) +
@@ -32,14 +72,12 @@ void Planet::generate() {
     chunks_.clear();
     chunks_.reserve(6);
 
-    const uint32_t resolution = 32;
+    const uint32_t resolution = 256;
     const double inv_res = 1.0 / resolution;
-    const uint32_t grid_width =
-        resolution +
-        3; // res x res quads + an extra ring for normal calculation
+    const uint32_t grid_width = resolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
 
-    const double noise_freq = 1.0 / 50000.0;  // 1 / feature wavelength
+    const double noise_freq = 1.0 / 50000.0; // 1 / feature wavelength in meters
     const float noise_amp = 300.0f * 1000.0f; // +/- height variation in meters
 
     const std::array<glm::vec3, 6> face_normals{{
@@ -59,20 +97,20 @@ void Planet::generate() {
         const glm::dvec3 face_origin = cubeToSphere(n) * radius_;
 
         std::vector<float> positions(vertex_count * 3);
-        std::vector<float> normals(vertex_count * 3);
+        std::vector<float> normals(vertex_count * 3, 0.0f);
+        std::vector<float> radials(vertex_count * 3);
 
         std::vector<float> noise_input_x(vertex_count);
         std::vector<float> noise_input_y(vertex_count);
         std::vector<float> noise_input_z(vertex_count);
 
-        for (uint32_t i = 0; i <= resolution + 2; i++) {
-            for (uint32_t j = 0; j <= resolution + 2; j++) {
-                const double t = (2.0 * (i * inv_res - inv_res)) - 1.0;
-                const double u = (2.0 * (j * inv_res - inv_res)) - 1.0;
+        for (uint32_t i = 0; i < grid_width; i++) {
+            for (uint32_t j = 0; j < grid_width; j++) {
+                const double t = (2.0 * i * inv_res) - (2.0 * inv_res) - 1.0;
+                const double u = (2.0 * j * inv_res) - (2.0 * inv_res) - 1.0;
 
-                const glm::dvec3 local_cube = a * t + b * u;
-
-                const glm::dvec3 dir = cubeToSphere(n + local_cube);
+                const glm::dvec3 folded = foldToCubeSurface(n, a, b, t, u);
+                const glm::dvec3 dir = cubeToSphere(folded);
                 const glm::dvec3 world_pos = dir * radius_;
                 const glm::dvec3 local_pos = world_pos - face_origin;
 
@@ -83,9 +121,9 @@ void Planet::generate() {
                 positions[base_idx + 1] = float(local_pos.y);
                 positions[base_idx + 2] = float(local_pos.z);
 
-                normals[base_idx + 0] = float(dir.x);
-                normals[base_idx + 1] = float(dir.y);
-                normals[base_idx + 2] = float(dir.z);
+                radials[base_idx + 0] = float(dir.x);
+                radials[base_idx + 1] = float(dir.y);
+                radials[base_idx + 2] = float(dir.z);
 
                 noise_input_x[k] = float(world_pos.x * noise_freq);
                 noise_input_y[k] = float(world_pos.y * noise_freq);
@@ -94,73 +132,61 @@ void Planet::generate() {
         }
 
         std::vector<uint32_t> indices;
-        for (uint32_t i = 0; i < resolution + 2; i++) {
-            for (uint32_t j = i * grid_width;
-                 j < (i * grid_width) + resolution + 2; j++) {
+        indices.reserve(size_t(resolution) * resolution * 6);
+        for (uint32_t i = 1; i <= resolution; i++) {
+            for (uint32_t j = (i * grid_width) + 1;
+                 j < (i * grid_width) + resolution + 1; j++) {
                 indices.insert(indices.end(), {j + 1, j, j + grid_width});
                 indices.insert(indices.end(),
                                {j + 1, j + grid_width, j + grid_width + 1});
             }
         }
 
-        // auto simplex = FastNoise::New<FastNoise::Simplex>();
-        // simplex->SetOutputMin(-1.0f);
-        // simplex->SetOutputMax(1.0f);
+        auto simplex = FastNoise::New<FastNoise::Simplex>();
+        simplex->SetOutputMin(-1.0f);
+        simplex->SetOutputMax(1.0f);
 
-        // auto fractal = FastNoise::New<FastNoise::FractalFBm>();
-        // fractal->SetSource(simplex);
-        // fractal->SetOctaveCount(4);
+        auto fractal = FastNoise::New<FastNoise::FractalFBm>();
+        fractal->SetSource(simplex);
+        fractal->SetOctaveCount(4);
 
-        // std::vector<float> noise_values(vertex_count);
-        // fractal->GenPositionArray3D(noise_values.data(),
-        //                             static_cast<int>(vertex_count),
-        //                             noise_input_x.data(),
-        //                             noise_input_y.data(),
-        //                             noise_input_z.data(), 0, 0, 0, 0);
+        std::vector<float> noise_values(vertex_count);
+        fractal->GenPositionArray3D(noise_values.data(),
+                                    static_cast<int>(vertex_count),
+                                    noise_input_x.data(), noise_input_y.data(),
+                                    noise_input_z.data(), 0, 0, 0, 0);
 
-        // for (size_t i = 0; i < vertex_count; i++) {
-        //     float n = noise_values[i];
-        //     float height = noise_amp * n;
+        for (size_t k = 0; k < vertex_count; k++) {
+            const float height = noise_amp * noise_values[k];
+            const size_t base_idx = k * 3;
+            positions[base_idx + 0] += height * radials[base_idx + 0];
+            positions[base_idx + 1] += height * radials[base_idx + 1];
+            positions[base_idx + 2] += height * radials[base_idx + 2];
+        }
 
-        //     const size_t base_idx = i * 3;
-        //     positions[base_idx] += height * normals[base_idx];
-        //     positions[base_idx + 1] += height * normals[base_idx + 1];
-        //     positions[base_idx + 2] += height * normals[base_idx + 2];
-        // }
+        auto p = [&](uint32_t i, uint32_t j) {
+            const size_t base_idx = (size_t(i) * grid_width + j) * 3;
+            return glm::vec3(positions[base_idx], positions[base_idx + 1],
+                             positions[base_idx + 2]);
+        };
 
-        std::ranges::fill(normals.begin(), normals.end(), 0.0f);
+        for (uint32_t i = 1; i <= resolution + 1; i++) {
+            for (uint32_t j = 1; j <= resolution + 1; j++) {
+                const glm::vec3 di = p(i + 1, j) - p(i - 1, j);
+                const glm::vec3 dj = p(i, j + 1) - p(i, j - 1);
 
-        for (size_t i = 0; i < indices.size(); i += 3) {
-            const size_t i0 = size_t(indices[i + 0]) * 3;
-            const size_t i1 = size_t(indices[i + 1]) * 3;
-            const size_t i2 = size_t(indices[i + 2]) * 3;
+                glm::vec3 nrm = glm::cross(di, dj);
+                const float len = glm::length(nrm);
+                nrm = (len > 0.0f) ? nrm / len : glm::vec3(0.0f, 1.0f, 0.0f);
 
-            const glm::vec3 v0(positions[i0], positions[i0 + 1],
-                               positions[i0 + 2]);
-            const glm::vec3 v1(positions[i1], positions[i1 + 1],
-                               positions[i1 + 2]);
-            const glm::vec3 v2(positions[i2], positions[i2 + 1],
-                               positions[i2 + 2]);
-
-            const glm::vec3 face_normal = glm::cross(v1 - v0, v2 - v0);
-
-            for (const size_t base : {i0, i1, i2}) {
-                normals[base + 0] += face_normal.x;
-                normals[base + 1] += face_normal.y;
-                normals[base + 2] += face_normal.z;
+                const size_t base = (size_t(i) * grid_width + j) * 3;
+                normals[base + 0] = nrm.x;
+                normals[base + 1] = nrm.y;
+                normals[base + 2] = nrm.z;
             }
         }
 
-        for (size_t k = 0; k < vertex_count; k++) {
-            const size_t base = k * 3;
-            glm::vec3 n(normals[base], normals[base + 1], normals[base + 2]);
-            const float len = glm::length(n);
-            n = (len > 0.0f) ? n / len : glm::vec3(0.0f, 1.0f, 0.0f);
-            normals[base + 0] = n.x;
-            normals[base + 1] = n.y;
-            normals[base + 2] = n.z;
-        }
-
+        // TODO: remove "ghost" vertices in outer ring
         UmeMeshDescription desc{
             .struct_size = sizeof(UmeMeshDescription),
             .vertex_count = static_cast<uint32_t>(positions.size() / 3),
