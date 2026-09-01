@@ -72,6 +72,7 @@ add_library(
   src/ume/platform/window.cpp
   src/ume/platform/input.cpp
   src/ume/renderer/renderer.cpp
+  src/ume/renderer/shader_compiler.cpp
   src/ume/scripting/script_engine.cpp)
 target_compile_options(
   ume_engine PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra
@@ -80,10 +81,10 @@ target_include_directories(ume_engine PUBLIC src)
 target_link_libraries(
   ume_engine
   PUBLIC ume_config ume_plugin_api
-  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren
+  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren slang::slang
           ${CMAKE_DL_LIBS})
 target_compile_definitions(
-  ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}")
+  ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}" UME_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 b_embed(ume_engine src/ume/scripting/ume.wren)
 

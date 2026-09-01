@@ -50,6 +50,18 @@ endif()
 
 message(STATUS "Using slangc: ${SLANGC_EXECUTABLE}")
 
+find_path(SLANG_INCLUDE_DIR slang.h
+          HINTS "$ENV{VULKAN_SDK}/include" PATH_SUFFIXES slang)
+find_library(SLANG_LIBRARY NAMES slang HINTS "$ENV{VULKAN_SDK}/lib")
+if(NOT SLANG_INCLUDE_DIR OR NOT SLANG_LIBRARY)
+  message(FATAL_ERROR "failed to locate slang library/headers")
+endif()
+
+add_library(slang::slang UNKNOWN IMPORTED)
+set_target_properties(
+  slang::slang PROPERTIES IMPORTED_LOCATION "${SLANG_LIBRARY}"
+                          INTERFACE_INCLUDE_DIRECTORIES "${SLANG_INCLUDE_DIR}")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")

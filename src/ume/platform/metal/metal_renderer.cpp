@@ -175,7 +175,62 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         index_buffer->buffer.get(), NS::UInteger(0));
 }
 
-void MetalRenderer::postProcess(const PostProcessCommand &cmd) {}
+void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
+    if (encoder_ == nullptr) {
+        return;
+    }
+    encoder_->endEncoding();
+    encoder_ = nullptr;
+
+    if (cmd.passes.empty()) {
+        MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
+        blit->copyFromTexture(color_targets_[0].get(), drawable_->texture());
+        blit->endEncoding();
+        return;
+    }
+
+    int src = 0;
+    for (size_t i = 0; i < cmd.passes.size(); i++) {
+        const PostProcessPass &pass = cmd.passes[i];
+        MetalPipeline *pipeline = pipelines_.get(pass.pipeline);
+        if (pipeline == nullptr) {
+            UME_LOG_WARN(Renderer, "post pass with invalid pipeline {}",
+                         pass.pipeline.id);
+            continue;
+        }
+
+        const bool last = (i + 1 == cmd.passes.size());
+        MTL::Texture *dst =
+            last ? drawable_->texture() : color_targets_[1 - src].get();
+
+        auto pass_desc =
+            NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
+        auto *color = pass_desc->colorAttachments()->object(0);
+        color->setTexture(dst);
+        color->setLoadAction(MTL::LoadActionDontCare);
+        color->setStoreAction(MTL::StoreActionStore);
+
+        MTL::RenderCommandEncoder *enc =
+            command_buffer_->renderCommandEncoder(pass_desc.get());
+        enc->setRenderPipelineState(pipeline->state.get());
+        enc->setCullMode(MTL::CullModeNone);
+        enc->setFragmentTexture(color_targets_[src].get(), 0);
+        enc->setFragmentTexture(depth_texture_.get(), 1);
+        enc->setFragmentSamplerState(linear_sampler_.get(), 0);
+        enc->setFragmentBytes(cmd.frame_uniforms.data(),
+                              cmd.frame_uniforms.size(), 0);
+        if (!pass.params.empty()) {
+            enc->setFragmentBytes(pass.params.data(), pass.params.size(), 1);
+        }
+        enc->drawPrimitives(MTL::PrimitiveTypeTriangle, NS::UInteger(0),
+                            NS::UInteger(3));
+        enc->endEncoding();
+
+        if (!last) {
+            src = 1 - src;
+        }
+    }
+}
 
 void MetalRenderer::endFrame() {
     if (drawable_ == nullptr) {
@@ -184,11 +239,10 @@ void MetalRenderer::endFrame() {
         return;
     }
 
-    encoder_->endEncoding();
-
-    MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
-    blit->copyFromTexture(color_targets_[0].get(), drawable_->texture());
-    blit->endEncoding();
+    if (encoder_ != nullptr) {
+        encoder_->endEncoding();
+        encoder_ = nullptr;
+    }
 
     command_buffer_->presentDrawable(drawable_);
     command_buffer_->commit();
