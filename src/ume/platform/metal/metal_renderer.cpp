@@ -35,8 +35,37 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 
     layer_->setDevice(device_.get());
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
-    layer_->setFramebufferOnly(true);
+    layer_->setFramebufferOnly(false);
     layer_->setDrawableSize(CGSizeMake(pixel_width, pixel_height));
+
+    auto make_target = [&](MTL::PixelFormat format, const char *what) {
+        MTL::TextureDescriptor *desc =
+            MTL::TextureDescriptor::texture2DDescriptor(format, pixel_width,
+                                                        pixel_height, false);
+        desc->setStorageMode(MTL::StorageModePrivate);
+        desc->setUsage(MTL::TextureUsageRenderTarget |
+                       MTL::TextureUsageShaderRead);
+
+        auto tex = NS::TransferPtr(device_->newTexture(desc));
+        if (!tex) {
+            throw Error(logger::Category::Renderer,
+                        "failed to create {} texture", what);
+        }
+        return tex;
+    };
+
+    color_targets_[0] = make_target(MTL::PixelFormatBGRA8Unorm, "scene color");
+    color_targets_[1] = make_target(MTL::PixelFormatBGRA8Unorm, "post color");
+    depth_texture_ = make_target(MTL::PixelFormatDepth32Float, "depth");
+
+    auto sampler_desc =
+        NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
+    sampler_desc->setMinFilter(MTL::SamplerMinMagFilterLinear);
+    sampler_desc->setMagFilter(MTL::SamplerMinMagFilterLinear);
+    sampler_desc->setSAddressMode(MTL::SamplerAddressModeClampToEdge);
+    sampler_desc->setTAddressMode(MTL::SamplerAddressModeClampToEdge);
+    linear_sampler_ =
+        NS::TransferPtr(device_->newSamplerState(sampler_desc.get()));
 
     command_queue_ = NS::TransferPtr(device_->newCommandQueue());
     if (!command_queue_) {
@@ -46,63 +75,18 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 
     auto shader =
         b::embed<"generated/src/ume/renderer/shaders/default.slang.metallib">();
-
-    dispatch_data_t data = dispatch_data_create(
-        shader.data(), shader.size(),
-        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-        ^{
-        });
-
-    NS::Error *error = nullptr;
-    auto library = NS::TransferPtr(device_->newLibrary(data, &error));
-    dispatch_release(data);
-
+    auto library = libraryFromMetallib(
+        std::as_bytes(std::span(shader.data(), shader.size())));
     if (!library) {
         throw Error(logger::Category::Renderer,
-                    "failed to create metal library: {}", errorString(error));
+                    "failed to load default shader library");
     }
 
-    auto vertex_func = NS::TransferPtr(library->newFunction(
-        NS::String::string("vertMain", NS::UTF8StringEncoding)));
-
-    auto fragment_func = NS::TransferPtr(library->newFunction(
-        NS::String::string("fragMain", NS::UTF8StringEncoding)));
-
-    if (!vertex_func || !fragment_func) {
-        throw Error(
-            logger::Category::Renderer,
-            "vertMain/fragMain entrypoints not found in shader library");
-    }
-
-    auto descriptor =
-        NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
-    descriptor->setVertexFunction(vertex_func.get());
-    descriptor->setFragmentFunction(fragment_func.get());
-    descriptor->colorAttachments()->object(0)->setPixelFormat(
-        MTL::PixelFormatBGRA8Unorm);
-    descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
-
-    error = nullptr;
-    pipeline_state_ = NS::TransferPtr(
-        device_->newRenderPipelineState(descriptor.get(), &error));
-
+    pipeline_state_ =
+        buildPipeline(library.get(), "vertMain", "fragMain", true);
     if (!pipeline_state_) {
         throw Error(logger::Category::Renderer,
-                    "failed to create render pipeline state: {}",
-                    errorString(error));
-    }
-
-    MTL::TextureDescriptor *tex_desc =
-        MTL::TextureDescriptor::texture2DDescriptor(
-            MTL::PixelFormatDepth32Float, pixel_width, pixel_height, false);
-
-    tex_desc->setStorageMode(MTL::StorageModePrivate);
-    tex_desc->setUsage(MTL::TextureUsageRenderTarget);
-
-    depth_texture_ = NS::TransferPtr(device_->newTexture(tex_desc));
-    if (!depth_texture_) {
-        throw Error(logger::Category::Renderer,
-                    "failed to create depth texture");
+                    "failed to create default pipeline state");
     }
 
     auto depth_desc =
@@ -135,7 +119,7 @@ void MetalRenderer::beginFrame() {
     auto pass_descriptor =
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
     auto *color_attachment = pass_descriptor->colorAttachments()->object(0);
-    color_attachment->setTexture(drawable_->texture());
+    color_attachment->setTexture(color_targets_[0].get());
     color_attachment->setLoadAction(MTL::LoadActionClear);
     color_attachment->setStoreAction(MTL::StoreActionStore);
     color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
@@ -143,7 +127,7 @@ void MetalRenderer::beginFrame() {
     auto *depth_attachment = pass_descriptor->depthAttachment();
     depth_attachment->setTexture(depth_texture_.get());
     depth_attachment->setLoadAction(MTL::LoadActionClear);
-    depth_attachment->setStoreAction(MTL::StoreActionDontCare);
+    depth_attachment->setStoreAction(MTL::StoreActionStore);
     depth_attachment->setClearDepth(0.0);
 
     encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor.get());
@@ -191,6 +175,8 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         index_buffer->buffer.get(), NS::UInteger(0));
 }
 
+void MetalRenderer::postProcess(const PostProcessCommand &cmd) {}
+
 void MetalRenderer::endFrame() {
     if (drawable_ == nullptr) {
         frame_pool_->release();
@@ -199,6 +185,11 @@ void MetalRenderer::endFrame() {
     }
 
     encoder_->endEncoding();
+
+    MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
+    blit->copyFromTexture(color_targets_[0].get(), drawable_->texture());
+    blit->endEncoding();
+
     command_buffer_->presentDrawable(drawable_);
     command_buffer_->commit();
 
@@ -238,6 +229,95 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
                      handle.id);
         return;
     }
+}
+
+PipelineHandle MetalRenderer::createPipeline(const PipelineDescription &desc) {
+    auto library = libraryFromSource(desc.shader);
+    if (!library) {
+        return {};
+    }
+
+    auto state = buildPipeline(library.get(), desc.vertex_entry,
+                               desc.fragment_entry, false);
+    if (!state) {
+        return {};
+    }
+
+    return pipelines_.insert(MetalPipeline{.state = std::move(state)});
+}
+
+void MetalRenderer::destroyPipeline(PipelineHandle handle) {
+    if (!pipelines_.remove(handle)) {
+        UME_LOG_WARN(Renderer, "attempted to destroy stale pipeline handle: {}",
+                     handle.id);
+    }
+}
+
+NS::SharedPtr<MTL::Library>
+MetalRenderer::libraryFromMetallib(std::span<const std::byte> bytes) {
+    dispatch_data_t data = dispatch_data_create(
+        bytes.data(), bytes.size(),
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+        ^{
+        });
+
+    NS::Error *error = nullptr;
+    auto library = NS::TransferPtr(device_->newLibrary(data, &error));
+    dispatch_release(data);
+    if (!library) {
+        UME_LOG_ERROR(Renderer, "failed to load metallib: {}",
+                      errorString(error));
+    }
+    return library;
+}
+
+NS::SharedPtr<MTL::Library>
+MetalRenderer::libraryFromSource(std::span<const std::byte> bytes) {
+    auto source = NS::TransferPtr(NS::String::alloc()->init(
+        const_cast<void *>(static_cast<const void *>(bytes.data())),
+        bytes.size(), NS::UTF8StringEncoding, false));
+
+    auto options = NS::TransferPtr(MTL::CompileOptions::alloc()->init());
+
+    NS::Error *error = nullptr;
+    auto library = NS::TransferPtr(
+        device_->newLibrary(source.get(), options.get(), &error));
+    if (!library) {
+        UME_LOG_ERROR(Renderer, "failed to compile msl shader: {}",
+                      errorString(error));
+    }
+    return library;
+}
+
+NS::SharedPtr<MTL::RenderPipelineState>
+MetalRenderer::buildPipeline(MTL::Library *library, const char *vert,
+                             const char *frag, bool with_depth) {
+    auto vfn = NS::TransferPtr(
+        library->newFunction(NS::String::string(vert, NS::UTF8StringEncoding)));
+    auto ffn = NS::TransferPtr(
+        library->newFunction(NS::String::string(frag, NS::UTF8StringEncoding)));
+    if (!vfn || !ffn) {
+        UME_LOG_ERROR(Renderer, "entrypoints '{}'/'{}' not found", vert, frag);
+        return {};
+    }
+
+    auto desc = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
+    desc->setVertexFunction(vfn.get());
+    desc->setFragmentFunction(ffn.get());
+    desc->colorAttachments()->object(0)->setPixelFormat(
+        MTL::PixelFormatBGRA8Unorm);
+    if (with_depth) {
+        desc->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
+    }
+
+    NS::Error *error = nullptr;
+    auto state =
+        NS::TransferPtr(device_->newRenderPipelineState(desc.get(), &error));
+    if (!state) {
+        UME_LOG_ERROR(Renderer, "failed to create pipeline state: {}",
+                      errorString(error));
+    }
+    return state;
 }
 
 std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {
