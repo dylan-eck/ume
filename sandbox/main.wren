@@ -1,6 +1,6 @@
 import "ume" for Engine, Renderer, Input
 
-class Sandbox {
+class Application {
     static init() {
         __camera_x = 0
         __camera_y = 0

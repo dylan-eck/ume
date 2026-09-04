@@ -495,16 +495,16 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
     }
 
     // TODO: figure out a better way to handle class name
-    if (!wrenHasVariable(vm, "main", "Sandbox")) {
+    if (!wrenHasVariable(vm, "main", "Application")) {
         throw Error(logger::Category::Script,
-                    "'{}' does not define a Sandbox class", path);
+                    "'{}' does not define a Application class", path);
     }
 
     loaded.main_init = wrenMakeCallHandle(vm, "init()");
     loaded.main_update = wrenMakeCallHandle(vm, "update(_)");
 
     wrenEnsureSlots(vm, 1);
-    wrenGetVariable(vm, "main", "Sandbox", 0);
+    wrenGetVariable(vm, "main", "Application", 0);
     loaded.main_class = wrenGetSlotHandle(vm, 0);
 
     return loaded;
