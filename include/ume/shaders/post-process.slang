@@ -1,3 +1,5 @@
+static const float INF = 1.0f / 0.0f;
+
 struct FrameUniforms {
     float4x4 inverse_projection;
     float4x4 camera_to_world;
@@ -28,7 +30,7 @@ FullscreenOutput vertMain(uint vid: SV_VertexID) {
     return o;
 }
 
-float linearizeDepth(float d) { return d > 0.0 ? frame.z_near / d : 1e30; }
+float linearizeDepth(float d) { return d > 0.0 ? frame.z_near / d : INF; }
 
 float loadDepth(float2 uv) {
     int2 px = int2(uv * frame.resolution);
