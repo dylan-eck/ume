@@ -1,4 +1,6 @@
 struct FrameUniforms {
+    float4x4 inverse_projection;
+    float4x4 camera_to_world;
     float2 resolution;
     float z_near;
     float fov_y;

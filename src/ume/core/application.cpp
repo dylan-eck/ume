@@ -36,7 +36,7 @@ void Application::run() {
     while (window_.pollEvents()) {
         if (window_.input().keyPressed(reload_key_)) {
             UME_LOG_INFO(Core, "reloading script engine and shaders");
-            script_engine_.reload();
+            // script_engine_.reload();
             plugin_host_.reloadShaders();
         }
 

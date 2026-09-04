@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <array>
+#include <iostream>
 
 namespace proc_planet {
 
@@ -206,6 +207,13 @@ void Planet::generate() {
     }
 }
 
+namespace {
+struct AtmosphereParams {
+    float planet_center[4];
+};
+static_assert(sizeof(AtmosphereParams) == 16);
+} // namespace
+
 void Planet::update(const UmeFrameContext *frame_context) {
     rotation_angle_ += 0.0f * frame_context->delta_time;
     rotation_angle_ = std::fmod(rotation_angle_, glm::two_pi<float>());
@@ -231,8 +239,17 @@ void Planet::update(const UmeFrameContext *frame_context) {
     }
 
     if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+        const glm::dvec3 camera(frame_context->camera_position[0],
+                                frame_context->camera_position[1],
+                                frame_context->camera_position[2]);
+        const glm::dvec3 rel = world_position_ - camera;
+
+        const AtmosphereParams params{
+            .planet_center = {float(rel.x), float(rel.y), float(rel.z),
+                              float(radius_) + 3000000.0f}};
+
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
-                                      nullptr, 0);
+                                      &params, sizeof(params));
     }
 }
 } // namespace proc_planet

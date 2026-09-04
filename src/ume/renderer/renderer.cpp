@@ -13,6 +13,8 @@ struct DrawUniforms {
 
 // TODO: reorder this?
 struct PostFrameUniforms {
+    glm::mat4 inverse_projection;
+    glm::mat4 camera_to_world;
     glm::vec2 resolution;
     float z_near;
     float fov_y;
@@ -20,7 +22,7 @@ struct PostFrameUniforms {
     float time;
     float _pad[2];
 };
-static_assert(sizeof(PostFrameUniforms) == 32);
+static_assert(sizeof(PostFrameUniforms) == 160);
 
 Renderer::Renderer(const Window &window)
     : pixel_width_(window.getPixelWidth()),
@@ -212,6 +214,8 @@ void Renderer::render() {
     submissions_.clear();
 
     const PostFrameUniforms frame_uniforms{
+        .inverse_projection = glm::inverse(projection),
+        .camera_to_world = glm::mat4(camera_state_.orientation),
         .resolution = glm::vec2(pixel_width_, pixel_height_),
         .z_near = camera_state_.z_near,
         .fov_y = camera_state_.fov_y,

@@ -39,14 +39,14 @@ Slang::ComPtr<slang::ISession> ShaderCompiler::createSession() {
         target_desc.profile = global_->findProfile("spirv_1_4");
     }
 
-    const std::string include = include_dir_.string();
-    std::array<const char *, 1> search_paths = {include.c_str()};
+    std::array<const char *, 1> search_paths = {include_dir_.c_str()};
 
     slang::SessionDesc desc{};
     desc.targets = &target_desc;
     desc.targetCount = 1;
     desc.searchPaths = search_paths.data();
     desc.searchPathCount = 1;
+    desc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
 
     Slang::ComPtr<slang::ISession> session;
     if (SLANG_FAILED(global_->createSession(desc, session.writeRef()))) {
