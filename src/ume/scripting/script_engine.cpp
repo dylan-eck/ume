@@ -380,62 +380,85 @@ void scriptKeyQuery(WrenVM *vm) {
     wrenSetSlotBool(vm, 0, (getScriptContext(vm).input->*Method)(code));
 }
 
+struct ForeignMethodBinding {
+    std::string_view class_name;
+    std::string_view signature;
+    WrenForeignMethodFn fn_pointer;
+};
+
+constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
+    {
+        .class_name = "Engine",
+        .signature = "createObject_(_,_,_)",
+        .fn_pointer = &scriptCreateObject,
+    },
+    {
+        .class_name = "Engine",
+        .signature = "destroyObject(_)",
+        .fn_pointer = &scriptDestroyObject,
+    },
+    {
+        .class_name = "Input",
+        .signature = "keyCode(_)",
+        .fn_pointer = &scriptKeyCode,
+    },
+    {
+        .class_name = "Input",
+        .signature = "keyDown_(_)",
+        .fn_pointer = &scriptKeyQuery<&Input::keyDown>,
+    },
+    {
+        .class_name = "Input",
+        .signature = "keyPressed_(_)",
+        .fn_pointer = &scriptKeyQuery<&Input::keyPressed>,
+    },
+    {
+        .class_name = "Input",
+        .signature = "keyReleased_(_)",
+        .fn_pointer = &scriptKeyQuery<&Input::keyReleased>,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "createMesh(_,_,_)",
+        .fn_pointer = &scriptCreateMesh,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "submit(_,_,_,_)",
+        .fn_pointer = &scriptSubmit,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "setCamera(_,_,_,_,_,_,_)",
+        .fn_pointer = &scriptSetCamera,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "rotateCameraLocal(_,_,_)",
+        .fn_pointer = &scriptRotateCameraLocal,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "translateCameraLocal(_,_,_)",
+        .fn_pointer = &scriptTranslateCameraLocal,
+    },
+});
+
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
+// function signature is dictated by wren
 WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
                                         const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
+    // NOLINTEND(bugprone-easily-swappable-parameters)
 
-    if (strcmp(module, "ume") != 0 || !is_static) {
+    if (module != std::string_view("ume") || !is_static) {
         return nullptr;
     }
 
-    if (strcmp(class_name, "Engine") == 0) {
-        if (strcmp(signature, "createObject_(_,_,_)") == 0) {
-            return &scriptCreateObject;
-        }
-
-        if (strcmp(signature, "destroyObject(_)") == 0) {
-            return &scriptDestroyObject;
-        }
-    }
-
-    if (strcmp(class_name, "Input") == 0) {
-        if (strcmp(signature, "keyCode(_)") == 0) {
-            return &scriptKeyCode;
-        }
-
-        if (strcmp(signature, "keyDown_(_)") == 0) {
-            return &scriptKeyQuery<&Input::keyDown>;
-        }
-
-        if (strcmp(signature, "keyPressed_(_)") == 0) {
-            return &scriptKeyQuery<&Input::keyPressed>;
-        }
-
-        if (strcmp(signature, "keyReleased_(_)") == 0) {
-            return &scriptKeyQuery<&Input::keyReleased>;
-        }
-    }
-
-    if (strcmp(class_name, "Renderer") == 0) {
-        if (strcmp(signature, "createMesh(_,_,_)") == 0) {
-            return &scriptCreateMesh;
-        }
-
-        if (strcmp(signature, "submit(_,_,_,_)") == 0) {
-            return &scriptSubmit;
-        }
-
-        if (strcmp(signature, "setCamera(_,_,_,_,_,_,_)") == 0) {
-            return &scriptSetCamera;
-        }
-
-        if (strcmp(signature, "rotateCameraLocal(_,_,_)") == 0) {
-            return &scriptRotateCameraLocal;
-        }
-
-        if (strcmp(signature, "translateCameraLocal(_,_,_)") == 0) {
-            return &scriptTranslateCameraLocal;
+    for (const auto &entry : kForeignMethodTable) {
+        if (entry.class_name == class_name && entry.signature == signature) {
+            return entry.fn_pointer;
         }
     }
 
