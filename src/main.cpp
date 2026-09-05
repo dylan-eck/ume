@@ -1,4 +1,4 @@
-#include "ume/core/application.hpp"
+#include "ume/core/engine.hpp"
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
 
@@ -7,9 +7,8 @@
 int main() {
     try {
         std::filesystem::path working_dir = std::filesystem::current_path();
-        auto config =
-            ume::ApplicationConfig{.working_dir = working_dir.string()};
-        auto app = ume::Application(config);
+        auto config = ume::EngineConfig{.working_dir = working_dir.string()};
+        auto app = ume::Engine(config);
         app.run();
     } catch (const ume::Error &err) {
         // logging macros can't be used here because category is not known at

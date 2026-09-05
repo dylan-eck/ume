@@ -19,20 +19,20 @@ struct ProjectDescription {
     WindowConfig window_config;
 };
 
-struct ApplicationConfig {
+struct EngineConfig {
     std::string working_dir;
 };
 
-class Application {
+class Engine {
 public:
-    explicit Application(const ApplicationConfig &config);
-    ~Application();
+    explicit Engine(const EngineConfig &config);
+    ~Engine();
 
-    Application(const Application &) = delete;
-    Application &operator=(const Application &) = delete;
+    Engine(const Engine &) = delete;
+    Engine &operator=(const Engine &) = delete;
 
-    Application(Application &&) = delete;
-    Application &operator=(Application &&) = delete;
+    Engine(Engine &&) = delete;
+    Engine &operator=(Engine &&) = delete;
 
     void run();
 

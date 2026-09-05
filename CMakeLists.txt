@@ -67,7 +67,7 @@ target_compile_options(
 add_library(
   ume_engine STATIC
   src/ume/core/logger.cpp
-  src/ume/core/application.cpp
+  src/ume/core/engine.cpp
   src/ume/core/dynamic_library.cpp
   src/ume/platform/window.cpp
   src/ume/platform/input.cpp

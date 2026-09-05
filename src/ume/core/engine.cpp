@@ -1,4 +1,4 @@
-#include "application.hpp"
+#include "engine.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
 
@@ -12,7 +12,7 @@
 
 namespace ume {
 
-Application::Application(const ApplicationConfig &config)
+Engine::Engine(const EngineConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
@@ -30,9 +30,9 @@ Application::Application(const ApplicationConfig &config)
     UME_LOG_INFO(Core, "application initialized");
 }
 
-Application::~Application() {}
+Engine::~Engine() {}
 
-void Application::run() {
+void Engine::run() {
     while (window_.pollEvents()) {
         if (window_.input().keyPressed(reload_key_)) {
             UME_LOG_INFO(Core, "reloading script engine and shaders");
@@ -71,7 +71,7 @@ void Application::run() {
     }
 }
 
-ProjectDescription Application::loadProject(const std::string &working_dir) {
+ProjectDescription Engine::loadProject(const std::string &working_dir) {
     ProjectDescription project;
 
     glz::error_ctx err = glz::read_file_toml(
