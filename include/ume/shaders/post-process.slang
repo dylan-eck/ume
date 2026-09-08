@@ -7,8 +7,7 @@ struct FrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    float time;
-    float2 _pad;
+    float3 _pad;
 };
 
 Texture2D<float4> scene_color;

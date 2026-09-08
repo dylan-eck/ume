@@ -9,7 +9,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <memory>
-#include <chrono>
 #include <filesystem>
 
 namespace ume {
@@ -85,8 +84,6 @@ private:
     uint32_t pixel_width_;
     uint32_t pixel_height_;
     float aspect_;
-    std::chrono::steady_clock::time_point start_time_ =
-        std::chrono::steady_clock::now();
     std::unique_ptr<RendererBackend> backend_;
     std::unique_ptr<ShaderCompiler> compiler_;
 

@@ -3,6 +3,8 @@
 #include "ume/platform/window.hpp"
 #include "ume/renderer/shader_compiler.hpp"
 
+#include <array>
+
 namespace ume {
 
 // TODO: better naming?
@@ -19,8 +21,7 @@ struct PostFrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    float time;
-    float _pad[2];
+    std::array<float, 3> _pad;
 };
 static_assert(sizeof(PostFrameUniforms) == 160);
 
@@ -220,9 +221,7 @@ void Renderer::render() {
         .z_near = camera_state_.z_near,
         .fov_y = camera_state_.fov_y,
         .aspect = aspect_,
-        .time = std::chrono::duration<float>(std::chrono::steady_clock::now() -
-                                             start_time_)
-                    .count()};
+    };
 
     post_passes_.clear();
     for (const auto &s : post_submissions_) {
