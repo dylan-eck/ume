@@ -11,6 +11,7 @@ namespace ume {
 struct DrawUniforms {
     glm::mat4 model_view_projection;
     glm::mat4 normal; // normal matrix
+    glm::vec4 base_color = glm::vec4(1.0f);
 };
 
 // TODO: reorder this?
@@ -106,7 +107,8 @@ void Renderer::submit(MeshHandle handle, const glm::dvec3 &world_position,
 
     submissions_.push_back({.mesh = *mesh,
                             .world_position = world_position,
-                            .local_transform = local_transform});
+                            .local_transform = local_transform,
+                            .base_color = debugColorFromId(handle.id)});
 }
 
 PostEffectHandle
@@ -202,7 +204,8 @@ void Renderer::render() {
         Mesh mesh = next.mesh;
         DrawUniforms uniforms{.model_view_projection =
                                   projection * view_rotation * model,
-                              .normal = glm::transpose(glm::inverse(model))};
+                              .normal = glm::transpose(glm::inverse(model)),
+                              .base_color = next.base_color};
 
         backend_->draw({
             .vertex_buffer = mesh.vertex_buffer,

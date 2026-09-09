@@ -7,6 +7,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/color_space.hpp>
 
 #include <memory>
 #include <filesystem>
@@ -67,6 +68,7 @@ private:
         Mesh mesh;
         glm::dvec3 world_position;
         glm::mat4 local_transform;
+        glm::vec4 base_color = glm::vec4(1.0f);
     };
 
     struct PostEffect {
@@ -96,5 +98,18 @@ private:
     std::vector<PostProcessPass> post_passes_;
 
     CameraState camera_state_;
+
+    static glm::vec4 debugColorFromId(uint32_t id) {
+        uint32_t h = id * 0x9e3779b9u;
+        h ^= h >> 16;
+        h *= 0x85ebca6bu;
+        h ^= h >> 13;
+        h *= 0xc2b2ae35u;
+        h ^= h >> 16;
+
+        const float hue = static_cast<float>(h) * (1.0f / 4294967296.0f);
+        return glm::vec4(glm::rgbColor(glm::vec3(hue * 360.0f, 0.75f, 0.8f)),
+                         1.0f);
+    }
 };
 } // namespace ume
