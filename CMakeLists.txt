@@ -183,6 +183,7 @@ function(ume_plugin_assets TARGET)
 endfunction()
 
 add_subdirectory(plugins/proc_planet)
+add_subdirectory(plugins/terrain)
 
 add_executable(ume src/main.cpp)
 
@@ -198,11 +199,13 @@ if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
 else()
   add_dependencies(ume proc_planet)
+  add_dependencies(ume terrain)
 endif()
 
 target_link_libraries(ume PRIVATE ume_engine)
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_link_libraries(ume PRIVATE proc_planet)
+  target_link_libraries(ume PRIVATE terrain)
 endif()
 
 include(GNUInstallDirs)

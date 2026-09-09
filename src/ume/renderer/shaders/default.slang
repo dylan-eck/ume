@@ -44,7 +44,7 @@ float4 fragMain(VertexOutput input) : SV_Target {
     float intensity =
         ambient + (1.0 - ambient) * max(dot(n, dir_to_light), 0.0);
 
-    return float4(input.color.rgb * intensity, input.color.a);
-    // return float4(input.color.rgb, 1);
+    // return float4(input.color.rgb * intensity, input.color.a);
+    return float4(input.color.rgb, 1);
 }
 

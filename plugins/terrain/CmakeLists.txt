@@ -1,0 +1,26 @@
+add_library(terrain ${UME_PLUGIN_LINK_TYPE} src/plugin.cpp
+                        src/terrain.cpp)
+
+target_link_libraries(terrain PRIVATE ume_plugin_api ume_config
+                                          ume_plugin_config)
+
+set_target_properties(
+  terrain
+  PROPERTIES CXX_VISIBILITY_PRESET hidden
+             VISIBILITY_INLINES_HIDDEN ON
+             POSITION_INDEPENDENT_CODE ON)
+
+if(NOT APPLE AND NOT MSVC)
+  target_link_options(terrain PRIVATE -Wl,--no-undefined)
+endif()
+
+if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
+  target_compile_definitions(terrain PRIVATE UME_PLUGIN_STATIC)
+else()
+  set_target_properties(
+    terrain
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+               "${CMAKE_SOURCE_DIR}/sandbox/plugins/terrain" PREFIX "")
+endif()
+
+ume_plugin_assets(terrain plugin.toml)

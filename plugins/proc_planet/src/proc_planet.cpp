@@ -7,7 +7,6 @@
 
 #include <cmath>
 #include <array>
-#include <iostream>
 
 namespace proc_planet {
 
@@ -73,7 +72,7 @@ void Planet::generate() {
     chunks_.clear();
     chunks_.reserve(6);
 
-    const uint32_t resolution = 256;
+    const uint32_t resolution = 32;
     const double inv_res = 1.0 / resolution;
     const uint32_t grid_width = resolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
@@ -157,13 +156,13 @@ void Planet::generate() {
                                     noise_input_x.data(), noise_input_y.data(),
                                     noise_input_z.data(), 0, 0, 0, 0);
 
-        for (size_t k = 0; k < vertex_count; k++) {
-            const float height = noise_amp * noise_values[k];
-            const size_t base_idx = k * 3;
-            positions[base_idx + 0] += height * radials[base_idx + 0];
-            positions[base_idx + 1] += height * radials[base_idx + 1];
-            positions[base_idx + 2] += height * radials[base_idx + 2];
-        }
+        // for (size_t k = 0; k < vertex_count; k++) {
+        //     const float height = noise_amp * noise_values[k];
+        //     const size_t base_idx = k * 3;
+        //     positions[base_idx + 0] += height * radials[base_idx + 0];
+        //     positions[base_idx + 1] += height * radials[base_idx + 1];
+        //     positions[base_idx + 2] += height * radials[base_idx + 2];
+        // }
 
         auto p = [&](uint32_t i, uint32_t j) {
             const size_t base_idx = (size_t(i) * grid_width + j) * 3;
@@ -238,18 +237,19 @@ void Planet::update(const UmeFrameContext *frame_context) {
                             glm::value_ptr(local_transform));
     }
 
-    if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
-        const glm::dvec3 camera(frame_context->camera_position[0],
-                                frame_context->camera_position[1],
-                                frame_context->camera_position[2]);
-        const glm::dvec3 rel = world_position_ - camera;
+    // if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+    //     const glm::dvec3 camera(frame_context->camera_position[0],
+    //                             frame_context->camera_position[1],
+    //                             frame_context->camera_position[2]);
+    //     const glm::dvec3 rel = world_position_ - camera;
 
-        const AtmosphereParams params{
-            .planet_center = {float(rel.x), float(rel.y), float(rel.z),
-                              float(radius_) + 3000000.0f}};
+    //     const AtmosphereParams params{
+    //         .planet_center = {float(rel.x), float(rel.y), float(rel.z),
+    //                           float(radius_) + 3000000.0f}};
 
-        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
-                                      &params, sizeof(params));
-    }
+    //     plugin_->api.submitPostEffect(plugin_->api.context,
+    //     plugin_->atmosphere,
+    //                                   &params, sizeof(params));
+    // }
 }
 } // namespace proc_planet

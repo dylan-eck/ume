@@ -133,9 +133,9 @@ void MetalRenderer::beginFrame() {
     encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor.get());
 
     encoder_->setRenderPipelineState(pipeline_state_.get());
-    encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
-    encoder_->setCullMode(MTL::CullModeBack);
-    // encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
+    // encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
+    // encoder_->setCullMode(MTL::CullModeBack);
+    encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
     encoder_->setDepthStencilState(depth_state_.get());
 }
 
