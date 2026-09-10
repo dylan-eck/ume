@@ -105,8 +105,8 @@ void Planet::generate() {
         std::vector<float> noise_input_z(vertex_count);
 
         for (uint32_t i = 0; i < grid_width; i++) {
+            const double t = (2.0 * i * inv_res) - (2.0 * inv_res) - 1.0;
             for (uint32_t j = 0; j < grid_width; j++) {
-                const double t = (2.0 * i * inv_res) - (2.0 * inv_res) - 1.0;
                 const double u = (2.0 * j * inv_res) - (2.0 * inv_res) - 1.0;
 
                 const glm::dvec3 folded = foldToCubeSurface(n, a, b, t, u);

@@ -15,6 +15,7 @@ struct Chunk {
     uint32_t x;
     uint32_t y;
     UmeMeshHandle mesh;
+    bool resident = false;
 };
 
 class Terrain {
@@ -35,15 +36,18 @@ private:
     const TerrainPlugin *plugin_;
 
     uint32_t resolution_ = 32;
-    double size_ = 1024.0;
+    double size_ = 7e6;
     glm::dvec3 world_position_ = glm::dvec3(0.0);
 
-    static const uint64_t kNumDetailLevels = 3;
+    const uint64_t kNumDetailLevels = 8;
+    const uint32_t kChunkResolution = 32;
 
     UmeMeshHandle mesh_;
 
     std::unordered_map<uint64_t, Chunk> chunks_;
 
     void generateChunk(uint64_t level, uint32_t x, uint32_t y);
+
+    // [[nodiscard]] const Chunk &getChunk(uint64_t id) const;
 };
 } // namespace terrain
