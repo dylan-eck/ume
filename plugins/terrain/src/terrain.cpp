@@ -41,44 +41,16 @@ void Terrain::update(const UmeFrameContext *frame_context) {
                                frame_context->camera_position[1],
                                frame_context->camera_position[2]);
 
-    for (auto &[id, chunk] : chunks_) {
-        const double size = size_ / (1 << chunk.level);
-        const double origin = -size_ / 2.0;
-
-        const double wx = origin + ((chunk.x + 0.5) * size);
-        const double wz = origin + ((chunk.y + 0.5) * size);
-        glm::dvec3 world_pos(wx, 0.0, wz);
-
-        const double dist = glm::length(world_pos - camera_position);
-
-        if (dist < size && chunk.level < kNumDetailLevels) {
-            chunk.resident = false;
-
-            generateChunk(chunk.level + 1, 2 * chunk.x, 2 * chunk.y);
-            generateChunk(chunk.level + 1, (2 * chunk.x) + 1, 2 * chunk.y);
-            generateChunk(chunk.level + 1, (2 * chunk.x) + 1,
-                          (2 * chunk.y) + 1);
-            generateChunk(chunk.level + 1, 2 * chunk.x, (2 * chunk.y) + 1);
-        }
-
-        if (chunk.resident) {
-            api.submit(api.context, chunk.mesh, glm::value_ptr(world_pos),
-                       glm::value_ptr(local_transform));
-        }
-
-        // std::cout << "updating chunk " << id << "\n";
-        // std::cout << "distance: " << dist << "\n";
-        // std::cout << "\n";
-    }
+    selectVisibleChunks(0, 0, 0, camera_position);
 }
 
-void Terrain::generateChunk(uint64_t level, uint32_t x, uint32_t y) {
+const Chunk &Terrain::generateChunk(uint64_t level, uint32_t x, uint32_t y) {
     uint64_t id = level << 2 * kCoordBits;
     id |= static_cast<uint64_t>(x) << kCoordBits;
     id |= static_cast<uint64_t>(y);
 
     if (auto it = chunks_.find(id); it != chunks_.end()) {
-        return;
+        return chunks_[id];
     }
 
     const double size = size_ / (1 << level);
@@ -134,9 +106,36 @@ void Terrain::generateChunk(uint64_t level, uint32_t x, uint32_t y) {
     Chunk chunk{.level = level,
                 .x = x,
                 .y = y,
-                .mesh = api.createMesh(api.context, &desc),
-                .resident = true};
+                .mesh = api.createMesh(api.context, &desc)};
 
     chunks_[id] = chunk;
+    return chunks_[id];
+}
+
+void Terrain::selectVisibleChunks(uint64_t level, uint32_t x, uint32_t y,
+                                  const glm::dvec3 &camera_position) {
+    const double size = size_ / (1 << level);
+    const double origin = -size_ / 2.0;
+
+    const double wx = origin + ((x + 0.5) * size);
+    const double wz = origin + ((y + 0.5) * size);
+    glm::dvec3 world_pos(wx, 0.0, wz);
+
+    const double dist = glm::length(world_pos - camera_position);
+
+    if (dist < size && level < kNumDetailLevels) {
+        selectVisibleChunks(level + 1, 2 * x, 2 * y, camera_position);
+        selectVisibleChunks(level + 1, (2 * x) + 1, 2 * y, camera_position);
+        selectVisibleChunks(level + 1, (2 * x) + 1, (2 * y) + 1,
+                            camera_position);
+        selectVisibleChunks(level + 1, 2 * x, (2 * y) + 1, camera_position);
+        return;
+    }
+
+    const Chunk &chunk = generateChunk(level, x, y);
+
+    const UmePluginApi &api = plugin_->api;
+    api.submit(api.context, chunk.mesh, glm::value_ptr(world_pos),
+               glm::value_ptr(glm::mat4(1.0f)));
 }
 } // namespace terrain

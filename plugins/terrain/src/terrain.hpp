@@ -15,7 +15,6 @@ struct Chunk {
     uint32_t x;
     uint32_t y;
     UmeMeshHandle mesh;
-    bool resident = false;
 };
 
 class Terrain {
@@ -46,7 +45,9 @@ private:
 
     std::unordered_map<uint64_t, Chunk> chunks_;
 
-    void generateChunk(uint64_t level, uint32_t x, uint32_t y);
+    const Chunk &generateChunk(uint64_t level, uint32_t x, uint32_t y);
+    void selectVisibleChunks(uint64_t level, uint32_t, uint32_t y,
+                             const glm::dvec3 &camera_position);
 
     // [[nodiscard]] const Chunk &getChunk(uint64_t id) const;
 };
