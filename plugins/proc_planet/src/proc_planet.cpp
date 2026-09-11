@@ -246,7 +246,7 @@ void Planet::update(const UmeFrameContext *frame_context) {
 
         const AtmosphereParams params{
             .planet_center = {float(rel.x), float(rel.y), float(rel.z),
-                              float(radius_) + 3000000.0f}};
+                              float(radius_) + 2500000.0f}};
 
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
                                       &params, sizeof(params));
