@@ -182,6 +182,7 @@ function(ume_plugin_assets TARGET)
   add_dependencies(${TARGET} ${TARGET}_assets)
 endfunction()
 
+add_subdirectory(plugins/shared)
 add_subdirectory(plugins/proc_planet)
 add_subdirectory(plugins/terrain)
 

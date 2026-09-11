@@ -36,7 +36,15 @@ ChunkCoords chunkCoords(uint64_t id) {
 }
 } // namespace
 
-Terrain::Terrain(const TerrainPlugin *plugin) : plugin_(plugin) { generate(); }
+Terrain::Terrain(const TerrainPlugin *plugin)
+    : plugin_(plugin), simplex_noise_(FastNoise::New<FastNoise::Simplex>()),
+      fractal_noise_(FastNoise::New<FastNoise::FractalFBm>()) {
+    fractal_noise_->SetSource(simplex_noise_);
+    // fractal_noise_->SetOctaveCount(4);
+    fractal_noise_->SetGain(0.6f);
+
+    generate();
+}
 
 void Terrain::generate() {
     getOrCreateChunk(0, 0, 0);
@@ -47,6 +55,9 @@ void Terrain::generate() {
 
 void Terrain::update(const UmeFrameContext *frame_context) {
     const UmePluginApi &api = plugin_->api;
+
+    // std::cout << "camera altitude: " << frame_context->camera_position[1]
+    //           << "\n";
 
     glm::dvec3 camera_position(frame_context->camera_position[0],
                                frame_context->camera_position[1],
@@ -70,10 +81,11 @@ void Terrain::update(const UmeFrameContext *frame_context) {
                    glm::value_ptr(glm::mat4(1.0f)));
     }
 
-    std::cout << "=== frame " << frame_context->frame_number << "\n";
-    std::cout << "      loaded chunks: " << loaded_chunks_.size() << "\n"
-              << "     visible chunks: " << visible_chunks_ids_.size() << "\n"
-              << "            max lod: " << max_lod << "\n\n";
+    // std::cout << "=== frame " << frame_context->frame_number << "\n";
+    // std::cout << "      loaded chunks: " << loaded_chunks_.size() << "\n"
+    //           << "     visible chunks: " << visible_chunks_ids_.size() <<
+    //           "\n"
+    //           << "            max lod: " << max_lod << "\n\n";
 
     if (loaded_chunks_.size() <= kMaxLoadedChunks) {
         return;
@@ -121,19 +133,30 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
         return loaded_chunks_[id];
     }
 
-    const double size = chunkBounds(level, x, y).size;
+    const ChunkBounds bounds = chunkBounds(level, x, y);
+    const double size = bounds.size;
+    const glm::dvec3 chunk_world_position = bounds.center;
+
+    const double noise_freq =
+        1.0 / 50000.0; // 1.5e6; // 1 / feature wavelength in meters
+    const float noise_amp = 50000.0f; // +/- height variation in meters
 
     const double inv_res = 1.0 / kChunkResolution;
-    const uint32_t grid_width = kChunkResolution + 1;
+    const uint32_t grid_width = kChunkResolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
 
     std::vector<float> positions(vertex_count * 3);
     std::vector<float> normals(vertex_count * 3);
 
-    for (uint32_t i = 0; i <= kChunkResolution; i++) {
-        const double vz = (-size / 2.0) + (i * size * inv_res);
-        for (uint32_t j = 0; j <= kChunkResolution; j++) {
-            const double vx = (-size / 2.0) + (j * size * inv_res);
+    std::vector<float> noise_input_x(vertex_count);
+    std::vector<float> noise_input_z(vertex_count);
+
+    for (uint32_t i = 0; i < grid_width; i++) {
+        const double vz =
+            (-size / 2.0) - (size * inv_res) + (i * size * inv_res);
+        for (uint32_t j = 0; j < grid_width; j++) {
+            const double vx =
+                (-size / 2.0) - (size * inv_res) + (j * size * inv_res);
 
             const size_t k = (static_cast<size_t>(i) * grid_width) + j;
             const size_t base_idx = k * 3;
@@ -142,21 +165,60 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
             positions[base_idx + 1] = 0;
             positions[base_idx + 2] = static_cast<float>(vz);
 
-            normals[base_idx + 0] = 0;
-            normals[base_idx + 1] = 1;
-            normals[base_idx + 2] = 0;
+            noise_input_x[k] =
+                static_cast<float>((vx + chunk_world_position.x) * noise_freq);
+            noise_input_z[k] =
+                static_cast<float>((vz + chunk_world_position.z) * noise_freq);
         }
     }
 
     std::vector<uint32_t> indices;
     indices.reserve(static_cast<size_t>(kChunkResolution) * kChunkResolution *
                     6);
-    for (uint32_t i = 0; i < kChunkResolution; i++) {
-        for (uint32_t j = i * grid_width;
-             j < (i * grid_width) + kChunkResolution; j++) {
+    for (uint32_t i = 1; i < grid_width - 2; i++) {
+        for (uint32_t j = (i * grid_width) + 1;
+             j < (i * grid_width) + grid_width - 2; j++) {
             indices.insert(indices.end(), {j + 1, j, j + grid_width});
             indices.insert(indices.end(),
                            {j + 1, j + grid_width, j + grid_width + 1});
+        }
+    }
+
+    std::vector<float> noise_values(vertex_count);
+    fractal_noise_->SetOctaveCount(static_cast<int>(level + 1));
+    FastNoise::OutputMinMax output_min_max = fractal_noise_->GenPositionArray2D(
+        noise_values.data(), vertex_count, noise_input_x.data(),
+        noise_input_z.data(), 0, 0, 0);
+
+    // std::cout << "level: " << level
+    //           << " noise output range: " << output_min_max.min << " "
+    //           << output_min_max.max << "\n";
+
+    for (size_t i = 0; i < vertex_count; i++) {
+        const float height = noise_amp * noise_values[i];
+        const size_t base_idx = i * 3;
+        positions[base_idx + 1] += height;
+    }
+
+    auto p = [&](uint32_t i, uint32_t j) {
+        const size_t base_idx = (size_t(i) * grid_width + j) * 3;
+        return glm::vec3(positions[base_idx], positions[base_idx + 1],
+                         positions[base_idx + 2]);
+    };
+
+    for (uint32_t i = 1; i <= kChunkResolution + 1; i++) {
+        for (uint32_t j = 1; j <= kChunkResolution + 1; j++) {
+            const glm::vec3 di = p(i + 1, j) - p(i - 1, j);
+            const glm::vec3 dj = p(i, j + 1) - p(i, j - 1);
+
+            glm::vec3 nrm = glm::cross(di, dj);
+            const float len = glm::length(nrm);
+            nrm = (len > 0.0f) ? nrm / len : glm::vec3(0.0f, 1.0f, 0.0f);
+
+            const size_t base = (size_t(i) * grid_width + j) * 3;
+            normals[base + 0] = nrm.x;
+            normals[base + 1] = nrm.y;
+            normals[base + 2] = nrm.z;
         }
     }
 

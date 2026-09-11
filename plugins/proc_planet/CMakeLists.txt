@@ -1,8 +1,3 @@
-set(FASTNOISE2_NOISETOOL
-    OFF
-    CACHE BOOL "Build Noise Tool" FORCE)
-add_subdirectory(vendor/FastNoise2)
-
 add_library(proc_planet ${UME_PLUGIN_LINK_TYPE} src/plugin.cpp
                         src/proc_planet.cpp)
 

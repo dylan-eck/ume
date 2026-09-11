@@ -3,7 +3,7 @@ import "ume" for Engine, Renderer, Input
 class Application {
     static init() {
         __camera_x = 0
-        __camera_y = 3000000
+        __camera_y = 1500000
         __camera_z = 7000000
 
         __fov_y = 45

@@ -2,6 +2,7 @@
 #include "ume/plugin/plugin_api.h"
 
 #include <glm/glm.hpp>
+#include <FastNoise/FastNoise.h>
 
 #include <unordered_map>
 
@@ -35,7 +36,6 @@ public:
 private:
     const TerrainPlugin *plugin_;
 
-    uint32_t resolution_ = 32;
     double size_ = 7e6;
     glm::dvec3 world_position_ = glm::dvec3(0.0);
 
@@ -44,6 +44,9 @@ private:
 
     static constexpr uint32_t kMaxLoadedChunks = 512;
     static constexpr uint32_t kEvictionLowWaterMark = 400;
+
+    FastNoise::SmartNode<FastNoise::Simplex> simplex_noise_;
+    FastNoise::SmartNode<FastNoise::FractalFBm> fractal_noise_;
 
     std::unordered_map<uint64_t, Chunk> loaded_chunks_;
     std::vector<uint64_t> visible_chunks_ids_;
