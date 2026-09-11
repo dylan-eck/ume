@@ -138,8 +138,8 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
     const glm::dvec3 chunk_world_position = bounds.center;
 
     const double noise_freq =
-        1.0 / 50000.0; // 1.5e6; // 1 / feature wavelength in meters
-    const float noise_amp = 50000.0f; // +/- height variation in meters
+        1.0 / 25000.0; // 1.5e6; // 1 / feature wavelength in meters
+    const float noise_amp = 80000.0f; // +/- height variation in meters
 
     const double inv_res = 1.0 / kChunkResolution;
     const uint32_t grid_width = kChunkResolution + 3;
@@ -237,7 +237,9 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
                 ((static_cast<size_t>(ti) * grid_width) + tj) * 3;
 
             positions[base + 0] = positions[target + 0];
-            positions[base + 1] = positions[target + 1] - 100000;
+            positions[base + 1] =
+                positions[target + 1] -
+                static_cast<float>(2.0 * bounds.size / kChunkResolution);
             positions[base + 2] = positions[target + 2];
 
             normals[base + 0] = normals[target + 0];
