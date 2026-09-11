@@ -15,6 +15,7 @@ struct Chunk {
     uint32_t x;
     uint32_t y;
     UmeMeshHandle mesh;
+    uint64_t last_used_frame;
 };
 
 class Terrain {
@@ -38,17 +39,35 @@ private:
     double size_ = 7e6;
     glm::dvec3 world_position_ = glm::dvec3(0.0);
 
-    const uint64_t kNumDetailLevels = 8;
-    const uint32_t kChunkResolution = 32;
+    static constexpr uint64_t kNumDetailLevels = 18;
+    static constexpr uint32_t kChunkResolution = 32;
 
-    UmeMeshHandle mesh_;
+    static constexpr uint32_t kMaxLoadedChunks = 512;
+    static constexpr uint32_t kEvictionLowWaterMark = 400;
 
-    std::unordered_map<uint64_t, Chunk> chunks_;
+    std::unordered_map<uint64_t, Chunk> loaded_chunks_;
+    std::vector<uint64_t> visible_chunks_ids_;
 
-    const Chunk &generateChunk(uint64_t level, uint32_t x, uint32_t y);
-    void selectVisibleChunks(uint64_t level, uint32_t, uint32_t y,
-                             const glm::dvec3 &camera_position);
+    Chunk &getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y);
 
-    // [[nodiscard]] const Chunk &getChunk(uint64_t id) const;
+    void getVisibleChunkIds(uint64_t level, uint32_t x, uint32_t y,
+                            const glm::dvec3 &camera_position);
+
+    struct ChunkBounds {
+        glm::dvec3 center;
+        double size;
+    };
+    [[nodiscard]] ChunkBounds chunkBounds(uint64_t level, uint32_t x,
+                                          uint32_t y) const {
+
+        const double size = size_ / (1 << level);
+        const double origin = -size_ / 2.0;
+
+        const double wx = origin + ((x + 0.5) * size);
+        const double wz = origin + ((y + 0.5) * size);
+        glm::dvec3 world_pos(wx, 0.0, wz);
+
+        return {.center = world_pos, .size = size};
+    }
 };
 } // namespace terrain

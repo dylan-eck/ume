@@ -132,7 +132,7 @@ typedef struct UmeMeshDescription {
 // Valid only for the duration of the update call.
 typedef struct UmeFrameContext {
     uint32_t struct_size;
-    uint64_t frame_index;
+    uint64_t frame_number;
     double camera_position[3];
     float camera_orientation[9];
     float fov_y, z_near, aspect, delta_time;
