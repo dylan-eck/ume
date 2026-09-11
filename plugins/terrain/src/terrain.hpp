@@ -42,8 +42,8 @@ private:
     static constexpr uint64_t kNumDetailLevels = 18;
     static constexpr uint32_t kChunkResolution = 32;
 
-    static constexpr uint32_t kMaxLoadedChunks = 512;
-    static constexpr uint32_t kEvictionLowWaterMark = 400;
+    static constexpr uint32_t kMaxLoadedChunks = 1000;
+    static constexpr uint32_t kEvictionLowWaterMark = 800;
 
     FastNoise::SmartNode<FastNoise::Simplex> simplex_noise_;
     FastNoise::SmartNode<FastNoise::FractalFBm> fractal_noise_;

@@ -41,7 +41,7 @@ Terrain::Terrain(const TerrainPlugin *plugin)
       fractal_noise_(FastNoise::New<FastNoise::FractalFBm>()) {
     fractal_noise_->SetSource(simplex_noise_);
     // fractal_noise_->SetOctaveCount(4);
-    fractal_noise_->SetGain(0.6f);
+    fractal_noise_->SetGain(0.5f);
 
     generate();
 }
@@ -172,18 +172,6 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
         }
     }
 
-    std::vector<uint32_t> indices;
-    indices.reserve(static_cast<size_t>(kChunkResolution) * kChunkResolution *
-                    6);
-    for (uint32_t i = 1; i < grid_width - 2; i++) {
-        for (uint32_t j = (i * grid_width) + 1;
-             j < (i * grid_width) + grid_width - 2; j++) {
-            indices.insert(indices.end(), {j + 1, j, j + grid_width});
-            indices.insert(indices.end(),
-                           {j + 1, j + grid_width, j + grid_width + 1});
-        }
-    }
-
     std::vector<float> noise_values(vertex_count);
     fractal_noise_->SetOctaveCount(static_cast<int>(level + 1));
     FastNoise::OutputMinMax output_min_max = fractal_noise_->GenPositionArray2D(
@@ -219,6 +207,54 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
             normals[base + 0] = nrm.x;
             normals[base + 1] = nrm.y;
             normals[base + 2] = nrm.z;
+        }
+    }
+
+    for (uint32_t i = 0; i < grid_width; i++) {
+        for (uint32_t j = 0; j < grid_width; j++) {
+            if (i > 0 && i < grid_width - 1 && j > 0 && j < grid_width - 1) {
+                continue;
+            }
+
+            const size_t base = (static_cast<size_t>(i) * grid_width + j) * 3;
+
+            uint32_t ti = i;
+            uint32_t tj = j;
+
+            if (i == 0) {
+                ti++;
+            } else if (i == grid_width - 1) {
+                ti--;
+            }
+
+            if (j == 0) {
+                tj++;
+            } else if (j == grid_width - 1) {
+                tj--;
+            }
+
+            const size_t target =
+                ((static_cast<size_t>(ti) * grid_width) + tj) * 3;
+
+            positions[base + 0] = positions[target + 0];
+            positions[base + 1] = positions[target + 1] - 100000;
+            positions[base + 2] = positions[target + 2];
+
+            normals[base + 0] = normals[target + 0];
+            normals[base + 1] = normals[target + 1];
+            normals[base + 2] = normals[target + 2];
+        }
+    }
+
+    std::vector<uint32_t> indices;
+    indices.reserve(static_cast<size_t>(kChunkResolution) * kChunkResolution *
+                    6);
+    for (uint32_t i = 0; i < grid_width - 1; i++) {
+        for (uint32_t j = (i * grid_width);
+             j < (i * grid_width) + grid_width - 1; j++) {
+            indices.insert(indices.end(), {j + 1, j, j + grid_width});
+            indices.insert(indices.end(),
+                           {j + 1, j + grid_width, j + grid_width + 1});
         }
     }
 
