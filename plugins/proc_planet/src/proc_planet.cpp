@@ -237,19 +237,18 @@ void Planet::update(const UmeFrameContext *frame_context) {
                             glm::value_ptr(local_transform));
     }
 
-    // if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
-    //     const glm::dvec3 camera(frame_context->camera_position[0],
-    //                             frame_context->camera_position[1],
-    //                             frame_context->camera_position[2]);
-    //     const glm::dvec3 rel = world_position_ - camera;
+    if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+        const glm::dvec3 camera(frame_context->camera_position[0],
+                                frame_context->camera_position[1],
+                                frame_context->camera_position[2]);
+        const glm::dvec3 rel = world_position_ - camera;
 
-    //     const AtmosphereParams params{
-    //         .planet_center = {float(rel.x), float(rel.y), float(rel.z),
-    //                           float(radius_) + 3000000.0f}};
+        const AtmosphereParams params{
+            .planet_center = {float(rel.x), float(rel.y), float(rel.z),
+                              float(radius_) + 2500000.0f}};
 
-    //     plugin_->api.submitPostEffect(plugin_->api.context,
-    //     plugin_->atmosphere,
-    //                                   &params, sizeof(params));
-    // }
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
+                                      &params, sizeof(params));
+    }
 }
 } // namespace proc_planet

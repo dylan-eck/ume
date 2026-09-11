@@ -32,8 +32,7 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
         normalize(mul((float3x3)draw.normal_matrix, vertices[vid].normal.xyz));
 
     output.normal = normal_world;
-    // output.color = draw.base_color;
-    output.color = float4(1.0); 
+    output.color = draw.base_color;
     return output;
 }
 
