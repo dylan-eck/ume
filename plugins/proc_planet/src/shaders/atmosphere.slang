@@ -10,7 +10,11 @@ static const float3 sun_dir = normalize(float3(1.0, 0.0, 0.0));
 static const int in_scattering_samples = 10;
 static const int optical_depth_samples = 10;
 static const float density_falloff = 2.0;
-static const float scattering_strength = 1.17e-7; // 1 / m
+static const float scattering_strength = 1e-6; // 1 / m
+
+static const float3 wavelengths = float3(700, 530, 400);
+static const float3 scattering_coefficients =
+    scattering_strength * float3(pow(400 / wavelengths, 4));
 
 float2 ray_sphere_intersect(float3 center, float radius, float3 ray_origin,
                             float3 ray_dir) {
@@ -55,10 +59,12 @@ float optical_depth(float3 ray_origin, float3 ray_dir, float ray_length) {
     return optical_depth;
 }
 
-float calculateLight(float3 ray_origin, float3 ray_dir, float ray_length) {
+float3 calculateLight(float3 ray_origin, float3 ray_dir, float ray_length,
+                      float3 scene_color) {
     float3 curr_point = ray_origin;
     float step_size = ray_length / (in_scattering_samples - 1);
-    float in_scattered_light = 0;
+    float3 in_scattered_light = 0;
+    float view_ray_optical_depth = 0;
 
     float3 planet_center = params.center_and_radius.xyz;
     float atmosphere_radius = params.center_and_radius.w;
@@ -70,22 +76,24 @@ float calculateLight(float3 ray_origin, float3 ray_dir, float ray_length) {
                 .y;
 
         float sun_ray_optical_depth =
-            scattering_strength *
             optical_depth(curr_point, sun_dir, sun_ray_length);
 
-        float view_ray_optical_depth =
-            scattering_strength *
+        view_ray_optical_depth =
             optical_depth(curr_point, -ray_dir, step_size * i);
 
-        float transmittance =
-            exp(-(sun_ray_optical_depth + view_ray_optical_depth));
+        float3 transmittance =
+            exp(-(sun_ray_optical_depth + view_ray_optical_depth) *
+                scattering_coefficients);
         float local_density = density_at_point(curr_point);
 
-        in_scattered_light += local_density * transmittance * step_size;
+        in_scattered_light +=
+            local_density * transmittance * scattering_coefficients * step_size;
         curr_point += ray_dir * step_size;
     }
 
-    return scattering_strength * in_scattered_light;
+    float3 scene_color_transmittance =
+        exp(-view_ray_optical_depth * scattering_coefficients);
+    return scene_color * scene_color_transmittance + in_scattered_light;
 }
 
 [shader("fragment")]
@@ -116,10 +124,10 @@ float4 fragMain(FullscreenOutput input) : SV_Target {
     }
 
     float3 point_in_atmosphere = ray_dir * dist_to_atmos;
-    float light =
-        calculateLight(point_in_atmosphere, ray_dir, dist_through_atmos);
+    float3 light = calculateLight(point_in_atmosphere, ray_dir,
+                                  dist_through_atmos, scene.rgb);
 
     // const float atmosphere_scale = 1.0 / 20000000.0;
     // return float4(float3(dist_through_atmos * atmosphere_scale), 1.0);
-    return (scene * (1 - light) + light);
+    return float4(light, 0.0);
 }
