@@ -37,7 +37,10 @@ target_include_directories(glaze
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
-find_package(Vulkan REQUIRED)
+if(UME_RENDER_BACKEND STREQUAL "vulkan")
+    find_package(Vulkan REQUIRED)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
+endif()
 
 find_program(
   SLANGC_EXECUTABLE
@@ -61,8 +64,6 @@ add_library(slang::slang UNKNOWN IMPORTED)
 set_target_properties(
   slang::slang PROPERTIES IMPORTED_LOCATION "${SLANG_LIBRARY}"
                           INTERFACE_INCLUDE_DIRECTORIES "${SLANG_INCLUDE_DIR}")
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   set(B_PRODUCTION_MODE

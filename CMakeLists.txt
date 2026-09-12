@@ -7,8 +7,6 @@ project(
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include(cmake/dependencies.cmake)
-
 if(APPLE)
   set(UME_DEFAULT_RENDER_BACKEND "metal")
 else()
@@ -34,6 +32,29 @@ if(UME_RENDER_BACKEND STREQUAL "metal" AND NOT APPLE)
 endif()
 
 message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
+
+set(UME_COMPILER_LAUNCHER "auto"
+    CACHE STRING "Compiler cache: auto, ccache, sccache, none, or a program name")
+set_property(CACHE UME_COMPILER_LAUNCHER PROPERTY STRINGS auto sccache ccache none)
+
+if(UME_COMPILER_LAUNCHER STREQUAL "none")
+  set(UME_LAUNCHER_EXECUTABLE "")
+elseif(UME_COMPILER_LAUNCHER STREQUAL "auto")
+  find_program(UME_LAUNCHER_EXECUTABLE NAMES ccache sccache)
+else()
+  find_program(UME_LAUNCHER_EXECUTABLE NAMES "${UME_COMPILER_LAUNCHER}" REQUIRED)
+endif()
+
+if(UME_LAUNCHER_EXECUTABLE)
+  message(STATUS "ume: comR_EXECUTABLE}")
+  foreach(lang IN ITEMS C CXX OBJC OBJCXX)
+    set(CMAKE_${lang}_COMPILER_LAUNCHER "${UME_LAUNCHER_EXECUTABLE}")
+  endforeach()
+else()
+  message(STATUS "ume: no compiler cache found, building without one")
+endif()
+
+include(cmake/dependencies.cmake)
 
 add_library(ume_config INTERFACE)
 target_compile_features(ume_config INTERFACE cxx_std_23)
