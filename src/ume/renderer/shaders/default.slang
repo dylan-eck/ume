@@ -32,14 +32,15 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
         normalize(mul((float3x3)draw.normal_matrix, vertices[vid].normal.xyz));
 
     output.normal = normal_world;
-    output.color = draw.base_color;
+    // output.color = draw.base_color;
+    output.color = float4(1.0);
     return output;
 }
 
 [shader("fragment")]
 float4 fragMain(VertexOutput input) : SV_Target {
     float3 n = normalize(input.normal);
-    float3 dir_to_light = normalize(float3(0.5, 1, 0));
+    float3 dir_to_light = normalize(float3(1, 0, 0));
 
     const float ambient = 0.03;
     float intensity =

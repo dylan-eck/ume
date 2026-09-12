@@ -170,6 +170,8 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         index_buffer->buffer.get(), NS::UInteger(0));
 }
 
+void MetalRenderer::dispatch(const DispatchCommand &cmd) {}
+
 void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
     if (encoder_ == nullptr) {
         return;
@@ -280,7 +282,8 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
     }
 }
 
-PipelineHandle MetalRenderer::createPipeline(const PipelineDescription &desc) {
+GraphicsPipelineHandle
+MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
     auto library = libraryFromSource(desc.shader);
     if (!library) {
         return {};
@@ -295,12 +298,16 @@ PipelineHandle MetalRenderer::createPipeline(const PipelineDescription &desc) {
     return pipelines_.insert(MetalPipeline{.state = std::move(state)});
 }
 
-void MetalRenderer::destroyPipeline(PipelineHandle handle) {
+void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
     if (!pipelines_.remove(handle)) {
         UME_LOG_WARN(Renderer, "attempted to destroy stale pipeline handle: {}",
                      handle.id);
     }
 }
+
+ComputePipelineHandle
+MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {};
+void MetalRenderer::destroyComputePipeline(ComputePipelineHandle handle) {};
 
 NS::SharedPtr<MTL::Library>
 MetalRenderer::libraryFromMetallib(std::span<const std::byte> bytes) {

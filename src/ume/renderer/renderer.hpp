@@ -74,13 +74,13 @@ private:
     };
 
     struct PostEffect {
-        PipelineHandle pipeline;
+        GraphicsPipelineHandle pipeline;
         uint32_t params_size;
         std::filesystem::path source;
     };
 
     struct PostSubmission {
-        PipelineHandle pipeline;
+        GraphicsPipelineHandle pipeline;
         size_t param_offset;
         size_t param_size;
     };

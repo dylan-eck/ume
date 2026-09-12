@@ -12,12 +12,14 @@ template <typename Tag> struct ResourceHandle {
 struct BufferTag;
 struct MeshTag;
 struct ObjectTag;
-struct PipelineTag;
+struct GraphicsPipelineTag;
+struct ComputePipelineTag;
 struct PostEffectTag;
 
 using BufferHandle = ResourceHandle<BufferTag>;
 using MeshHandle = ResourceHandle<MeshTag>;
 using ObjectHandle = ResourceHandle<ObjectTag>;
-using PipelineHandle = ResourceHandle<PipelineTag>;
+using GraphicsPipelineHandle = ResourceHandle<GraphicsPipelineTag>;
+using ComputePipelineHandle = ResourceHandle<ComputePipelineTag>;
 using PostEffectHandle = ResourceHandle<PostEffectTag>;
 } // namespace ume

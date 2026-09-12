@@ -16,11 +16,13 @@ enum class IndexType : uint8_t { UInt16, UInt32 };
 
 enum class ShaderTarget : uint8_t { Msl, SpirV };
 
-struct PipelineDescription {
+struct GraphicsPipelineDescription {
     std::span<const std::byte> shader;
     const char *vertex_entry = "vertMain";
     const char *fragment_entry = "fragMain";
 };
+
+struct ComputePipelineDescription {};
 
 struct DrawCommand {
     BufferHandle vertex_buffer;
@@ -30,8 +32,10 @@ struct DrawCommand {
     std::span<const std::byte> push_constants;
 };
 
+struct DispatchCommand {};
+
 struct PostProcessPass {
-    PipelineHandle pipeline;
+    GraphicsPipelineHandle pipeline;
     std::span<const std::byte> params;
 };
 
@@ -58,14 +62,19 @@ public:
 
     virtual void beginFrame() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
+    virtual void dispatch(const DispatchCommand &cmd) = 0;
     virtual void postProcess(const PostProcessCommand &cmd) = 0;
     virtual void endFrame() = 0;
 
     virtual BufferHandle createBuffer(const BufferDescription &desc) = 0;
     virtual void destroyBuffer(BufferHandle handle) = 0;
 
-    virtual PipelineHandle createPipeline(const PipelineDescription &desc) = 0;
-    virtual void destroyPipeline(PipelineHandle handle) = 0;
+    virtual GraphicsPipelineHandle
+    createGraphicsPipeline(const GraphicsPipelineDescription &desc) = 0;
+    virtual void destroyGraphicsPipeline(GraphicsPipelineHandle handle) = 0;
+    virtual ComputePipelineHandle
+    createComputePipeline(const ComputePipelineDescription &desc) = 0;
+    virtual void destroyComputePipeline(ComputePipelineHandle handle) = 0;
 };
 
 class Window;

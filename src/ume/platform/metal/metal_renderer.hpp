@@ -67,14 +67,19 @@ public:
 
     void beginFrame() override;
     void draw(const DrawCommand &cmd) override;
+    void dispatch(const DispatchCommand &cmd) override;
     void postProcess(const PostProcessCommand &cmd) override;
     void endFrame() override;
 
     BufferHandle createBuffer(const BufferDescription &desc) override;
     void destroyBuffer(BufferHandle handle) override;
 
-    PipelineHandle createPipeline(const PipelineDescription &desc) override;
-    void destroyPipeline(PipelineHandle handle) override;
+    GraphicsPipelineHandle
+    createGraphicsPipeline(const GraphicsPipelineDescription &desc) override;
+    void destroyGraphicsPipeline(GraphicsPipelineHandle handle) override;
+    ComputePipelineHandle
+    createComputePipeline(const ComputePipelineDescription &desc) override;
+    void destroyComputePipeline(ComputePipelineHandle handle) override;
 
 private:
     uint32_t width_;
@@ -85,7 +90,7 @@ private:
 
     std::array<NS::SharedPtr<MTL::Texture>, 2> color_targets_;
     NS::SharedPtr<MTL::SamplerState> linear_sampler_;
-    ResourcePool<MetalPipeline, PipelineHandle> pipelines_;
+    ResourcePool<MetalPipeline, GraphicsPipelineHandle> pipelines_;
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;

@@ -136,8 +136,8 @@ Renderer::createPostEffect(const std::filesystem::path &shader) {
         return {};
     }
 
-    PipelineHandle pipeline =
-        backend_->createPipeline({.shader = compiled->code});
+    GraphicsPipelineHandle pipeline =
+        backend_->createGraphicsPipeline({.shader = compiled->code});
     if (!pipeline) {
         return {};
     }
@@ -158,12 +158,12 @@ bool Renderer::reloadPostEffect(PostEffectHandle handle) {
         return false; // keep the last good pipeline; the error is already
                       // logged
     }
-    PipelineHandle pipeline =
-        backend_->createPipeline({.shader = compiled->code});
+    GraphicsPipelineHandle pipeline =
+        backend_->createGraphicsPipeline({.shader = compiled->code});
     if (!pipeline) {
         return false;
     }
-    backend_->destroyPipeline(effect->pipeline);
+    backend_->destroyGraphicsPipeline(effect->pipeline);
     effect->pipeline = pipeline;
     effect->params_size = compiled->params_size;
     UME_LOG_INFO(Renderer, "reloaded '{}'", effect->source.string());
@@ -178,7 +178,7 @@ void Renderer::destroyPostEffect(PostEffectHandle handle) {
                      handle.id);
         return;
     }
-    backend_->destroyPipeline(effect->pipeline);
+    backend_->destroyGraphicsPipeline(effect->pipeline);
 }
 
 void Renderer::submitPostEffect(PostEffectHandle handle,

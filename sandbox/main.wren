@@ -3,17 +3,19 @@ import "ume" for Engine, Renderer, Input
 class Application {
     static init() {
         __camera_x = 0
-        __camera_y = 1500000
-        __camera_z = 7000000
+        __camera_y = 0 // 1500000
+        __camera_z = 30000000 // 7000000
 
         __fov_y = 45
 
-        __camera_move_speed = 800000.0
+        __camera_move_speed = 1600000.0
         __camera_rotate_speed = 1.0
 
-        Renderer.setCamera(__camera_x, __camera_y, __camera_z, 0, -0.4, -1, __fov_y)
+        // Renderer.setCamera(__camera_x, __camera_y, __camera_z, 0, -0.4, -1, __fov_y)
+        Renderer.setCamera(__camera_x, __camera_y, __camera_z, 0, 0, -1, __fov_y)
 
-        __terrain = Engine.createObject("terrain.Terrain")
+        // __terrain = Engine.createObject("terrain.Terrain")
+        __planet = Engine.createObject("proc_planet.Planet", {"radius": 7000000})
     }
 
     static update(delta) {
