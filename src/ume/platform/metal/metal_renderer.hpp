@@ -46,6 +46,14 @@ struct MetalPipeline {
     NS::SharedPtr<MTL::RenderPipelineState> state;
 };
 
+struct MetalTexture {
+    NS::SharedPtr<MTL::Texture> texture;
+};
+
+struct MetalSampler {
+    NS::SharedPtr<MTL::SamplerState> state;
+};
+
 class MetalRenderer : public RendererBackend {
 public:
     explicit MetalRenderer(MetalSurface surface, uint32_t pixel_width,
@@ -74,6 +82,9 @@ public:
     BufferHandle createBuffer(const BufferDescription &desc) override;
     void destroyBuffer(BufferHandle handle) override;
 
+    TextureHandle createTexture(const TextureDescription &desc) override;
+    void destroyTexture(TextureHandle handle) override;
+
     GraphicsPipelineHandle
     createGraphicsPipeline(const GraphicsPipelineDescription &desc) override;
     void destroyGraphicsPipeline(GraphicsPipelineHandle handle) override;
@@ -88,14 +99,18 @@ private:
     MetalSurface surface_;
     CA::MetalLayer *layer_ = nullptr;
 
-    std::array<NS::SharedPtr<MTL::Texture>, 2> color_targets_;
-    NS::SharedPtr<MTL::SamplerState> linear_sampler_;
+    ResourcePool<MetalSampler, SamplerHandle> samplers_;
+    ResourcePool<MetalTexture, TextureHandle> textures_;
+
+    std::array<TextureHandle, 2> color_targets_;
+    SamplerHandle linear_sampler_;
+
     ResourcePool<MetalPipeline, GraphicsPipelineHandle> pipelines_;
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
     NS::SharedPtr<MTL::RenderPipelineState> pipeline_state_ = nullptr;
-    NS::SharedPtr<MTL::Texture> depth_texture_;
+    TextureHandle depth_texture_;
     NS::SharedPtr<MTL::DepthStencilState> depth_state_;
 
     NS::SharedPtr<NS::AutoreleasePool> frame_pool_ = nullptr;
@@ -116,5 +131,8 @@ private:
                                                           const char *vert,
                                                           const char *frag,
                                                           bool with_depth);
+
+    MTL::Texture *getTexture(TextureHandle handle);
+    MTL::SamplerState *getSampler(SamplerHandle handle);
 };
 } // namespace ume

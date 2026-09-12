@@ -12,9 +12,13 @@ enum class BufferUsage : uint8_t { CpuToGpu, GpuOnly };
 struct BufferDescription {
     size_t size;
     const void *initial_data = nullptr;
-    // TODO: usage probably should be changed after desc creation
-    // should it have a default value?
     BufferUsage usage = BufferUsage::CpuToGpu;
+};
+
+struct TextureDescription {
+    uint32_t width;
+    uint32_t height;
+    // TODO: add format
 };
 
 enum class IndexType : uint8_t { UInt16, UInt32 };
@@ -73,6 +77,9 @@ public:
 
     virtual BufferHandle createBuffer(const BufferDescription &desc) = 0;
     virtual void destroyBuffer(BufferHandle handle) = 0;
+
+    virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
+    virtual void destroyTexture(TextureHandle handle) = 0;
 
     virtual GraphicsPipelineHandle
     createGraphicsPipeline(const GraphicsPipelineDescription &desc) = 0;

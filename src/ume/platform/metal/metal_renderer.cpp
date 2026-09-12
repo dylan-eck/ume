@@ -48,8 +48,10 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     sampler_desc->setMagFilter(MTL::SamplerMinMagFilterLinear);
     sampler_desc->setSAddressMode(MTL::SamplerAddressModeClampToEdge);
     sampler_desc->setTAddressMode(MTL::SamplerAddressModeClampToEdge);
-    linear_sampler_ =
-        NS::TransferPtr(device_->newSamplerState(sampler_desc.get()));
+
+    linear_sampler_ = samplers_.insert({
+        .state = NS::TransferPtr(device_->newSamplerState(sampler_desc.get())),
+    });
 
     command_queue_ = NS::TransferPtr(device_->newCommandQueue());
     if (!command_queue_) {
@@ -114,13 +116,13 @@ void MetalRenderer::beginFrame() {
     auto pass_descriptor =
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
     auto *color_attachment = pass_descriptor->colorAttachments()->object(0);
-    color_attachment->setTexture(color_targets_[0].get());
+    color_attachment->setTexture(getTexture(color_targets_[0]));
     color_attachment->setLoadAction(MTL::LoadActionClear);
     color_attachment->setStoreAction(MTL::StoreActionStore);
     color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
 
     auto *depth_attachment = pass_descriptor->depthAttachment();
-    depth_attachment->setTexture(depth_texture_.get());
+    depth_attachment->setTexture(getTexture(depth_texture_));
     depth_attachment->setLoadAction(MTL::LoadActionClear);
     depth_attachment->setStoreAction(MTL::StoreActionStore);
     depth_attachment->setClearDepth(0.0);
@@ -181,7 +183,8 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
 
     if (cmd.passes.empty()) {
         MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
-        blit->copyFromTexture(color_targets_[0].get(), drawable_->texture());
+        blit->copyFromTexture(getTexture(color_targets_[0]),
+                              drawable_->texture());
         blit->endEncoding();
         return;
     }
@@ -198,7 +201,7 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
 
         const bool last = (i + 1 == cmd.passes.size());
         MTL::Texture *dst =
-            last ? drawable_->texture() : color_targets_[1 - src].get();
+            last ? drawable_->texture() : getTexture(color_targets_[1 - src]);
 
         auto pass_desc =
             NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
@@ -211,9 +214,9 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
             command_buffer_->renderCommandEncoder(pass_desc.get());
         enc->setRenderPipelineState(pipeline->state.get());
         enc->setCullMode(MTL::CullModeNone);
-        enc->setFragmentTexture(color_targets_[src].get(), 0);
-        enc->setFragmentTexture(depth_texture_.get(), 1);
-        enc->setFragmentSamplerState(linear_sampler_.get(), 0);
+        enc->setFragmentTexture(getTexture(color_targets_[src]), 0);
+        enc->setFragmentTexture(getTexture(depth_texture_), 1);
+        enc->setFragmentSamplerState(getSampler(linear_sampler_), 0);
         enc->setFragmentBytes(cmd.frame_uniforms.data(),
                               cmd.frame_uniforms.size(), 0);
         if (!pass.params.empty()) {
@@ -292,9 +295,21 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
     std::optional<MetalBuffer> entry = buffers_.remove(handle);
 
     if (!entry) {
-        UME_LOG_WARN(Renderer, "attempted to destroy stale handle: {}",
+        UME_LOG_WARN(Renderer, "attempted to destroy stale buffer handle: {}",
                      handle.id);
-        return;
+    }
+}
+
+TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
+    return {};
+}
+
+void MetalRenderer::destroyTexture(TextureHandle handle) {
+    std::optional<MetalTexture> entry = textures_.remove(handle);
+
+    if (!entry) {
+        UME_LOG_WARN(Renderer, "attempted to destroy stale texture handle: {}",
+                     handle.id);
     }
 }
 
@@ -380,13 +395,21 @@ void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
         return tex;
     };
 
-    color_targets_[0] = nullptr;
-    color_targets_[1] = nullptr;
-    depth_texture_ = nullptr;
+    destroyTexture(color_targets_[0]);
+    destroyTexture(color_targets_[1]);
+    destroyTexture(depth_texture_);
 
-    color_targets_[0] = make_target(MTL::PixelFormatBGRA8Unorm, "scene color");
-    color_targets_[1] = make_target(MTL::PixelFormatBGRA8Unorm, "post color");
-    depth_texture_ = make_target(MTL::PixelFormatDepth32Float, "depth");
+    color_targets_[0] = textures_.insert({
+        .texture = make_target(MTL::PixelFormatBGRA8Unorm, "scene color"),
+    });
+
+    color_targets_[1] = textures_.insert({
+        .texture = make_target(MTL::PixelFormatBGRA8Unorm, "post color"),
+    });
+
+    depth_texture_ = textures_.insert({
+        .texture = make_target(MTL::PixelFormatDepth32Float, "depth"),
+    });
 }
 
 NS::SharedPtr<MTL::RenderPipelineState>
@@ -418,6 +441,24 @@ MetalRenderer::buildPipeline(MTL::Library *library, const char *vert,
                       errorString(error));
     }
     return state;
+}
+
+MTL::Texture *MetalRenderer::getTexture(TextureHandle handle) {
+    MetalTexture *texture = textures_.get(handle);
+
+    if (texture != nullptr) {
+        return texture->texture.get();
+    }
+    return nullptr;
+}
+
+MTL::SamplerState *MetalRenderer::getSampler(SamplerHandle handle) {
+    MetalSampler *sampler = samplers_.get(handle);
+
+    if (sampler != nullptr) {
+        return sampler->state.get();
+    }
+    return nullptr;
 }
 
 std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {

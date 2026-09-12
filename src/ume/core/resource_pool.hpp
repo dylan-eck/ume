@@ -48,7 +48,7 @@ public:
         return &slot.value;
     }
 
-    [[nodiscard]] std::optional<T> remove(HandleT handle) {
+    std::optional<T> remove(HandleT handle) {
         T *value = get(handle);
         if (value == nullptr) {
             return std::nullopt;
