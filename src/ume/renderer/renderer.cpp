@@ -78,14 +78,16 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
 
     BufferHandle vertex_buffer =
         backend_->createBuffer({.size = vertices.size() * sizeof(vertices[0]),
-                                .initial_data = vertices.data()});
+                                .initial_data = vertices.data(),
+                                .usage = BufferUsage::CpuToGpu});
     if (!vertex_buffer) {
         return {};
     }
 
     BufferHandle index_buffer =
         backend_->createBuffer({.size = desc.indices.size_bytes(),
-                                .initial_data = desc.indices.data()});
+                                .initial_data = desc.indices.data(),
+                                .usage = BufferUsage::CpuToGpu});
     if (!index_buffer) {
         backend_->destroyBuffer(vertex_buffer);
         return {};

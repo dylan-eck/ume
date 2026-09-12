@@ -7,9 +7,14 @@
 
 namespace ume {
 
+enum class BufferUsage : uint8_t { CpuToGpu, GpuOnly };
+
 struct BufferDescription {
     size_t size;
-    const void *initial_data;
+    const void *initial_data = nullptr;
+    // TODO: usage probably should be changed after desc creation
+    // should it have a default value?
+    BufferUsage usage = BufferUsage::CpuToGpu;
 };
 
 enum class IndexType : uint8_t { UInt16, UInt32 };

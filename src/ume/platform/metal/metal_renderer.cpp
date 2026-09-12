@@ -257,11 +257,27 @@ BufferHandle MetalRenderer::createBuffer(const BufferDescription &desc) {
         return {};
     }
 
-    auto buffer = NS::TransferPtr(
-        desc.initial_data != nullptr
-            ? device_->newBuffer(desc.initial_data, desc.size,
-                                 MTL::ResourceStorageModeShared)
-            : device_->newBuffer(desc.size, MTL::ResourceStorageModeShared));
+    if (desc.initial_data != nullptr && desc.usage == BufferUsage::GpuOnly) {
+        UME_LOG_WARN(Renderer, "gpu only buffers cannot have initial data");
+        return {};
+    }
+
+    NS::SharedPtr<MTL::Buffer> buffer;
+
+    switch (desc.usage) {
+    case BufferUsage::CpuToGpu:
+        buffer = NS::TransferPtr(
+            desc.initial_data != nullptr
+                ? device_->newBuffer(desc.initial_data, desc.size,
+                                     MTL::ResourceStorageModeShared)
+                : device_->newBuffer(desc.size,
+                                     MTL::ResourceStorageModeShared));
+        break;
+    case BufferUsage::GpuOnly:
+        buffer = NS::TransferPtr(
+            device_->newBuffer(desc.size, MTL::ResourceStorageModePrivate));
+        break;
+    }
 
     if (!buffer) {
         UME_LOG_WARN(Renderer, "failed to allocate {} byte buffer", desc.size);
@@ -306,7 +322,9 @@ void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
 }
 
 ComputePipelineHandle
-MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {};
+MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {
+    return {};
+}
 void MetalRenderer::destroyComputePipeline(ComputePipelineHandle handle) {};
 
 NS::SharedPtr<MTL::Library>

@@ -67,7 +67,7 @@ target_link_libraries(ume_config INTERFACE glm::glm)
 add_library(ume_plugin_config INTERFACE)
 target_compile_options(
   ume_plugin_config
-  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wimplicit-fallthrough>
             $<$<CXX_COMPILER_ID:MSVC>:/W4>)
 
 add_library(ume_plugin_api INTERFACE)
