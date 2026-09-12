@@ -45,16 +45,16 @@ namespace {
 SDL_Window *createSDLWindow(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    Uint32 flags = 0;
+    Uint32 flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE;
 #if defined(UME_RENDER_BACKEND_METAL)
     flags |= SDL_WINDOW_METAL;
 #elif defined(UME_RENDER_BACKEND_VULKAN)
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    return SDL_CreateWindow(
-        config.title.c_str(), static_cast<int>(config.width),
-        static_cast<int>(config.height), flags | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    return SDL_CreateWindow(config.title.c_str(),
+                            static_cast<int>(config.width),
+                            static_cast<int>(config.height), flags);
 }
 } // namespace
 
@@ -71,31 +71,25 @@ Window::Window(const WindowConfig &config) : window_(createSDLWindow(config)) {
     pixel_height_ = h;
 }
 
-bool Window::pollEvents() {
-    input_.beginFrame();
+void *Window::getNativeHandle() const { return window_.get(); }
 
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-        case SDL_EVENT_QUIT:
-            return false;
+void Window::handleEvent(const SDL_Event &event) {
+    switch (event.type) {
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+        pixel_width_ = event.window.data1;
+        pixel_height_ = event.window.data2;
+        break;
 
-        case SDL_EVENT_KEY_DOWN:
-            input_.onKeyDown(static_cast<KeyCode>(e.key.scancode),
-                             e.key.repeat);
-            break;
+    case SDL_EVENT_WINDOW_MINIMIZED:
+        minimized_ = true;
+        break;
 
-        case SDL_EVENT_KEY_UP:
-            input_.onKeyUp(static_cast<KeyCode>(e.key.scancode));
-            break;
+    case SDL_EVENT_WINDOW_RESTORED:
+        minimized_ = false;
+        break;
 
-        default:
-            break;
-        }
+    default:
+        break;
     }
-
-    return true;
 }
-
-void *Window::getNativeHandle() const { return window_.get(); };
 } // namespace ume

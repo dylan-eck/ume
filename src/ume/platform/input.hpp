@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <bitset>
 
+union SDL_Event;
+
 namespace ume {
 using KeyCode = uint16_t;
 
@@ -14,6 +16,9 @@ inline constexpr size_t kKeyCodeCount = 512;
 
 class Input {
 public:
+    void handleEvent(const SDL_Event &event);
+    void endFrame();
+
     [[nodiscard]] bool keyDown(KeyCode code) const {
         return keys_down_.test(code);
     }
@@ -23,25 +28,13 @@ public:
     }
 
     [[nodiscard]] bool keyReleased(KeyCode code) const {
-        return keys_pressed_.test(code);
+        return keys_released_.test(code);
     }
 
 private:
-    friend class Window;
-
     std::bitset<kKeyCodeCount> keys_down_;
     std::bitset<kKeyCodeCount> keys_pressed_;
     std::bitset<kKeyCodeCount> keys_released_;
-
-    template <size_t N>
-    static bool test(const std::bitset<N> &bits, size_t index) {
-        return index < N && bits.test(index);
-    }
-
-    void beginFrame() {
-        keys_pressed_.reset();
-        keys_released_.reset();
-    }
 
     void onKeyDown(KeyCode code, bool repeat) {
         if (code >= kKeyCodeCount) {

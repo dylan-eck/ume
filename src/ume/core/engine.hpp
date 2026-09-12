@@ -9,7 +9,7 @@
 #include <string>
 #include <chrono>
 
-struct SDL_Window;
+union SDL_Event;
 
 namespace ume {
 
@@ -34,18 +34,21 @@ public:
     Engine(Engine &&) = delete;
     Engine &operator=(Engine &&) = delete;
 
-    void run();
+    void tick();
+    void handleEvent(const SDL_Event &event);
 
 private:
     ProjectDescription project_;
     Window window_;
     Renderer renderer_;
     PluginHost plugin_host_;
-
+    Input input_;
     ScriptEngine script_engine_;
 
     uint64_t frame_index_ = 0;
     std::chrono::steady_clock::time_point last_frame_time_;
+    static constexpr auto kMinimizedSleepDuration =
+        std::chrono::milliseconds(4);
 
     KeyCode reload_key_ = kInvalidKeyCode;
 

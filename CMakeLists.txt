@@ -224,7 +224,7 @@ else()
   add_dependencies(ume terrain)
 endif()
 
-target_link_libraries(ume PRIVATE ume_engine)
+target_link_libraries(ume PRIVATE ume_engine SDL3::Headers)
 if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
   target_link_libraries(ume PRIVATE proc_planet)
   target_link_libraries(ume PRIVATE terrain)

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "ume/platform/input.hpp"
-
 #if defined UME_RENDER_BACKEND_VULKAN
 #include <vulkan/vulkan_core.h>
 #endif
@@ -10,6 +8,7 @@
 #include <memory>
 
 struct SDL_Window;
+union SDL_Event;
 
 #if defined UME_RENDER_BACKEND_METAL
 // NOLINTBEGIN(readability-identifier-naming)
@@ -40,7 +39,6 @@ private:
 #endif
 
 namespace ume {
-enum class Key : uint8_t { Reload, Count };
 
 struct WindowConfig {
     std::string title;
@@ -62,8 +60,9 @@ public:
     Window(Window &&) = delete;
     Window &operator=(Window &&) = delete;
 
-    bool pollEvents();
     [[nodiscard]] void *getNativeHandle() const;
+
+    void handleEvent(const SDL_Event &event);
 
 #if defined UME_RENDER_BACKEND_METAL
     [[nodiscard]] MetalSurface createMetalSurface() const;
@@ -71,16 +70,14 @@ public:
     [[nodiscard]] VkSurfaceKHR createVulkanSurface(VkInstance instance) const;
 #endif
 
-    [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; };
-    [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; };
-
-    [[nodiscard]] const Input &input() const { return input_; }
+    [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; }
+    [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; }
+    [[nodiscard]] bool isMinimized() const { return minimized_; }
 
 private:
     std::unique_ptr<SDL_Window, SDLWindowDeleter> window_;
     uint32_t pixel_width_ = 0;
     uint32_t pixel_height_ = 0;
-
-    Input input_;
+    bool minimized_ = false;
 };
 } // namespace ume

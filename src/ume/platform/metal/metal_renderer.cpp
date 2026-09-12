@@ -36,27 +36,11 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     layer_->setDevice(device_.get());
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
     layer_->setFramebufferOnly(false);
-    layer_->setDrawableSize(CGSizeMake(pixel_width, pixel_height));
 
-    auto make_target = [&](MTL::PixelFormat format, const char *what) {
-        MTL::TextureDescriptor *desc =
-            MTL::TextureDescriptor::texture2DDescriptor(format, pixel_width,
-                                                        pixel_height, false);
-        desc->setStorageMode(MTL::StorageModePrivate);
-        desc->setUsage(MTL::TextureUsageRenderTarget |
-                       MTL::TextureUsageShaderRead);
+    width_ = static_cast<uint32_t>(layer_->drawableSize().width);
+    height_ = static_cast<uint32_t>(layer_->drawableSize().height);
 
-        auto tex = NS::TransferPtr(device_->newTexture(desc));
-        if (!tex) {
-            throw Error(logger::Category::Renderer,
-                        "failed to create {} texture", what);
-        }
-        return tex;
-    };
-
-    color_targets_[0] = make_target(MTL::PixelFormatBGRA8Unorm, "scene color");
-    color_targets_[1] = make_target(MTL::PixelFormatBGRA8Unorm, "post color");
-    depth_texture_ = make_target(MTL::PixelFormatDepth32Float, "depth");
+    createRenderTargets(width_, height_);
 
     auto sampler_desc =
         NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
@@ -102,6 +86,17 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     }
 
     UME_LOG_INFO(Renderer, "initialized metal renderer backend");
+}
+
+void MetalRenderer::resize(uint32_t width, uint32_t height) {
+    if (width == width_ && height == height_) {
+        return;
+    }
+
+    width_ = static_cast<uint32_t>(layer_->drawableSize().width);
+    height_ = static_cast<uint32_t>(layer_->drawableSize().height);
+
+    createRenderTargets(width_, height_);
 }
 
 void MetalRenderer::beginFrame() {
@@ -341,6 +336,32 @@ MetalRenderer::libraryFromSource(std::span<const std::byte> bytes) {
                       errorString(error));
     }
     return library;
+}
+
+void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
+    auto make_target = [&](MTL::PixelFormat format, const char *name) {
+        MTL::TextureDescriptor *desc =
+            MTL::TextureDescriptor::texture2DDescriptor(format, width, height,
+                                                        false);
+        desc->setStorageMode(MTL::StorageModePrivate);
+        desc->setUsage(MTL::TextureUsageRenderTarget |
+                       MTL::TextureUsageShaderRead);
+
+        auto tex = NS::TransferPtr(device_->newTexture(desc));
+        if (!tex) {
+            throw Error(logger::Category::Renderer,
+                        "failed to create {} texture", name);
+        }
+        return tex;
+    };
+
+    color_targets_[0] = nullptr;
+    color_targets_[1] = nullptr;
+    depth_texture_ = nullptr;
+
+    color_targets_[0] = make_target(MTL::PixelFormatBGRA8Unorm, "scene color");
+    color_targets_[1] = make_target(MTL::PixelFormatBGRA8Unorm, "post color");
+    depth_texture_ = make_target(MTL::PixelFormatDepth32Float, "depth");
 }
 
 NS::SharedPtr<MTL::RenderPipelineState>

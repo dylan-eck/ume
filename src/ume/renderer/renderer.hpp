@@ -37,6 +37,8 @@ public:
     Renderer(Renderer &&) = delete;
     Renderer &operator=(Renderer &&) = delete;
 
+    void resize(uint32_t width, uint32_t height);
+
     [[nodiscard]] MeshHandle createMesh(const MeshDescription &desc);
     void destroyMesh(MeshHandle handle);
 

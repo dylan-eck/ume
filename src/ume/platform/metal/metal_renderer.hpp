@@ -63,6 +63,8 @@ public:
         return ShaderTarget::Msl;
     }
 
+    void resize(uint32_t width, uint32_t height) override;
+
     void beginFrame() override;
     void draw(const DrawCommand &cmd) override;
     void postProcess(const PostProcessCommand &cmd) override;
@@ -75,6 +77,9 @@ public:
     void destroyPipeline(PipelineHandle handle) override;
 
 private:
+    uint32_t width_;
+    uint32_t height_;
+
     MetalSurface surface_;
     CA::MetalLayer *layer_ = nullptr;
 
@@ -99,6 +104,8 @@ private:
     libraryFromMetallib(std::span<const std::byte> bytes);
     NS::SharedPtr<MTL::Library>
     libraryFromSource(std::span<const std::byte> bytes);
+
+    void createRenderTargets(uint32_t width, uint32_t height);
 
     NS::SharedPtr<MTL::RenderPipelineState> buildPipeline(MTL::Library *library,
                                                           const char *vert,

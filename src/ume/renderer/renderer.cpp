@@ -38,6 +38,23 @@ Renderer::Renderer(const Window &window)
 
 Renderer::~Renderer() = default;
 
+void Renderer::resize(uint32_t width, uint32_t height) {
+    if (width == pixel_width_ && height == pixel_height_) {
+        return;
+    }
+
+    UME_LOG_INFO(Renderer, "window resized: {}, {}", width, height);
+
+    pixel_width_ = width;
+    pixel_height_ = height;
+
+    if (height != 0) {
+        aspect_ = static_cast<float>(width) / static_cast<float>(height);
+    }
+
+    backend_->resize(width, height);
+}
+
 MeshHandle Renderer::createMesh(const MeshDescription &desc) {
     // TODO: input validation / error handling
 
@@ -186,6 +203,10 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
 }
 
 void Renderer::render() {
+    if (pixel_width_ == 0 || pixel_height_ == 0) {
+        return;
+    }
+
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 

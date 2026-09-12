@@ -9,6 +9,8 @@
 
 #include <string>
 #include <cstring>
+#include <thread>
+#include <chrono>
 
 namespace ume {
 
@@ -16,7 +18,7 @@ Engine::Engine(const EngineConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
-      script_engine_(renderer_, plugin_host_, window_.input(),
+      script_engine_(renderer_, plugin_host_, input_,
                      config.working_dir + "/" + project_.main_script),
       reload_key_(keyCodeFromName("R")) {
 
@@ -32,26 +34,29 @@ Engine::Engine(const EngineConfig &config)
 
 Engine::~Engine() {}
 
-void Engine::run() {
-    while (window_.pollEvents()) {
-        if (window_.input().keyPressed(reload_key_)) {
+void Engine::tick() {
+    frame_index_++;
+    auto now = std::chrono::steady_clock::now();
+    float delta = std::chrono::duration<float>(now - last_frame_time_).count();
+    last_frame_time_ = now;
+
+    if (window_.getPixelWidth() == 0 || window_.getPixelHeight() == 0 ||
+        window_.isMinimized()) {
+        std::this_thread::sleep_for(kMinimizedSleepDuration);
+    } else {
+        if (input_.keyPressed(reload_key_)) {
             UME_LOG_INFO(Core, "reloading script engine and shaders");
             // script_engine_.reload();
             plugin_host_.reloadShaders();
         }
 
-        frame_index_++;
-        auto now = std::chrono::steady_clock::now();
-        float delta =
-            std::chrono::duration<float>(now - last_frame_time_).count();
-        last_frame_time_ = now;
+        renderer_.resize(window_.getPixelWidth(), window_.getPixelHeight());
 
         script_engine_.update(delta);
 
         const CameraState &camera_state = renderer_.getCamera();
 
         UmeFrameContext context{};
-
         context.struct_size = sizeof(UmeFrameContext);
         context.frame_number = frame_index_;
         context.camera_position[0] = camera_state.position.x;
@@ -66,9 +71,15 @@ void Engine::run() {
         context.delta_time = delta;
 
         plugin_host_.updateObjects(context);
-
         renderer_.render();
     }
+
+    input_.endFrame();
+}
+
+void Engine::handleEvent(const SDL_Event &event) {
+    window_.handleEvent(event);
+    input_.handleEvent(event);
 }
 
 ProjectDescription Engine::loadProject(const std::string &working_dir) {

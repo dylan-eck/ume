@@ -53,6 +53,9 @@ public:
 
     [[nodiscard]] virtual ShaderTarget shaderTarget() const = 0;
 
+    // resize() can only be called before beginFrame() or after endFrame()
+    virtual void resize(uint32_t width, uint32_t height) = 0;
+
     virtual void beginFrame() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
     virtual void postProcess(const PostProcessCommand &cmd) = 0;
