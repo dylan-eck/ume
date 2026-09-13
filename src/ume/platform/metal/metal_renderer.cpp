@@ -292,12 +292,7 @@ BufferHandle MetalRenderer::createBuffer(const BufferDescription &desc) {
 }
 
 void MetalRenderer::destroyBuffer(BufferHandle handle) {
-    std::optional<MetalBuffer> entry = buffers_.remove(handle);
-
-    if (!entry) {
-        UME_LOG_WARN(Renderer, "attempted to destroy stale buffer handle: {}",
-                     handle.id);
-    }
+    buffers_.remove(handle);
 }
 
 TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
@@ -305,12 +300,7 @@ TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
 }
 
 void MetalRenderer::destroyTexture(TextureHandle handle) {
-    std::optional<MetalTexture> entry = textures_.remove(handle);
-
-    if (!entry) {
-        UME_LOG_WARN(Renderer, "attempted to destroy stale texture handle: {}",
-                     handle.id);
-    }
+    textures_.remove(handle);
 }
 
 GraphicsPipelineHandle
@@ -330,10 +320,7 @@ MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
 }
 
 void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
-    if (!pipelines_.remove(handle)) {
-        UME_LOG_WARN(Renderer, "attempted to destroy stale pipeline handle: {}",
-                     handle.id);
-    }
+    pipelines_.remove(handle);
 }
 
 ComputePipelineHandle
