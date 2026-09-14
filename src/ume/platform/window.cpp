@@ -92,4 +92,8 @@ void Window::handleEvent(const SDL_Event &event) {
         break;
     }
 }
+
+void Window::setTitle(const char *title) {
+    SDL_SetWindowTitle(window_.get(), title);
+}
 } // namespace ume

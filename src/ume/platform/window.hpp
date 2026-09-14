@@ -74,6 +74,8 @@ public:
     [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; }
     [[nodiscard]] bool isMinimized() const { return minimized_; }
 
+    void setTitle(const char *title);
+
 private:
     std::unique_ptr<SDL_Window, SDLWindowDeleter> window_;
     uint32_t pixel_width_ = 0;

@@ -34,6 +34,7 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     layer_->setDevice(device_.get());
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
     layer_->setFramebufferOnly(false);
+    layer_->setDisplaySyncEnabled(false);
 
     width_ = static_cast<uint32_t>(layer_->drawableSize().width);
     height_ = static_cast<uint32_t>(layer_->drawableSize().height);

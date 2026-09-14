@@ -11,6 +11,7 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
+#include <format>
 
 namespace ume {
 
@@ -44,6 +45,17 @@ void Engine::tick() {
         window_.isMinimized()) {
         std::this_thread::sleep_for(kMinimizedSleepDuration);
     } else {
+        title_timer_ += delta;
+        title_frame_count_++;
+        if (title_timer_ >= kTitleUpdatePeriod) {
+            double fps = static_cast<double>(title_frame_count_) / title_timer_;
+            std::string window_title =
+                std::format("{} - FPS: {:.0f}", project_.name, fps);
+            window_.setTitle(window_title.c_str());
+            title_timer_ = 0.0;
+            title_frame_count_ = 0;
+        }
+
         if (input_.keyPressed(reload_key_)) {
             UME_LOG_INFO(Core, "reloading script engine and shaders");
             // script_engine_.reload();
