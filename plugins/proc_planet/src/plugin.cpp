@@ -53,9 +53,7 @@ void updatePlanet(void *user_data, void *object,
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
     auto *planet = static_cast<proc_planet::Planet *>(object);
 
-    if (planet == nullptr) {
-        return;
-    }
+    if (planet == nullptr) return;
 
     try {
         planet->update(frame_context);
@@ -68,9 +66,7 @@ void updatePlanet(void *user_data, void *object,
 
 UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(state);
-    if (self == nullptr) {
-        return UME_FALSE;
-    }
+    if (self == nullptr) return UME_FALSE;
 
     const UmePluginApi api = self->api;
 
@@ -100,9 +96,7 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
 
 void shutdownProcPlanet(void *state) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(state);
-    if (self == nullptr) {
-        return;
-    }
+    if (self == nullptr) return;
 
     const UmePluginApi api = self->api;
 
@@ -123,13 +117,9 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     try {
         // if abi version doesn't match, we can't call api-log in the catch
         // because function pointer locations are not guaranteed to match
-        if (api->abi_version != UME_PLUGIN_ABI_VERSION) {
-            return UME_FALSE;
-        }
+        if (api->abi_version != UME_PLUGIN_ABI_VERSION) return UME_FALSE;
 
-        if (api->struct_size < sizeof(UmePluginApi)) {
-            return UME_FALSE;
-        }
+        if (api->struct_size < sizeof(UmePluginApi)) return UME_FALSE;
 
         if (description->struct_size < sizeof(UmePluginDescription)) {
             return UME_FALSE;

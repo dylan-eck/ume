@@ -31,9 +31,7 @@ void logMessage(Category category, Level level,
 template <typename... Args>
 void log(Category category, Level level, std::format_string<Args...> fmt,
          Args &&...args) {
-    if (!enabled(category, level)) {
-        return;
-    }
+    if (!enabled(category, level)) return;
 
     try {
         logMessage(category, level,

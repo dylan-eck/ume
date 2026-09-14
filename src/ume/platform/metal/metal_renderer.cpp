@@ -89,9 +89,7 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 }
 
 void MetalRenderer::resize(uint32_t width, uint32_t height) {
-    if (width == width_ && height == height_) {
-        return;
-    }
+    if (width == width_ && height == height_) return;
 
     width_ = static_cast<uint32_t>(layer_->drawableSize().width);
     height_ = static_cast<uint32_t>(layer_->drawableSize().height);
@@ -129,9 +127,7 @@ void MetalRenderer::beginScenePass() {
 }
 
 void MetalRenderer::draw(const DrawCommand &cmd) {
-    if (graphics_encoder_ == nullptr) {
-        return;
-    }
+    if (graphics_encoder_ == nullptr) return;
 
     if (!cmd.push_constants.empty()) {
         graphics_encoder_->setVertexBytes(cmd.push_constants.data(),
@@ -165,9 +161,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
 }
 
 void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
-    if (graphics_encoder_ == nullptr) {
-        return;
-    }
+    if (graphics_encoder_ == nullptr) return;
     graphics_encoder_->endEncoding();
     graphics_encoder_ = nullptr;
 
@@ -316,9 +310,7 @@ void MetalRenderer::dispatch(const DispatchCommand &cmd) {
 }
 
 void MetalRenderer::endComputePass() {
-    if (compute_encoder_ == nullptr) {
-        return;
-    }
+    if (compute_encoder_ == nullptr) return;
     compute_encoder_->endEncoding();
     compute_encoder_ = nullptr;
 }
@@ -400,15 +392,11 @@ void MetalRenderer::destroyTexture(TextureHandle handle) {
 GraphicsPipelineHandle
 MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
     auto library = libraryFromSource(desc.shader);
-    if (!library) {
-        return {};
-    }
+    if (!library) return {};
 
     auto state = buildGraphicsPipeline(library.get(), desc.vertex_entry,
                                        desc.fragment_entry, false);
-    if (!state) {
-        return {};
-    }
+    if (!state) return {};
 
     return graphics_pipelines_.insert(
         MetalGraphicsPipeline{.state = std::move(state)});
@@ -421,15 +409,11 @@ void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
 ComputePipelineHandle
 MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {
     auto library = libraryFromSource(desc.shader);
-    if (!library) {
-        return {};
-    }
+    if (!library) return {};
 
     auto state = buildComputePipeline(library.get(), desc.entry);
 
-    if (!state) {
-        return {};
-    }
+    if (!state) return {};
 
     const uint32_t total_threads = desc.workgroup_size[0] *
                                    desc.workgroup_size[1] *
@@ -572,27 +556,21 @@ void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
 MTL::Buffer *MetalRenderer::getBuffer(BufferHandle handle) {
     MetalBuffer *buffer = buffers_.get(handle);
 
-    if (buffer != nullptr) {
-        return buffer->buffer.get();
-    }
+    if (buffer != nullptr) return buffer->buffer.get();
     return nullptr;
 }
 
 MTL::Texture *MetalRenderer::getTexture(TextureHandle handle) {
     MetalTexture *texture = textures_.get(handle);
 
-    if (texture != nullptr) {
-        return texture->texture.get();
-    }
+    if (texture != nullptr) return texture->texture.get();
     return nullptr;
 }
 
 MTL::SamplerState *MetalRenderer::getSampler(SamplerHandle handle) {
     MetalSampler *sampler = samplers_.get(handle);
 
-    if (sampler != nullptr) {
-        return sampler->state.get();
-    }
+    if (sampler != nullptr) return sampler->state.get();
     return nullptr;
 }
 

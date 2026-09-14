@@ -11,9 +11,7 @@
 namespace ume {
 namespace {
 void logDiagnostics(slang::IBlob *diag) {
-    if (diag == nullptr || diag->getBufferSize() <= 0) {
-        return;
-    }
+    if (diag == nullptr || diag->getBufferSize() <= 0) return;
 
     UME_LOG_ERROR(
         Renderer, "slang error: {}",
@@ -43,9 +41,7 @@ ShaderCompiler::compileCompute(const std::filesystem::path &path,
     const std::string source((std::istreambuf_iterator<char>(file)), {});
 
     Slang::ComPtr<slang::ISession> session = createSession();
-    if (session == nullptr) {
-        return std::nullopt;
-    }
+    if (session == nullptr) return std::nullopt;
 
     Slang::ComPtr<slang::IBlob> diag;
     const std::string module_name = path.stem().string();
@@ -53,9 +49,7 @@ ShaderCompiler::compileCompute(const std::filesystem::path &path,
         module_name.c_str(), path.string().c_str(), source.c_str(),
         diag.writeRef());
     logDiagnostics(diag);
-    if (module == nullptr) {
-        return std::nullopt;
-    }
+    if (module == nullptr) return std::nullopt;
 
     Slang::ComPtr<slang::IEntryPoint> entry;
     module->findEntryPointByName(entrypoint_name, entry.writeRef());
@@ -125,9 +119,7 @@ ShaderCompiler::compilePostEffect(const std::filesystem::path &path) {
     const std::string source((std::istreambuf_iterator<char>(file)), {});
 
     Slang::ComPtr<slang::ISession> session = createSession();
-    if (session == nullptr) {
-        return std::nullopt;
-    }
+    if (session == nullptr) return std::nullopt;
 
     Slang::ComPtr<slang::IBlob> diag;
     const std::string module_name = path.stem().string();
@@ -135,9 +127,7 @@ ShaderCompiler::compilePostEffect(const std::filesystem::path &path) {
         module_name.c_str(), path.string().c_str(), source.c_str(),
         diag.writeRef());
     logDiagnostics(diag);
-    if (module == nullptr) {
-        return std::nullopt;
-    }
+    if (module == nullptr) return std::nullopt;
 
     Slang::ComPtr<slang::IEntryPoint> vert;
     Slang::ComPtr<slang::IEntryPoint> frag;

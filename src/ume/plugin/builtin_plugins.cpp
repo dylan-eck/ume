@@ -24,13 +24,9 @@ findPluginLibrary(const std::filesystem::path &plugin_dir) {
 
     for (const auto &entry :
          std::filesystem::directory_iterator(plugin_dir, ec)) {
-        if (!entry.is_regular_file(ec)) {
-            continue;
-        }
+        if (!entry.is_regular_file(ec)) continue;
 
-        if (entry.path().extension() == kPluginSuffix) {
-            return entry.path();
-        }
+        if (entry.path().extension() == kPluginSuffix) return entry.path();
     }
     return {};
 }
@@ -46,9 +42,7 @@ void loadPluginsFrom(PluginHost &host,
 
     for (const auto &entry :
          std::filesystem::directory_iterator(plugin_dir, ec)) {
-        if (!entry.is_directory(ec)) {
-            continue;
-        }
+        if (!entry.is_directory(ec)) continue;
 
         UME_LOG_INFO(Plugin, "scanning directory: {}", entry.path().string());
 

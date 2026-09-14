@@ -74,9 +74,7 @@ Renderer::Renderer(const Window &window)
 Renderer::~Renderer() = default;
 
 void Renderer::resize(uint32_t width, uint32_t height) {
-    if (width == pixel_width_ && height == pixel_height_) {
-        return;
-    }
+    if (width == pixel_width_ && height == pixel_height_) return;
 
     UME_LOG_INFO(Renderer, "window resized: {}, {}", width, height);
 
@@ -115,9 +113,7 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
         backend_->createBuffer({.size = vertices.size() * sizeof(vertices[0]),
                                 .initial_data = vertices.data(),
                                 .usage = BufferUsage::CpuToGpu});
-    if (!vertex_buffer) {
-        return {};
-    }
+    if (!vertex_buffer) return {};
 
     BufferHandle index_buffer =
         backend_->createBuffer({.size = desc.indices.size_bytes(),
@@ -169,15 +165,11 @@ PostEffectHandle
 Renderer::createPostEffect(const std::filesystem::path &shader) {
     std::optional<CompiledShader> compiled =
         compiler_->compilePostEffect(shader);
-    if (!compiled) {
-        return {};
-    }
+    if (!compiled) return {};
 
     GraphicsPipelineHandle pipeline =
         backend_->createGraphicsPipeline({.shader = compiled->code});
-    if (!pipeline) {
-        return {};
-    }
+    if (!pipeline) return {};
 
     return post_effects_.insert({.pipeline = pipeline,
                                  .params_size = compiled->params_size,
@@ -186,9 +178,7 @@ Renderer::createPostEffect(const std::filesystem::path &shader) {
 
 bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     PostEffect *effect = post_effects_.get(handle);
-    if (effect == nullptr) {
-        return false;
-    }
+    if (effect == nullptr) return false;
     std::optional<CompiledShader> compiled =
         compiler_->compilePostEffect(effect->source);
     if (!compiled) {
@@ -197,9 +187,7 @@ bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     }
     GraphicsPipelineHandle pipeline =
         backend_->createGraphicsPipeline({.shader = compiled->code});
-    if (!pipeline) {
-        return false;
-    }
+    if (!pipeline) return false;
     backend_->destroyGraphicsPipeline(effect->pipeline);
     effect->pipeline = pipeline;
     effect->params_size = compiled->params_size;
@@ -240,9 +228,7 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
 }
 
 void Renderer::render() {
-    if (pixel_width_ == 0 || pixel_height_ == 0) {
-        return;
-    }
+    if (pixel_width_ == 0 || pixel_height_ == 0) return;
 
     std::array<float, 1000> readback{};
     backend_->readBuffer(output_, 0,

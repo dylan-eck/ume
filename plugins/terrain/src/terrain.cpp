@@ -87,9 +87,7 @@ void Terrain::update(const UmeFrameContext *frame_context) {
     //           "\n"
     //           << "            max lod: " << max_lod << "\n\n";
 
-    if (loaded_chunks_.size() <= kMaxLoadedChunks) {
-        return;
-    }
+    if (loaded_chunks_.size() <= kMaxLoadedChunks) return;
 
     if (visible_chunks_ids_.size() > kMaxLoadedChunks) {
         api.log(api.context, UME_LOG_LEVEL_WARN,
@@ -116,9 +114,7 @@ void Terrain::update(const UmeFrameContext *frame_context) {
                      eviction_candidates.end(), comp);
 
     for (uint32_t i = 0; i < evict_count; i++) {
-        if (i >= eviction_candidates.size()) {
-            break;
-        }
+        if (i >= eviction_candidates.size()) break;
 
         Chunk chunk = loaded_chunks_[eviction_candidates[i].first];
         loaded_chunks_.erase(eviction_candidates[i].first);

@@ -21,9 +21,7 @@ glm::dvec3 foldToCubeSurface(glm::dvec3 n, glm::dvec3 a, glm::dvec3 b, double t,
                              double u) {
     const bool t_out = std::abs(t) > 1.0;
     const bool u_out = std::abs(u) > 1.0;
-    if (!t_out && !u_out) {
-        return n + a * t + b * u;
-    }
+    if (!t_out && !u_out) return n + a * t + b * u;
 
     const bool fold_t =
         t_out && (!u_out || std::abs(t) - 1.0 >= std::abs(u) - 1.0);
@@ -225,9 +223,7 @@ void Planet::update(const UmeFrameContext *frame_context) {
 
     for (const auto &chunk : chunks_) {
         const MeshRef &mesh = chunk.mesh;
-        if (mesh.getHandle() == UME_MESH_HANDLE_INVALID) {
-            continue;
-        }
+        if (mesh.getHandle() == UME_MESH_HANDLE_INVALID) continue;
 
         const glm::dvec3 world =
             world_position_ + rotation * chunk.local_origin;

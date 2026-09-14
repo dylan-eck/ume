@@ -299,14 +299,10 @@ void PluginHost::reloadShaders() {
 
 UmePostEffectHandle
 PluginHost::findPostEffectTrampoline(void *context, const char *name) noexcept {
-    if (name == nullptr) {
-        return UME_POST_EFFECT_HANDLE_INVALID;
-    }
+    if (name == nullptr) return UME_POST_EFFECT_HANDLE_INVALID;
     auto *ctx = static_cast<PluginContext *>(context);
     Plugin *plugin = ctx->host->findPlugin(ctx->plugin_id);
-    if (plugin == nullptr) {
-        return UME_POST_EFFECT_HANDLE_INVALID;
-    }
+    if (plugin == nullptr) return UME_POST_EFFECT_HANDLE_INVALID;
     const auto it = plugin->post_effects.find(name);
     return it != plugin->post_effects.end() ? it->second.id
                                             : UME_POST_EFFECT_HANDLE_INVALID;
@@ -574,9 +570,7 @@ void PluginHost::submitTrampoline(void *context, UmeMeshHandle handle,
 
 void PluginHost::logTrampoline(void *context, UmeLogLevel log_level,
                                const char *message) noexcept {
-    if (message == nullptr) {
-        return;
-    }
+    if (message == nullptr) return;
 
     auto *ctx = static_cast<PluginContext *>(context);
 

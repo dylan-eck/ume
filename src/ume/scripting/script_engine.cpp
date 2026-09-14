@@ -77,9 +77,7 @@ bool readNumberList(WrenVM *vm, int list_slot, int scratch_slot,
 
     for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
-        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
-            return false;
-        }
+        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) return false;
 
         out[static_cast<size_t>(i)] =
             static_cast<float>(wrenGetSlotDouble(vm, scratch_slot));
@@ -95,9 +93,7 @@ bool readIndexList(WrenVM *vm, int list_slot, int scratch_slot,
 
     for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
-        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
-            return false;
-        }
+        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) return false;
 
         out[static_cast<size_t>(i)] =
             static_cast<uint32_t>(wrenGetSlotDouble(vm, scratch_slot));
@@ -337,14 +333,10 @@ void scriptDestroyObject(WrenVM *vm) {
 }
 
 bool readKeyCode(WrenVM *vm, int slot, KeyCode &out) {
-    if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) {
-        return false;
-    }
+    if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) return false;
 
     const double value = wrenGetSlotDouble(vm, slot);
-    if (value < 0.0 || value > static_cast<double>(kKeyCodeCount)) {
-        return false;
-    }
+    if (value < 0.0 || value > static_cast<double>(kKeyCodeCount)) return false;
 
     out = static_cast<KeyCode>(value);
     return true;
@@ -452,9 +444,7 @@ WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
                                         const char *signature) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
 
-    if (module != std::string_view("ume") || !is_static) {
-        return nullptr;
-    }
+    if (module != std::string_view("ume") || !is_static) return nullptr;
 
     for (const auto &entry : kForeignMethodTable) {
         if (entry.class_name == class_name && entry.signature == signature) {
@@ -570,9 +560,7 @@ void ScriptEngine::init() {
 }
 
 void ScriptEngine::update(float delta) {
-    if (main_script_failed_) {
-        return;
-    }
+    if (main_script_failed_) return;
 
     wrenEnsureSlots(wren_vm_.get(), 2);
     wrenSetSlotHandle(wren_vm_.get(), 0, main_class_);
