@@ -8,7 +8,7 @@ class Application {
 
         __fov_y = 45
 
-        __camera_move_speed = 1600000.0
+        __camera_move_speed = 2800000.0
         __camera_rotate_speed = 1.0
 
         // Renderer.setCamera(__camera_x, __camera_y, __camera_z, 0, -0.4, -1, __fov_y)

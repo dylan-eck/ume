@@ -70,7 +70,7 @@ void Planet::generate() {
     chunks_.clear();
     chunks_.reserve(6);
 
-    const uint32_t resolution = 32;
+    const uint32_t resolution = 256;
     const double inv_res = 1.0 / resolution;
     const uint32_t grid_width = resolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
@@ -154,13 +154,13 @@ void Planet::generate() {
                                     noise_input_x.data(), noise_input_y.data(),
                                     noise_input_z.data(), 0, 0, 0, 0);
 
-        // for (size_t k = 0; k < vertex_count; k++) {
-        //     const float height = noise_amp * noise_values[k];
-        //     const size_t base_idx = k * 3;
-        //     positions[base_idx + 0] += height * radials[base_idx + 0];
-        //     positions[base_idx + 1] += height * radials[base_idx + 1];
-        //     positions[base_idx + 2] += height * radials[base_idx + 2];
-        // }
+        for (size_t k = 0; k < vertex_count; k++) {
+            const float height = noise_amp * noise_values[k];
+            const size_t base_idx = k * 3;
+            positions[base_idx + 0] += height * radials[base_idx + 0];
+            positions[base_idx + 1] += height * radials[base_idx + 1];
+            positions[base_idx + 2] += height * radials[base_idx + 2];
+        }
 
         auto p = [&](uint32_t i, uint32_t j) {
             const size_t base_idx = (size_t(i) * grid_width + j) * 3;

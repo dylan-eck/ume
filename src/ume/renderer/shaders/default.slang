@@ -33,7 +33,8 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
 
     output.normal = normal_world;
     // output.color = draw.base_color;
-    output.color = float4(1.0);
+    // output.color = float4(1.0);
+    output.color = float4(0.01, 0.1, 0.1, 1.0);
     return output;
 }
 
