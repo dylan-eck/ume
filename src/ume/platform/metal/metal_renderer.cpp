@@ -1,13 +1,11 @@
+#define NS_PRIVATE_IMPLEMENTATION
+#define CA_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
+
 #include "ume/platform/metal/metal_renderer.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
 
-#define NS_PRIVATE_IMPLEMENTATION
-#define CA_PRIVATE_IMPLEMENTATION
-#define MTL_PRIVATE_IMPLEMENTATION
-#include <Foundation/Foundation.hpp>
-#include <Metal/Metal.hpp>
-#include <QuartzCore/QuartzCore.hpp>
 #include <battery/embed.hpp>
 
 namespace ume {
@@ -69,7 +67,7 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     }
 
     pipeline_state_ =
-        buildPipeline(library.get(), "vertMain", "fragMain", true);
+        buildGraphicsPipeline(library.get(), "vertMain", "fragMain", true);
     if (!pipeline_state_) {
         throw Error(logger::Category::Renderer,
                     "failed to create default pipeline state");
@@ -103,16 +101,10 @@ void MetalRenderer::resize(uint32_t width, uint32_t height) {
 
 void MetalRenderer::beginFrame() {
     frame_pool_ = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
-
-    drawable_ = layer_->nextDrawable();
-    if (drawable_ == nullptr) {
-        encoder_ = nullptr;
-        command_buffer_ = nullptr;
-        return;
-    }
-
     command_buffer_ = command_queue_->commandBuffer();
+}
 
+void MetalRenderer::beginScenePass() {
     auto pass_descriptor =
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
     auto *color_attachment = pass_descriptor->colorAttachments()->object(0);
@@ -127,26 +119,26 @@ void MetalRenderer::beginFrame() {
     depth_attachment->setStoreAction(MTL::StoreActionStore);
     depth_attachment->setClearDepth(0.0);
 
-    encoder_ = command_buffer_->renderCommandEncoder(pass_descriptor.get());
+    graphics_encoder_ =
+        command_buffer_->renderCommandEncoder(pass_descriptor.get());
 
-    encoder_->setRenderPipelineState(pipeline_state_.get());
-    encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
-    encoder_->setCullMode(MTL::CullModeBack);
-    // encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
-    encoder_->setDepthStencilState(depth_state_.get());
+    graphics_encoder_->setRenderPipelineState(pipeline_state_.get());
+    graphics_encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
+    graphics_encoder_->setCullMode(MTL::CullModeBack);
+    graphics_encoder_->setDepthStencilState(depth_state_.get());
 }
 
 void MetalRenderer::draw(const DrawCommand &cmd) {
-    if (encoder_ == nullptr) {
+    if (graphics_encoder_ == nullptr) {
         return;
     }
 
     if (!cmd.push_constants.empty()) {
-        encoder_->setVertexBytes(cmd.push_constants.data(),
-                                 cmd.push_constants.size(), 0);
+        graphics_encoder_->setVertexBytes(cmd.push_constants.data(),
+                                          cmd.push_constants.size(), 0);
     }
 
-    MetalBuffer *vertex_buffer = buffers_.get(cmd.vertex_buffer);
+    MTL::Buffer *vertex_buffer = getBuffer(cmd.vertex_buffer);
     if (vertex_buffer == nullptr) {
         UME_LOG_WARN(Renderer,
                      "attempted to draw using invalid vertex buffer {}",
@@ -154,7 +146,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
-    MetalBuffer *index_buffer = buffers_.get(cmd.index_buffer);
+    MTL::Buffer *index_buffer = getBuffer(cmd.index_buffer);
     if (index_buffer == nullptr) {
         UME_LOG_WARN(Renderer,
                      "attempted to draw using invalid index buffer {}",
@@ -166,20 +158,25 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
                                     ? MTL::IndexTypeUInt16
                                     : MTL::IndexTypeUInt32;
 
-    encoder_->setVertexBuffer(vertex_buffer->buffer.get(), 0, 1);
-    encoder_->drawIndexedPrimitives(
+    graphics_encoder_->setVertexBuffer(vertex_buffer, 0, 1);
+    graphics_encoder_->drawIndexedPrimitives(
         MTL::PrimitiveTypeTriangle, NS::UInteger(cmd.index_count), index_type,
-        index_buffer->buffer.get(), NS::UInteger(0));
+        index_buffer, NS::UInteger(0));
 }
 
-void MetalRenderer::dispatch(const DispatchCommand &cmd) {}
-
 void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
-    if (encoder_ == nullptr) {
+    if (graphics_encoder_ == nullptr) {
         return;
     }
-    encoder_->endEncoding();
-    encoder_ = nullptr;
+    graphics_encoder_->endEncoding();
+    graphics_encoder_ = nullptr;
+
+    drawable_ = layer_->nextDrawable();
+    if (drawable_ == nullptr) {
+        graphics_encoder_ = nullptr;
+        command_buffer_ = nullptr;
+        return;
+    }
 
     if (cmd.passes.empty()) {
         MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
@@ -192,7 +189,8 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
     int src = 0;
     for (size_t i = 0; i < cmd.passes.size(); i++) {
         const PostProcessPass &pass = cmd.passes[i];
-        MetalPipeline *pipeline = pipelines_.get(pass.pipeline);
+        MetalGraphicsPipeline *pipeline =
+            graphics_pipelines_.get(pass.pipeline);
         if (pipeline == nullptr) {
             UME_LOG_WARN(Renderer, "post pass with invalid pipeline {}",
                          pass.pipeline.id);
@@ -233,25 +231,96 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
 }
 
 void MetalRenderer::endFrame() {
-    if (drawable_ == nullptr) {
-        frame_pool_->release();
-        frame_pool_ = nullptr;
-        return;
+    // if (drawable_ == nullptr) {
+    //     frame_pool_->release();
+    //     frame_pool_ = nullptr;
+    //     return;
+    // }
+
+    if (graphics_encoder_ != nullptr) {
+        graphics_encoder_->endEncoding();
+        graphics_encoder_ = nullptr;
     }
 
-    if (encoder_ != nullptr) {
-        encoder_->endEncoding();
-        encoder_ = nullptr;
+    if (drawable_ != nullptr) {
+        command_buffer_->presentDrawable(drawable_);
     }
 
-    command_buffer_->presentDrawable(drawable_);
     command_buffer_->commit();
 
-    encoder_ = nullptr;
+    graphics_encoder_ = nullptr;
     command_buffer_ = nullptr;
     drawable_ = nullptr;
 
     frame_pool_.reset();
+}
+
+void MetalRenderer::beginComputePass() {
+    if (command_buffer_ == nullptr) return;
+    compute_encoder_ = command_buffer_->computeCommandEncoder();
+}
+
+void MetalRenderer::dispatch(const DispatchCommand &cmd) {
+    if (compute_encoder_ == nullptr) {
+        UME_LOG_WARN(Renderer, "dispatch() called outside of compute pass");
+        return;
+    }
+
+    MetalComputePipeline *pipeline = compute_pipelines_.get(cmd.pipeline);
+    if (pipeline == nullptr) {
+        UME_LOG_WARN(Renderer,
+                     "dispatch() called with invalid compute pipeline {}",
+                     cmd.pipeline.id);
+        return;
+    }
+
+    compute_encoder_->setComputePipelineState(pipeline->state.get());
+
+    for (const auto &binding : cmd.bindings.buffers) {
+        MTL::Buffer *buffer = getBuffer(binding.buffer);
+        if (buffer == nullptr) {
+            UME_LOG_WARN(Renderer,
+                         "dispatch() called with invalid buffer {} at slot {}",
+                         binding.buffer.id, binding.slot);
+            return;
+        }
+        compute_encoder_->setBuffer(buffer, binding.offset, binding.slot);
+    }
+
+    for (const auto &binding : cmd.bindings.textures) {
+        MTL::Texture *texture = getTexture(binding.texture);
+        if (texture == nullptr) {
+            UME_LOG_WARN(Renderer,
+                         "dispatch() called with invalid texture {} at slot {}",
+                         binding.texture.id, binding.slot);
+            return;
+        }
+        compute_encoder_->setTexture(texture, binding.slot);
+    }
+
+    for (const auto &binding : cmd.bindings.samplers) {
+        MTL::SamplerState *sampler = getSampler(binding.sampler);
+        if (sampler == nullptr) {
+            UME_LOG_WARN(Renderer,
+                         "dispatch() called with invalid sampler {} at slot {}",
+                         binding.sampler.id, binding.slot);
+            return;
+        }
+        compute_encoder_->setSamplerState(sampler, binding.slot);
+    }
+
+    const auto &wg = pipeline->workgroup_size;
+    compute_encoder_->dispatchThreads(
+        MTL::Size(cmd.work_size[0], cmd.work_size[1], cmd.work_size[2]),
+        MTL::Size(wg[0], wg[1], wg[2]));
+}
+
+void MetalRenderer::endComputePass() {
+    if (compute_encoder_ == nullptr) {
+        return;
+    }
+    compute_encoder_->endEncoding();
+    compute_encoder_ = nullptr;
 }
 
 BufferHandle MetalRenderer::createBuffer(const BufferDescription &desc) {
@@ -295,6 +364,31 @@ void MetalRenderer::destroyBuffer(BufferHandle handle) {
     buffers_.remove(handle);
 }
 
+void MetalRenderer::readBuffer(BufferHandle handle, size_t offset,
+                               std::span<std::byte> out) {
+    MetalBuffer *entry = buffers_.get(handle);
+
+    if (entry == nullptr) {
+        UME_LOG_WARN(Renderer, "invalid buffer handle passed to readBuffer()");
+        return;
+    }
+
+    if (entry->buffer->storageMode() == MTL::StorageModePrivate) {
+        UME_LOG_WARN(Renderer, "cannot read gpu only buffer {}", handle.id);
+        return;
+    }
+
+    if (out.size() > entry->size || offset > entry->size - out.size()) {
+        UME_LOG_WARN(Renderer,
+                     "read of {} bytes at offset {} exceeds buffer size {}",
+                     out.size(), offset, entry->size);
+        return;
+    }
+
+    const auto *src = static_cast<const std::byte *>(entry->buffer->contents());
+    std::memcpy(out.data(), src + offset, out.size());
+}
+
 TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
     return {};
 }
@@ -310,24 +404,50 @@ MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
         return {};
     }
 
-    auto state = buildPipeline(library.get(), desc.vertex_entry,
-                               desc.fragment_entry, false);
+    auto state = buildGraphicsPipeline(library.get(), desc.vertex_entry,
+                                       desc.fragment_entry, false);
     if (!state) {
         return {};
     }
 
-    return pipelines_.insert(MetalPipeline{.state = std::move(state)});
+    return graphics_pipelines_.insert(
+        MetalGraphicsPipeline{.state = std::move(state)});
 }
 
 void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
-    pipelines_.remove(handle);
+    graphics_pipelines_.remove(handle);
 }
 
 ComputePipelineHandle
 MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {
-    return {};
+    auto library = libraryFromSource(desc.shader);
+    if (!library) {
+        return {};
+    }
+
+    auto state = buildComputePipeline(library.get(), desc.entry);
+
+    if (!state) {
+        return {};
+    }
+
+    const uint32_t total_threads = desc.workgroup_size[0] *
+                                   desc.workgroup_size[1] *
+                                   desc.workgroup_size[2];
+
+    if (total_threads > state->maxTotalThreadsPerThreadgroup()) {
+        UME_LOG_ERROR(Renderer,
+                      "compute workgroup size {} exceeds device maximum {}",
+                      total_threads, state->maxTotalThreadsPerThreadgroup());
+        return {};
+    }
+
+    return compute_pipelines_.insert(MetalComputePipeline{
+        .state = std::move(state), .workgroup_size = desc.workgroup_size});
 }
-void MetalRenderer::destroyComputePipeline(ComputePipelineHandle handle) {};
+void MetalRenderer::destroyComputePipeline(ComputePipelineHandle handle) {
+    compute_pipelines_.remove(handle);
+}
 
 NS::SharedPtr<MTL::Library>
 MetalRenderer::libraryFromMetallib(std::span<const std::byte> bytes) {
@@ -365,6 +485,56 @@ MetalRenderer::libraryFromSource(std::span<const std::byte> bytes) {
     return library;
 }
 
+NS::SharedPtr<MTL::RenderPipelineState>
+MetalRenderer::buildGraphicsPipeline(MTL::Library *library, const char *vert,
+                                     const char *frag, bool with_depth) {
+    auto vfn = NS::TransferPtr(
+        library->newFunction(NS::String::string(vert, NS::UTF8StringEncoding)));
+    auto ffn = NS::TransferPtr(
+        library->newFunction(NS::String::string(frag, NS::UTF8StringEncoding)));
+    if (!vfn || !ffn) {
+        UME_LOG_ERROR(Renderer, "entrypoints '{}'/'{}' not found", vert, frag);
+        return {};
+    }
+
+    auto desc = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
+    desc->setVertexFunction(vfn.get());
+    desc->setFragmentFunction(ffn.get());
+    desc->colorAttachments()->object(0)->setPixelFormat(
+        MTL::PixelFormatBGRA8Unorm);
+    if (with_depth) {
+        desc->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
+    }
+
+    NS::Error *error = nullptr;
+    auto state =
+        NS::TransferPtr(device_->newRenderPipelineState(desc.get(), &error));
+    if (!state) {
+        UME_LOG_ERROR(Renderer, "failed to create pipeline state: {}",
+                      errorString(error));
+    }
+    return state;
+}
+
+NS::SharedPtr<MTL::ComputePipelineState>
+MetalRenderer::buildComputePipeline(MTL::Library *library, const char *entry) {
+    auto fn = NS::TransferPtr(library->newFunction(
+        NS::String::string(entry, NS::UTF8StringEncoding)));
+    if (!fn) {
+        UME_LOG_ERROR(Renderer, "compute entrypoint '{}' not found", entry);
+        return {};
+    }
+
+    NS::Error *error = nullptr;
+    auto state =
+        NS::TransferPtr(device_->newComputePipelineState(fn.get(), &error));
+    if (!state) {
+        UME_LOG_ERROR(Renderer, "failed to create compute pipeline: {}",
+                      errorString(error));
+    }
+    return state;
+}
+
 void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
     auto make_target = [&](MTL::PixelFormat format, const char *name) {
         MTL::TextureDescriptor *desc =
@@ -399,35 +569,13 @@ void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
     });
 }
 
-NS::SharedPtr<MTL::RenderPipelineState>
-MetalRenderer::buildPipeline(MTL::Library *library, const char *vert,
-                             const char *frag, bool with_depth) {
-    auto vfn = NS::TransferPtr(
-        library->newFunction(NS::String::string(vert, NS::UTF8StringEncoding)));
-    auto ffn = NS::TransferPtr(
-        library->newFunction(NS::String::string(frag, NS::UTF8StringEncoding)));
-    if (!vfn || !ffn) {
-        UME_LOG_ERROR(Renderer, "entrypoints '{}'/'{}' not found", vert, frag);
-        return {};
-    }
+MTL::Buffer *MetalRenderer::getBuffer(BufferHandle handle) {
+    MetalBuffer *buffer = buffers_.get(handle);
 
-    auto desc = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
-    desc->setVertexFunction(vfn.get());
-    desc->setFragmentFunction(ffn.get());
-    desc->colorAttachments()->object(0)->setPixelFormat(
-        MTL::PixelFormatBGRA8Unorm);
-    if (with_depth) {
-        desc->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
+    if (buffer != nullptr) {
+        return buffer->buffer.get();
     }
-
-    NS::Error *error = nullptr;
-    auto state =
-        NS::TransferPtr(device_->newRenderPipelineState(desc.get(), &error));
-    if (!state) {
-        UME_LOG_ERROR(Renderer, "failed to create pipeline state: {}",
-                      errorString(error));
-    }
-    return state;
+    return nullptr;
 }
 
 MTL::Texture *MetalRenderer::getTexture(TextureHandle handle) {

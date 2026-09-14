@@ -4,36 +4,11 @@
 #include "ume/core/resource_pool.hpp"
 #include "ume/platform/window.hpp"
 
-#include <Foundation/NSSharedPtr.hpp>
+#include <Foundation/Foundation.hpp>
+#include <QuartzCore/QuartzCore.hpp>
+#include <Metal/Metal.hpp>
 
 #include <array>
-
-// NOLINTBEGIN(readability-identifier-naming)
-// forward declared metal types
-namespace NS {
-class Error;
-class AutoreleasePool;
-} // namespace NS
-
-namespace CA {
-class MetalLayer;
-class MetalDrawable;
-} // namespace CA
-
-namespace MTL {
-class Device;
-class CommandQueue;
-class CommandBuffer;
-class RenderCommandEncoder;
-class RenderPipelineState;
-class Buffer;
-class Texture;
-class DepthStencilState;
-class SamplerState;
-class Library;
-class BlitCommandEncoder;
-} // namespace MTL
-// NOLINTEND(readability-identifier-naming)
 
 namespace ume {
 
@@ -42,8 +17,13 @@ struct MetalBuffer {
     size_t size = 0;
 };
 
-struct MetalPipeline {
+struct MetalGraphicsPipeline {
     NS::SharedPtr<MTL::RenderPipelineState> state;
+};
+
+struct MetalComputePipeline {
+    NS::SharedPtr<MTL::ComputePipelineState> state;
+    std::array<uint32_t, 3> workgroup_size = {1, 1, 1};
 };
 
 struct MetalTexture {
@@ -74,13 +54,19 @@ public:
     void resize(uint32_t width, uint32_t height) override;
 
     void beginFrame() override;
+    void beginScenePass() override;
     void draw(const DrawCommand &cmd) override;
-    void dispatch(const DispatchCommand &cmd) override;
     void postProcess(const PostProcessCommand &cmd) override;
     void endFrame() override;
 
+    void beginComputePass() override;
+    void dispatch(const DispatchCommand &cmd) override;
+    void endComputePass() override;
+
     BufferHandle createBuffer(const BufferDescription &desc) override;
     void destroyBuffer(BufferHandle handle) override;
+    void readBuffer(BufferHandle handle, size_t offset,
+                    std::span<std::byte> out) override;
 
     TextureHandle createTexture(const TextureDescription &desc) override;
     void destroyTexture(TextureHandle handle) override;
@@ -105,7 +91,10 @@ private:
     std::array<TextureHandle, 2> color_targets_;
     SamplerHandle linear_sampler_;
 
-    ResourcePool<MetalPipeline, GraphicsPipelineHandle> pipelines_;
+    ResourcePool<MetalGraphicsPipeline, GraphicsPipelineHandle>
+        graphics_pipelines_;
+    ResourcePool<MetalComputePipeline, ComputePipelineHandle>
+        compute_pipelines_;
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
@@ -116,7 +105,10 @@ private:
     NS::SharedPtr<NS::AutoreleasePool> frame_pool_ = nullptr;
     CA::MetalDrawable *drawable_ = nullptr;
     MTL::CommandBuffer *command_buffer_ = nullptr;
-    MTL::RenderCommandEncoder *encoder_ = nullptr;
+    MTL::RenderCommandEncoder *graphics_encoder_ = nullptr;
+
+    NS::SharedPtr<NS::AutoreleasePool> compute_pool_ = nullptr;
+    MTL::ComputeCommandEncoder *compute_encoder_ = nullptr;
 
     ResourcePool<MetalBuffer, BufferHandle> buffers_;
 
@@ -125,13 +117,16 @@ private:
     NS::SharedPtr<MTL::Library>
     libraryFromSource(std::span<const std::byte> bytes);
 
+    NS::SharedPtr<MTL::RenderPipelineState>
+    buildGraphicsPipeline(MTL::Library *library, const char *vert,
+                          const char *frag, bool with_depth);
+
+    NS::SharedPtr<MTL::ComputePipelineState>
+    buildComputePipeline(MTL::Library *library, const char *entry);
+
     void createRenderTargets(uint32_t width, uint32_t height);
 
-    NS::SharedPtr<MTL::RenderPipelineState> buildPipeline(MTL::Library *library,
-                                                          const char *vert,
-                                                          const char *frag,
-                                                          bool with_depth);
-
+    MTL::Buffer *getBuffer(BufferHandle handle);
     MTL::Texture *getTexture(TextureHandle handle);
     MTL::SamplerState *getSampler(SamplerHandle handle);
 };

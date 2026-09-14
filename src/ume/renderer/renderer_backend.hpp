@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <span>
+#include <array>
 
 namespace ume {
 
@@ -25,13 +26,42 @@ enum class IndexType : uint8_t { UInt16, UInt32 };
 
 enum class ShaderTarget : uint8_t { Msl, SpirV };
 
+// TODO: maybe don't have default entry names
 struct GraphicsPipelineDescription {
     std::span<const std::byte> shader;
     const char *vertex_entry = "vertMain";
     const char *fragment_entry = "fragMain";
 };
 
-struct ComputePipelineDescription {};
+struct ComputePipelineDescription {
+    std::span<const std::byte> shader;
+    std::array<uint32_t, 3> workgroup_size = {1, 1, 1};
+    const char *entry = "main";
+};
+
+struct BufferBinding {
+    uint32_t slot = 0;
+    BufferHandle buffer;
+    uint32_t offset = 0;
+};
+
+struct TextureBinding {
+    uint32_t slot = 0;
+    TextureHandle texture;
+};
+
+struct SamplerBinding {
+    uint32_t slot = 0;
+    SamplerHandle sampler;
+};
+
+struct ResourceBindings {
+    std::span<const BufferBinding> buffers;
+    std::span<const TextureBinding> textures;
+    std::span<const SamplerBinding> samplers;
+    std::span<const std::byte> params;
+    uint32_t params_slot = 0;
+};
 
 struct DrawCommand {
     BufferHandle vertex_buffer;
@@ -41,7 +71,11 @@ struct DrawCommand {
     std::span<const std::byte> push_constants;
 };
 
-struct DispatchCommand {};
+struct DispatchCommand {
+    ComputePipelineHandle pipeline;
+    std::array<uint32_t, 3> work_size = {1, 1, 1};
+    ResourceBindings bindings;
+};
 
 struct PostProcessPass {
     GraphicsPipelineHandle pipeline;
@@ -70,13 +104,19 @@ public:
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
     virtual void beginFrame() = 0;
+    virtual void beginScenePass() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
-    virtual void dispatch(const DispatchCommand &cmd) = 0;
     virtual void postProcess(const PostProcessCommand &cmd) = 0;
     virtual void endFrame() = 0;
 
+    virtual void beginComputePass() = 0;
+    virtual void dispatch(const DispatchCommand &cmd) = 0;
+    virtual void endComputePass() = 0;
+
     virtual BufferHandle createBuffer(const BufferDescription &desc) = 0;
     virtual void destroyBuffer(BufferHandle handle) = 0;
+    virtual void readBuffer(BufferHandle handle, size_t offset,
+                            std::span<std::byte> out) = 0;
 
     virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;

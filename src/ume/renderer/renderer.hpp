@@ -1,7 +1,6 @@
 #pragma once
 
 #include "renderer_backend.hpp"
-
 #include "ume/core/resource_pool.hpp"
 #include "ume/renderer/camera.hpp"
 
@@ -14,6 +13,7 @@
 
 namespace ume {
 class ShaderCompiler;
+struct CompiledShader;
 
 struct Vertex {
     glm::vec4 position;
@@ -100,6 +100,11 @@ private:
     std::vector<PostProcessPass> post_passes_;
 
     CameraState camera_state_;
+
+    ComputePipelineHandle compute_test_pipeline_;
+    std::unique_ptr<CompiledShader> compute_test_shader_;
+    BufferHandle input_;
+    BufferHandle output_;
 
     static glm::vec4 debugColorFromId(uint32_t id) {
         uint32_t h = id * 0x9e3779b9u;

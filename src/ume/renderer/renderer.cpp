@@ -4,6 +4,7 @@
 #include "ume/renderer/shader_compiler.hpp"
 
 #include <array>
+#include <iostream>
 
 namespace ume {
 
@@ -34,7 +35,41 @@ Renderer::Renderer(const Window &window)
       backend_(createRendererBackend(window)),
       compiler_(std::make_unique<ShaderCompiler>(
           backend_->shaderTarget(),
-          std::filesystem::path(UME_SOURCE_DIR) / "include")) {}
+          std::filesystem::path(UME_SOURCE_DIR) / "include")) {
+
+    const auto path = std::filesystem::path(UME_SOURCE_DIR) /
+                      "src/ume/renderer/shaders/compute_test.slang";
+    std::optional<CompiledShader> shader =
+        compiler_->compileCompute(path, "doubleArray");
+
+    if (shader == std::nullopt) {
+        UME_LOG_WARN(Renderer, "failed to compile compute test shader");
+    } else {
+        compute_test_shader_ =
+            std::make_unique<CompiledShader>(std::move(shader.value()));
+    }
+
+    compute_test_pipeline_ = backend_->createComputePipeline({
+        .shader = compute_test_shader_->code,
+        .workgroup_size = {64, 1, 1},
+        .entry = "doubleArray",
+    });
+
+    std::array<float, 1000> zeroes{};
+
+    std::array<float, 1000> ramp{};
+    for (size_t i = 0; i < ramp.size(); i++) {
+        ramp[i] = static_cast<float>(i);
+    }
+
+    input_ = backend_->createBuffer({.size = 1000 * sizeof(float),
+                                     .initial_data = ramp.data(),
+                                     .usage = BufferUsage::CpuToGpu});
+
+    output_ = backend_->createBuffer({.size = 1000 * sizeof(float),
+                                      .initial_data = zeroes.data(),
+                                      .usage = BufferUsage::CpuToGpu});
+}
 
 Renderer::~Renderer() = default;
 
@@ -209,6 +244,28 @@ void Renderer::render() {
         return;
     }
 
+    std::array<float, 1000> readback{};
+    backend_->readBuffer(output_, 0,
+                         std::as_writable_bytes(std::span{readback}));
+
+    // std::cout << "### COMPUTE BUFFER READBACK ###\n" << readback[0];
+    // for (size_t i = 1; i < 10; i++) {
+    //     std::cout << ", " << readback[i];
+    // }
+    // std::cout << "...\n";
+
+    // size_t mismatches = 0;
+    // size_t first_bad = readback.size();
+    // for (size_t i = 0; i < readback.size(); i++) {
+    //     if (readback[i] != static_cast<float>(i) * 2.0f) {
+    //         if (mismatches == 0) first_bad = i;
+    //         mismatches++;
+    //     }
+    // }
+
+    // std::cout << "mismatches: " << mismatches << "\n";
+    // std::cout << "first bad: " << first_bad << "\n\n";
+
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 
@@ -216,6 +273,20 @@ void Renderer::render() {
         glm::mat4(glm::transpose(camera_state_.orientation));
 
     backend_->beginFrame();
+
+    backend_->beginComputePass();
+    const std::array<BufferBinding, 2> bindings = {
+        BufferBinding{.slot = 0, .buffer = input_},
+        BufferBinding{.slot = 1, .buffer = output_},
+    };
+
+    backend_->dispatch({.pipeline = compute_test_pipeline_,
+                        .work_size = {1000, 1, 1},
+                        .bindings = {.buffers = bindings}});
+
+    backend_->endComputePass();
+
+    backend_->beginScenePass();
 
     for (const auto &next : submissions_) {
         const auto relative =

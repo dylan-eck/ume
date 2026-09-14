@@ -68,3 +68,6 @@ CheckOptions:
   - key: bugprone-easily-swappable-parameters.ModelImplicitConversions
     value: 'false'
 
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
+
