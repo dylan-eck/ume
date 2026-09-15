@@ -8,6 +8,8 @@
 
 #include <battery/embed.hpp>
 
+#include <array>
+
 namespace ume {
 
 namespace {
@@ -390,11 +392,26 @@ void MetalRenderer::destroyTexture(TextureHandle handle) {
     textures_.remove(handle);
 }
 
-GraphicsPipelineHandle
-MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
-    auto library = libraryFromSource(desc.shader);
+ShaderHandle MetalRenderer::createShader(const ShaderDescription &desc) {
+    auto library = libraryFromSource(desc.code);
     if (!library) return {};
 
+    return shaders_.insert({
+        .library = library,
+        .entry_points = {desc.entry_points.begin(), desc.entry_points.end()},
+    });
+}
+
+void MetalRenderer::destroyShader(ShaderHandle handle) {
+    shaders_.remove(handle);
+}
+
+GraphicsPipelineHandle
+MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
+    MetalShader *shader = shaders_.get(desc.shader);
+    if (shader == nullptr) return {};
+
+    auto library = shader->library;
     auto state = buildGraphicsPipeline(library.get(), desc.vertex_entry,
                                        desc.fragment_entry, false);
     if (!state) return {};
@@ -409,16 +426,29 @@ void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
 
 ComputePipelineHandle
 MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {
-    auto library = libraryFromSource(desc.shader);
-    if (!library) return {};
+    MetalShader *shader = shaders_.get(desc.shader);
+    if (shader == nullptr) return {};
 
+    auto itr =
+        std::ranges::find(shader->entry_points, desc.entry, &EntryPoint::name);
+    if (itr == shader->entry_points.end()) {
+        UME_LOG_WARN(Renderer, "no entry point named '{}' in shader",
+                     desc.entry);
+        return {};
+    }
+    if (itr->stage != ShaderStage::Compute) {
+        UME_LOG_WARN(Renderer, "entry point '{}' is not a compute stage",
+                     desc.entry);
+        return {};
+    }
+
+    auto library = shader->library;
     auto state = buildComputePipeline(library.get(), desc.entry);
-
     if (!state) return {};
 
-    const uint32_t total_threads = desc.workgroup_size[0] *
-                                   desc.workgroup_size[1] *
-                                   desc.workgroup_size[2];
+    std::array<uint32_t, 3> wg = (*itr).workgroup_size;
+
+    const uint32_t total_threads = wg[0] * wg[1] * wg[2];
 
     if (total_threads > state->maxTotalThreadsPerThreadgroup()) {
         UME_LOG_ERROR(Renderer,
@@ -427,9 +457,10 @@ MetalRenderer::createComputePipeline(const ComputePipelineDescription &desc) {
         return {};
     }
 
-    return compute_pipelines_.insert(MetalComputePipeline{
-        .state = std::move(state), .workgroup_size = desc.workgroup_size});
+    return compute_pipelines_.insert(
+        MetalComputePipeline{.state = std::move(state), .workgroup_size = wg});
 }
+
 void MetalRenderer::destroyComputePipeline(ComputePipelineHandle handle) {
     compute_pipelines_.remove(handle);
 }

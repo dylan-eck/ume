@@ -12,6 +12,7 @@ template <typename Tag> struct ResourceHandle {
 struct BufferTag;
 struct MeshTag;
 struct ObjectTag;
+struct ShaderTag;
 struct GraphicsPipelineTag;
 struct ComputePipelineTag;
 struct PostEffectTag;
@@ -21,6 +22,7 @@ struct SamplerTag;
 using BufferHandle = ResourceHandle<BufferTag>;
 using MeshHandle = ResourceHandle<MeshTag>;
 using ObjectHandle = ResourceHandle<ObjectTag>;
+using ShaderHandle = ResourceHandle<ShaderTag>;
 using GraphicsPipelineHandle = ResourceHandle<GraphicsPipelineTag>;
 using ComputePipelineHandle = ResourceHandle<ComputePipelineTag>;
 using PostEffectHandle = ResourceHandle<PostEffectTag>;

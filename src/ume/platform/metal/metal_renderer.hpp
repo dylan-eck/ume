@@ -17,6 +17,11 @@ struct MetalBuffer {
     size_t size = 0;
 };
 
+struct MetalShader {
+    NS::SharedPtr<MTL::Library> library;
+    std::vector<EntryPoint> entry_points;
+};
+
 struct MetalGraphicsPipeline {
     NS::SharedPtr<MTL::RenderPipelineState> state;
 };
@@ -71,6 +76,9 @@ public:
     TextureHandle createTexture(const TextureDescription &desc) override;
     void destroyTexture(TextureHandle handle) override;
 
+    ShaderHandle createShader(const ShaderDescription &desc) override;
+    void destroyShader(ShaderHandle handle) override;
+
     GraphicsPipelineHandle
     createGraphicsPipeline(const GraphicsPipelineDescription &desc) override;
     void destroyGraphicsPipeline(GraphicsPipelineHandle handle) override;
@@ -90,6 +98,8 @@ private:
 
     std::array<TextureHandle, 2> color_targets_;
     SamplerHandle linear_sampler_;
+
+    ResourcePool<MetalShader, ShaderHandle> shaders_;
 
     ResourcePool<MetalGraphicsPipeline, GraphicsPipelineHandle>
         graphics_pipelines_;

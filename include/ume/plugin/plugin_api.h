@@ -105,8 +105,20 @@ typedef uint8_t UME_PLUGIN_BOOL;
 #define UME_TRUE ((UME_PLUGIN_BOOL)1)
 #define UME_FALSE ((UME_PLUGIN_BOOL)0)
 
+typedef uint32_t UmeBufferHandle;
+#define UME_BUFFER_HANDLE_INVALID ((UmeBufferHandle)0)
+
 typedef uint32_t UmeMeshHandle;
 #define UME_MESH_HANDLE_INVALID ((UmeMeshHandle)0)
+
+typedef uint32_t UmeTextureHandle;
+#define UME_TEXTURE_HANDLE_INVALID ((UmeTextureHandle)0)
+
+typedef uint32_t UmeSamplerHandle;
+#define UME_SAMPLER_HANDLE_INVALID ((UmeSamplerHandle)0)
+
+typedef uint32_t UmeShaderHandle;
+#define UME_SHADER_HANDLE_INVALID ((UmeShaderHandle)0)
 
 typedef uint32_t UmePostEffectHandle;
 #define UME_POST_EFFECT_HANDLE_INVALID ((UmePostEffectHandle)0)
@@ -144,6 +156,32 @@ typedef struct UmeParams {
     const void *impl;
     double (*number)(const void *impl, const char *key, double fallback);
 } UmeParams;
+
+typedef enum UmeBindingType {
+    UME_BINDING_TYPE_BUFFER = 0,
+    UME_BINDING_TYPE_TEXTURE = 1,
+    UME_BINDING_TYPE_SAMPLER = 2,
+    UME_BINDING_TYPE_FORCE_U32 = 0x7fffffff
+} UmeBindingType;
+
+typedef struct UmeBinding {
+    uint32_t slot;
+    UmeBindingType type;
+    union {
+        struct {
+            UmeBufferHandle handle;
+            uint64_t offset;
+        } buffer;
+        UmeTextureHandle texture;
+        UmeSamplerHandle sampler;
+    };
+} UmeBinding;
+
+typedef struct UmeBindingSetDescription {
+    uint32_t struct_size;
+    const UmeBinding *bindings;
+    uint32_t binding_count;
+} UmeBindingSetDescription;
 
 /* The host copies everything it needs from this struct, including name, before
  * registerObjectType returns. The struct and the string need not outlive the

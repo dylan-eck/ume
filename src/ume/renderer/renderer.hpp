@@ -46,7 +46,7 @@ public:
                 const glm::mat4 &local_transform);
 
     [[nodiscard]] PostEffectHandle
-    createPostEffect(const std::filesystem::path &shader);
+    createPostEffect(const std::filesystem::path &shader_path);
     bool reloadPostEffect(PostEffectHandle handle);
     void destroyPostEffect(PostEffectHandle handle);
 
@@ -74,6 +74,7 @@ private:
     };
 
     struct PostEffect {
+        ShaderHandle shader;
         GraphicsPipelineHandle pipeline;
         uint32_t params_size;
         std::filesystem::path source;

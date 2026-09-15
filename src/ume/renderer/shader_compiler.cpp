@@ -18,6 +18,58 @@ void logDiagnostics(slang::IBlob *diag) {
         std::string_view(static_cast<const char *>(diag->getBufferPointer()),
                          diag->getBufferSize()));
 }
+
+constexpr bool kLogReflection = true;
+
+const char *nameOr(const char *name, const char *fallback) {
+    return name != nullptr ? name : fallback;
+}
+
+std::optional<ShaderStage> toShaderStage(SlangStage stage) {
+    switch (stage) {
+    case SLANG_STAGE_VERTEX:
+        return ShaderStage::Vertex;
+    case SLANG_STAGE_FRAGMENT:
+        return ShaderStage::Fragment;
+    case SLANG_STAGE_COMPUTE:
+        return ShaderStage::Compute;
+    default:
+        return std::nullopt;
+    }
+}
+
+std::optional<BindingType> toBindingType(slang::TypeLayoutReflection *type) {
+    if (type == nullptr) {
+        return std::nullopt;
+    }
+
+    switch (type->getKind()) {
+    case slang::TypeReflection::Kind::SamplerState:
+        return BindingType::Sampler;
+
+    case slang::TypeReflection::Kind::ConstantBuffer:
+    case slang::TypeReflection::Kind::ParameterBlock:
+    case slang::TypeReflection::Kind::ShaderStorageBuffer:
+        return BindingType::Buffer;
+
+    case slang::TypeReflection::Kind::Resource:
+        switch (type->getResourceShape() & SLANG_RESOURCE_BASE_SHAPE_MASK) {
+        case SLANG_STRUCTURED_BUFFER:
+        case SLANG_BYTE_ADDRESS_BUFFER:
+            return BindingType::Buffer;
+        case SLANG_TEXTURE_1D:
+        case SLANG_TEXTURE_2D:
+        case SLANG_TEXTURE_3D:
+        case SLANG_TEXTURE_CUBE:
+            return BindingType::Texture;
+        default:
+            return std::nullopt;
+        }
+
+    default:
+        return std::nullopt;
+    }
+}
 } // namespace
 
 ShaderCompiler::ShaderCompiler(ShaderTarget target,
@@ -30,9 +82,7 @@ ShaderCompiler::ShaderCompiler(ShaderTarget target,
 }
 
 std::optional<CompiledShader>
-ShaderCompiler::compileCompute(const std::filesystem::path &path,
-                               const char *entrypoint_name) {
-    // TODO: reading file into string could be a function
+ShaderCompiler::compile(const std::filesystem::path &path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         UME_LOG_ERROR(Renderer, "cannot read shader '{}'", path.string());
@@ -41,6 +91,7 @@ ShaderCompiler::compileCompute(const std::filesystem::path &path,
     const std::string source((std::istreambuf_iterator<char>(file)), {});
 
     Slang::ComPtr<slang::ISession> session = createSession();
+
     if (session == nullptr) return std::nullopt;
 
     Slang::ComPtr<slang::IBlob> diag;
@@ -49,109 +100,139 @@ ShaderCompiler::compileCompute(const std::filesystem::path &path,
         module_name.c_str(), path.string().c_str(), source.c_str(),
         diag.writeRef());
     logDiagnostics(diag);
+
     if (module == nullptr) return std::nullopt;
 
-    Slang::ComPtr<slang::IEntryPoint> entry;
-    module->findEntryPointByName(entrypoint_name, entry.writeRef());
-    if (entry == nullptr) {
-        UME_LOG_ERROR(Renderer, "'{}' must define {}", path.string(),
-                      entrypoint_name);
-        return std::nullopt;
+    SlangInt32 defined_entry_count = module->getDefinedEntryPointCount();
+    std::vector<Slang::ComPtr<slang::IEntryPoint>> defined_entry_points(
+        defined_entry_count);
+    std::vector<slang::IComponentType *> parts;
+    parts.reserve(defined_entry_count + 1);
+    parts.push_back(module);
+
+    for (SlangInt32 i = 0; i < defined_entry_count; i++) {
+        if (SLANG_FAILED(module->getDefinedEntryPoint(
+                i, defined_entry_points[i].writeRef()))) {
+            return std::nullopt;
+        }
+        parts.push_back(defined_entry_points[i]);
     }
 
-    // TODO: don't repeat yourself
-    std::array<slang::IComponentType *, 2> parts = {module, entry};
     Slang::ComPtr<slang::IComponentType> composed;
     Slang::ComPtr<slang::IComponentType> linked;
     if (SLANG_FAILED(session->createCompositeComponentType(
-            parts.data(), 2, composed.writeRef(), diag.writeRef()))) {
+            parts.data(), static_cast<SlangInt>(parts.size()),
+            composed.writeRef(), diag.writeRef()))) {
         logDiagnostics(diag);
         return std::nullopt;
     }
+
     if (SLANG_FAILED(composed->link(linked.writeRef(), diag.writeRef()))) {
         logDiagnostics(diag);
         return std::nullopt;
     }
 
-    Slang::ComPtr<slang::IBlob> code;
-    if (SLANG_FAILED(
-            linked->getTargetCode(0, code.writeRef(), diag.writeRef()))) {
-        logDiagnostics(diag);
-        return std::nullopt;
-    }
+    slang::ProgramLayout *layout = linked->getLayout(0);
 
     CompiledShader out;
-    const auto *bytes =
-        static_cast<const std::byte *>(code->getBufferPointer());
-    out.code.assign(bytes, bytes + code->getBufferSize());
 
-    slang::ProgramLayout *layout = linked->getLayout(0);
-    slang::EntryPointReflection *ep = layout->getEntryPointByIndex(0);
-    std::array<SlangUInt, 3> sizes = {1, 1, 1};
-    ep->getComputeThreadGroupSize(3, sizes.data());
-    out.workgroup_size = {
-        static_cast<uint32_t>(sizes[0]),
-        static_cast<uint32_t>(sizes[1]),
-        static_cast<uint32_t>(sizes[2]),
-    };
+    const unsigned param_count = layout->getParameterCount();
+    out.bindings.reserve(param_count);
 
-    for (unsigned i = 0; i < layout->getParameterCount(); i++) {
+    for (unsigned i = 0; i < param_count; i++) {
         slang::VariableLayoutReflection *param = layout->getParameterByIndex(i);
-        if (param->getName() != nullptr &&
-            std::string_view(param->getName()) == "params") {
-            out.params_size = static_cast<uint32_t>(
+        const char *name = nameOr(param->getName(), "<unnamed>");
+
+        if (kLogReflection) {
+            UME_LOG_INFO(
+                Renderer, "  '{}' parameter '{}' category {} binding {}",
+                path.string(), name, static_cast<int>(param->getCategory()),
+                param->getBindingIndex());
+        }
+
+        std::optional<BindingType> type = toBindingType(param->getTypeLayout());
+        if (!type) {
+            UME_LOG_WARN(Renderer,
+                         "'{}': ignoring parameter '{}', unsupported type",
+                         path.string(), name);
+            continue;
+        }
+
+        // uniform blocks are declared at module scope and shared by every
+        // entry point, so their size belongs here rather than on an entry point
+        uint32_t size = 0;
+        const slang::TypeReflection::Kind kind =
+            param->getTypeLayout()->getKind();
+        if (kind == slang::TypeReflection::Kind::ConstantBuffer ||
+            kind == slang::TypeReflection::Kind::ParameterBlock) {
+            size = static_cast<uint32_t>(
                 param->getTypeLayout()->getElementTypeLayout()->getSize());
         }
+
+        out.bindings.push_back({
+            .name = name,
+            .type = *type,
+            .slot = param->getBindingIndex(),
+            .size = size,
+        });
     }
 
-    std::cout << reinterpret_cast<const char *>(out.code.data()) << "\n";
+    const SlangUInt entry_point_count = layout->getEntryPointCount();
+    out.entry_points.reserve(entry_point_count);
 
-    return out;
-}
+    for (SlangUInt i = 0; i < entry_point_count; i++) {
+        slang::EntryPointReflection *ep = layout->getEntryPointByIndex(i);
+        const char *name = nameOr(ep->getName(), "<unnamed>");
 
-std::optional<CompiledShader>
-ShaderCompiler::compilePostEffect(const std::filesystem::path &path) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        UME_LOG_ERROR(Renderer, "cannot read shader '{}'", path.string());
-        return std::nullopt;
+        std::optional<ShaderStage> stage = toShaderStage(ep->getStage());
+        if (!stage) {
+            UME_LOG_WARN(Renderer,
+                         "'{}': ignoring entry point '{}', unsupported stage",
+                         path.string(), name);
+            continue;
+        }
+
+        EntryPoint entry_point;
+        entry_point.name = name;
+        entry_point.stage = *stage;
+
+        if (*stage == ShaderStage::Compute) {
+            std::array<SlangUInt, 3> workgroup_size = {1, 1, 1};
+            ep->getComputeThreadGroupSize(workgroup_size.size(),
+                                          workgroup_size.data());
+            entry_point.workgroup_size = {
+                static_cast<uint32_t>(workgroup_size[0]),
+                static_cast<uint32_t>(workgroup_size[1]),
+                static_cast<uint32_t>(workgroup_size[2]),
+            };
+        }
+
+        if (kLogReflection) {
+            const unsigned entry_param_count = ep->getParameterCount();
+            for (unsigned j = 0; j < entry_param_count; j++) {
+                slang::VariableLayoutReflection *param =
+                    ep->getParameterByIndex(j);
+                UME_LOG_INFO(Renderer,
+                             "  '{}' entry point '{}' parameter '{}' "
+                             "category {} binding {}",
+                             path.string(), name,
+                             nameOr(param->getName(), "<unnamed>"),
+                             static_cast<int>(param->getCategory()),
+                             param->getBindingIndex());
+            }
+        }
+
+        out.entry_points.push_back(std::move(entry_point));
     }
-    const std::string source((std::istreambuf_iterator<char>(file)), {});
 
-    Slang::ComPtr<slang::ISession> session = createSession();
-    if (session == nullptr) return std::nullopt;
-
-    Slang::ComPtr<slang::IBlob> diag;
-    const std::string module_name = path.stem().string();
-    slang::IModule *module = session->loadModuleFromSourceString(
-        module_name.c_str(), path.string().c_str(), source.c_str(),
-        diag.writeRef());
-    logDiagnostics(diag);
-    if (module == nullptr) return std::nullopt;
-
-    Slang::ComPtr<slang::IEntryPoint> vert;
-    Slang::ComPtr<slang::IEntryPoint> frag;
-    module->findEntryPointByName("vertMain", vert.writeRef());
-    module->findEntryPointByName("fragMain", frag.writeRef());
-    if (vert == nullptr || frag == nullptr) {
-        UME_LOG_ERROR(Renderer, "'{}' must define vertMain and fragMain",
+    if (out.entry_points.empty()) {
+        UME_LOG_ERROR(Renderer,
+                      "'{}' defines no usable entry points; every entry point "
+                      "needs a [shader(\"...\")] attribute",
                       path.string());
         return std::nullopt;
     }
 
-    std::array<slang::IComponentType *, 3> parts = {module, vert, frag};
-    Slang::ComPtr<slang::IComponentType> composed;
-    Slang::ComPtr<slang::IComponentType> linked;
-    if (SLANG_FAILED(session->createCompositeComponentType(
-            parts.data(), 3, composed.writeRef(), diag.writeRef()))) {
-        logDiagnostics(diag);
-        return std::nullopt;
-    }
-    if (SLANG_FAILED(composed->link(linked.writeRef(), diag.writeRef()))) {
-        logDiagnostics(diag);
-        return std::nullopt;
-    }
-
     Slang::ComPtr<slang::IBlob> code;
     if (SLANG_FAILED(
             linked->getTargetCode(0, code.writeRef(), diag.writeRef()))) {
@@ -159,20 +240,9 @@ ShaderCompiler::compilePostEffect(const std::filesystem::path &path) {
         return std::nullopt;
     }
 
-    CompiledShader out;
     const auto *bytes =
         static_cast<const std::byte *>(code->getBufferPointer());
     out.code.assign(bytes, bytes + code->getBufferSize());
-
-    slang::ProgramLayout *layout = linked->getLayout(0);
-    for (unsigned i = 0; i < layout->getParameterCount(); i++) {
-        slang::VariableLayoutReflection *param = layout->getParameterByIndex(i);
-        if (param->getName() != nullptr &&
-            std::string_view(param->getName()) == "params") {
-            out.params_size = static_cast<uint32_t>(
-                param->getTypeLayout()->getElementTypeLayout()->getSize());
-        }
-    }
 
     return out;
 }

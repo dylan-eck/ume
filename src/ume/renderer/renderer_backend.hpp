@@ -5,6 +5,7 @@
 #include <memory>
 #include <span>
 #include <array>
+#include <string>
 
 namespace ume {
 
@@ -26,16 +27,38 @@ enum class IndexType : uint8_t { UInt16, UInt32 };
 
 enum class ShaderTarget : uint8_t { Msl, SpirV };
 
+enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
+
+enum class BindingType : uint8_t { Buffer, Texture, Sampler };
+
+struct ShaderBinding {
+    std::string name;
+    BindingType type = BindingType::Buffer;
+    uint32_t slot = 0;
+    // byte size of the block, for constant buffers; zero for everything else
+    uint32_t size = 0;
+};
+
+struct EntryPoint {
+    std::string name;
+    ShaderStage stage = ShaderStage::Compute;
+    std::array<uint32_t, 3> workgroup_size{1, 1, 1};
+};
+
+struct ShaderDescription {
+    std::span<const std::byte> code;
+    std::span<const EntryPoint> entry_points;
+};
+
 // TODO: maybe don't have default entry names
 struct GraphicsPipelineDescription {
-    std::span<const std::byte> shader;
+    ShaderHandle shader;
     const char *vertex_entry = "vertMain";
     const char *fragment_entry = "fragMain";
 };
 
 struct ComputePipelineDescription {
-    std::span<const std::byte> shader;
-    std::array<uint32_t, 3> workgroup_size = {1, 1, 1};
+    ShaderHandle shader;
     const char *entry = "main";
 };
 
@@ -120,6 +143,9 @@ public:
 
     virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;
+
+    virtual ShaderHandle createShader(const ShaderDescription &desc) = 0;
+    virtual void destroyShader(ShaderHandle handle) = 0;
 
     virtual GraphicsPipelineHandle
     createGraphicsPipeline(const GraphicsPipelineDescription &desc) = 0;

@@ -4,9 +4,17 @@
 #include "ume/renderer/shader_compiler.hpp"
 
 #include <array>
-#include <iostream>
+#include <algorithm>
 
 namespace ume {
+
+namespace {
+uint32_t postEffectParamsSize(const CompiledShader &shader) {
+    auto itr =
+        std::ranges::find(shader.bindings, "params", &ShaderBinding::name);
+    return itr == shader.bindings.end() ? 0 : itr->size;
+}
+} // namespace
 
 // TODO: better naming?
 struct DrawUniforms {
@@ -39,36 +47,40 @@ Renderer::Renderer(const Window &window)
 
     const auto path = std::filesystem::path(UME_SOURCE_DIR) /
                       "src/ume/renderer/shaders/compute_test.slang";
-    std::optional<CompiledShader> shader =
-        compiler_->compileCompute(path, "doubleArray");
+    std::optional<CompiledShader> comp = compiler_->compile(path);
 
-    if (shader == std::nullopt) {
+    if (comp == std::nullopt) {
         UME_LOG_WARN(Renderer, "failed to compile compute test shader");
+        compute_test_shader_ = nullptr;
     } else {
         compute_test_shader_ =
-            std::make_unique<CompiledShader>(std::move(shader.value()));
+            std::make_unique<CompiledShader>(std::move(comp.value()));
+
+        ShaderHandle shader = backend_->createShader({
+            .code = compute_test_shader_->code,
+            .entry_points = compute_test_shader_->entry_points,
+        });
+
+        compute_test_pipeline_ = backend_->createComputePipeline({
+            .shader = shader,
+            .entry = "doubleArray",
+        });
+
+        std::array<float, 1000> zeroes{};
+
+        std::array<float, 1000> ramp{};
+        for (size_t i = 0; i < ramp.size(); i++) {
+            ramp[i] = static_cast<float>(i);
+        }
+
+        input_ = backend_->createBuffer({.size = 1000 * sizeof(float),
+                                         .initial_data = ramp.data(),
+                                         .usage = BufferUsage::CpuToGpu});
+
+        output_ = backend_->createBuffer({.size = 1000 * sizeof(float),
+                                          .initial_data = zeroes.data(),
+                                          .usage = BufferUsage::CpuToGpu});
     }
-
-    compute_test_pipeline_ = backend_->createComputePipeline({
-        .shader = compute_test_shader_->code,
-        .workgroup_size = {64, 1, 1},
-        .entry = "doubleArray",
-    });
-
-    std::array<float, 1000> zeroes{};
-
-    std::array<float, 1000> ramp{};
-    for (size_t i = 0; i < ramp.size(); i++) {
-        ramp[i] = static_cast<float>(i);
-    }
-
-    input_ = backend_->createBuffer({.size = 1000 * sizeof(float),
-                                     .initial_data = ramp.data(),
-                                     .usage = BufferUsage::CpuToGpu});
-
-    output_ = backend_->createBuffer({.size = 1000 * sizeof(float),
-                                      .initial_data = zeroes.data(),
-                                      .usage = BufferUsage::CpuToGpu});
 }
 
 Renderer::~Renderer() = default;
@@ -162,35 +174,70 @@ void Renderer::submit(MeshHandle handle, const glm::dvec3 &world_position,
 }
 
 PostEffectHandle
-Renderer::createPostEffect(const std::filesystem::path &shader) {
-    std::optional<CompiledShader> compiled =
-        compiler_->compilePostEffect(shader);
+Renderer::createPostEffect(const std::filesystem::path &shader_path) {
+    std::optional<CompiledShader> compiled = compiler_->compile(shader_path);
     if (!compiled) return {};
 
+    ShaderHandle shader = backend_->createShader({
+        .code = compiled->code,
+        .entry_points = compiled->entry_points,
+    });
+
+    auto itr = std::ranges::find(compiled->entry_points, ShaderStage::Fragment,
+                                 &EntryPoint::stage);
+
+    if (itr == compiled->entry_points.end()) {
+        UME_LOG_ERROR(
+            Renderer,
+            "could not find fragment entry point in post effect shader {}",
+            shader_path.string());
+        return {};
+    }
+
+    const uint32_t params_size = postEffectParamsSize(*compiled);
+
     GraphicsPipelineHandle pipeline =
-        backend_->createGraphicsPipeline({.shader = compiled->code});
+        backend_->createGraphicsPipeline({.shader = shader});
     if (!pipeline) return {};
 
-    return post_effects_.insert({.pipeline = pipeline,
-                                 .params_size = compiled->params_size,
-                                 .source = shader});
+    return post_effects_.insert({
+        .shader = shader,
+        .pipeline = pipeline,
+        .params_size = params_size,
+        .source = shader_path,
+    });
 }
 
 bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     PostEffect *effect = post_effects_.get(handle);
     if (effect == nullptr) return false;
-    std::optional<CompiledShader> compiled =
-        compiler_->compilePostEffect(effect->source);
+    std::optional<CompiledShader> compiled = compiler_->compile(effect->source);
     if (!compiled) {
         return false; // keep the last good pipeline; the error is already
                       // logged
     }
+
+    // build the replacements before tearing anything down, so a bad recompile
+    // leaves the last good shader and pipeline in place
+    ShaderHandle shader = backend_->createShader({
+        .code = compiled->code,
+        .entry_points = compiled->entry_points,
+    });
+    if (!shader) return false;
+
     GraphicsPipelineHandle pipeline =
-        backend_->createGraphicsPipeline({.shader = compiled->code});
-    if (!pipeline) return false;
+        backend_->createGraphicsPipeline({.shader = shader});
+    if (!pipeline) {
+        backend_->destroyShader(shader);
+        return false;
+    }
+
     backend_->destroyGraphicsPipeline(effect->pipeline);
+    backend_->destroyShader(effect->shader);
+
+    effect->shader = shader;
     effect->pipeline = pipeline;
-    effect->params_size = compiled->params_size;
+    effect->params_size = postEffectParamsSize(*compiled);
     UME_LOG_INFO(Renderer, "reloaded '{}'", effect->source.string());
     return true;
 }
