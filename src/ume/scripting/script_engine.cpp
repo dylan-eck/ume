@@ -256,6 +256,18 @@ void scriptRotateCameraLocal(WrenVM *vm) {
     getScriptContext(vm).renderer->setCamera(state);
 }
 
+void scriptCameraPosition(WrenVM *vm) {
+    const CameraState state = getScriptContext(vm).renderer->getCamera();
+
+    wrenEnsureSlots(vm, 2);
+    wrenSetSlotNewList(vm, 0);
+
+    for (int i = 0; i < 3; ++i) {
+        wrenSetSlotDouble(vm, 1, state.position[i]);
+        wrenInsertInList(vm, 0, -1, 1);
+    }
+}
+
 void scriptCreateObject(WrenVM *vm) {
     if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
         abortWithError(vm, "createObject: type name must be a string");
@@ -449,6 +461,11 @@ constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
         .class_name = "Renderer",
         .signature = "translateCameraLocal(_,_,_)",
         .fn_pointer = &scriptTranslateCameraLocal,
+    },
+    {
+        .class_name = "Renderer",
+        .signature = "cameraPosition_()",
+        .fn_pointer = &scriptCameraPosition,
     },
 });
 

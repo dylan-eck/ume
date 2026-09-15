@@ -1,41 +1,50 @@
-import "ume" for Engine, Window, Input, Renderer
+import "ume" for Engine, Window, Input, Renderer, Vec3
 
 class Application {
     static init() {
-        __camera_x = 0
-        __camera_y = 0
-        __camera_z = 30000000
-
         __fov_y = 45
 
         __camera_move_speed = 2800000.0
+        __camera_move_speed_min = 1.0
+        __camera_move_speed_max = 1e8
+        __camera_move_speed_factor = 2.0
         __camera_rotate_speed = 1.0
 
-        Renderer.setCamera(__camera_x, __camera_y, __camera_z, 0, 0, -1, __fov_y)
+        Renderer.setCamera(0, 0, 3e7, 0, 0, -1, __fov_y)
 
-        // __terrain = Engine.createObject("terrain.Terrain")
-        __planet = Engine.createObject("proc_planet.Planet", {"radius": 7000000})
+        __planet_radius = 7e6
+        __planet = Engine.createObject("proc_planet.Planet", {"radius": __planet_radius})
 
-        __title_update_period = 1.0
-        __title_timer = 0.0
-        __title_frame_count = 0
+        __fps_update_period = 1.0
+        __fps_timer = 0.0
+        __fps_frame_count = 0
+        __fps = 0
     }
 
     static updateTitle(delta) {
-        __title_timer = __title_timer + delta
-        __title_frame_count = __title_frame_count + 1
-        if (__title_timer >= __title_update_period) {
-            var fps = __title_frame_count / __title_timer
-            Window.setTitle("Test Application - FPS: %(fps.round)")
-            __title_timer = 0.0
-            __title_frame_count = 0
+        __fps_timer = __fps_timer + delta
+        __fps_frame_count = __fps_frame_count + 1
+        if (__fps_timer >= __fps_update_period) {
+            __fps = (__fps_frame_count / __fps_timer).round
+            __fps_timer = 0.0
+            __fps_frame_count = 0
         }
+
+        var pos = Renderer.cameraPosition
+        var altitude = ((pos.x * pos.x + pos.y * pos.y + pos.z * pos.z).sqrt - __planet_radius).round
+
+        Window.setTitle("Test Application - FPS: %(__fps) - altitude: %(altitude) m - speed: %(__camera_move_speed.round.round) m/s")
     }
 
     static update(delta) {
-
-
         updateTitle(delta)
+
+        if (Input.keyPressed("[")) {
+            __camera_move_speed = (__camera_move_speed / __camera_move_speed_factor).max(__camera_move_speed_min)
+        }
+        if (Input.keyPressed("]")) {
+            __camera_move_speed = (__camera_move_speed * __camera_move_speed_factor).min(__camera_move_speed_max)
+        }
 
         var dPosition = __camera_move_speed * delta
         if (Input.keyDown("a")) {

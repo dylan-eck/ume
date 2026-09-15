@@ -1,3 +1,17 @@
+class Vec3 {
+    construct new(x, y, z) {
+        _x = x
+        _y = y
+        _z = z
+    }
+
+    x { _x }
+    y { _y }
+    z { _z }
+
+    toString { "(%(_x), %(_y), %(_z))" }
+}
+
 class Engine {
     foreign static createObject_(type_name, keys, values)
     foreign static destroyObject(handle)
@@ -55,5 +69,12 @@ class Renderer {
     foreign static setCamera(px, py, pz, dx, dy, dz, fovYDegrees)
     foreign static rotateCameraLocal(yaw, pitch, roll)
     foreign static translateCameraLocal(x, y, z)
+
+    foreign static cameraPosition_()
+
+    static cameraPosition {
+        var p = cameraPosition_()
+        return Vec3.new(p[0], p[1], p[2])
+    }
 }
 
