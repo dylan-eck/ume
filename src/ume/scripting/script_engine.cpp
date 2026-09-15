@@ -372,6 +372,17 @@ void scriptKeyQuery(WrenVM *vm) {
     wrenSetSlotBool(vm, 0, (getScriptContext(vm).input->*Method)(code));
 }
 
+void scriptSetWindowTitle(WrenVM *vm) {
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+        abortWithError(vm, "setTitle: title must be a string");
+        return;
+    }
+
+    const char *title = wrenGetSlotString(vm, 1);
+
+    getScriptContext(vm).window->setTitle(title);
+}
+
 struct ForeignMethodBinding {
     std::string_view class_name;
     std::string_view signature;
@@ -393,6 +404,11 @@ constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
         .class_name = "Input",
         .signature = "keyCode(_)",
         .fn_pointer = &scriptKeyCode,
+    },
+    {
+        .class_name = "Window",
+        .signature = "setTitle(_)",
+        .fn_pointer = &scriptSetWindowTitle,
     },
     {
         .class_name = "Input",
@@ -525,11 +541,15 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
 } // namespace
 
 ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                           const Input &input, std::string main_script_path)
+                           const Input &input, Window &window,
+                           std::string main_script_path)
     : main_script_path_(std::move(main_script_path)),
-      context_(ScriptContext{.renderer = &renderer,
-                             .plugin_host = &plugin_host,
-                             .input = &input}) {
+      context_(ScriptContext{
+          .window = &window,
+          .renderer = &renderer,
+          .plugin_host = &plugin_host,
+          .input = &input,
+      }) {
 
     LoadedVM loaded = loadVM(context_, main_script_path_);
 

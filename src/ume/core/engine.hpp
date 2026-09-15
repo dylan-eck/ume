@@ -48,10 +48,6 @@ private:
     uint64_t frame_index_ = 0;
     std::chrono::steady_clock::time_point last_frame_time_;
 
-    static constexpr double kTitleUpdatePeriod = 1.0;
-    double title_timer_ = 0.0;
-    uint64_t title_frame_count_ = 0;
-
     static constexpr auto kMinimizedSleepDuration =
         std::chrono::milliseconds(4);
 

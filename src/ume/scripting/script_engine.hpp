@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ume/plugin/plugin_host.hpp"
+#include "ume/platform/window.hpp"
 #include "ume/platform/input.hpp"
 
 #include <string>
@@ -22,6 +23,7 @@ using WrenVMPtr = std::unique_ptr<WrenVM, WrenVMDeleter>;
 
 // TODO: could this hidden in the class?
 struct ScriptContext {
+    Window *window;
     Renderer *renderer;
     PluginHost *plugin_host;
     const Input *input;
@@ -33,7 +35,8 @@ struct ScriptContext {
 class ScriptEngine {
 public:
     ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                 const Input &input, std::string main_script_path);
+                 const Input &input, Window &window,
+                 std::string main_script_path);
     ~ScriptEngine();
 
     ScriptEngine(const ScriptEngine &) = delete;

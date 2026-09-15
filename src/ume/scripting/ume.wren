@@ -19,6 +19,10 @@ class Engine {
     }
 }
 
+class Window {
+    foreign static setTitle(title)
+}
+
 class Input {
     foreign static keyCode(name)
 
