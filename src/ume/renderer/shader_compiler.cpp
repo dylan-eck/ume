@@ -19,7 +19,7 @@ void logDiagnostics(slang::IBlob *diag) {
                          diag->getBufferSize()));
 }
 
-constexpr bool kLogReflection = true;
+constexpr bool kLogReflection = false;
 
 const char *nameOr(const char *name, const char *fallback) {
     return name != nullptr ? name : fallback;

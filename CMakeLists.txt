@@ -127,51 +127,6 @@ else()
                                            vk-bootstrap::vk-bootstrap)
 endif()
 
-function(add_slang_shader TARGET SHADER)
-  set(SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
-
-  if(UME_RENDER_BACKEND STREQUAL "metal")
-    set(SHADER_REL_OUTPUT "generated/${SHADER}.metallib")
-    set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
-
-    get_filename_component(SHADER_NAME "${SHADER}" NAME)
-    set(SHADER_MSL "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.metal")
-    set(SHADER_AIR "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.air")
-
-    add_custom_command(
-      OUTPUT ${SHADER_OUTPUT}
-      COMMAND ${CMAKE_COMMAND} -E make_directory
-              "${CMAKE_CURRENT_SOURCE_DIR}/generated"
-      COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target metal -entry
-              vertMain -entry fragMain -o ${SHADER_MSL}
-      COMMAND xcrun -sdk macosx metal -gline-tables-only -frecord-sources -c
-              ${SHADER_MSL} -o ${SHADER_AIR}
-      COMMAND xcrun -sdk macosx metallib ${SHADER_AIR} -o ${SHADER_OUTPUT}
-      DEPENDS ${SHADER_SOURCE}
-      COMMENT "Compiling Metal shader: ${SHADER}"
-      VERBATIM)
-  else()
-    set(SHADER_REL_OUTPUT "generated/${SHADER}.spv")
-    set(SHADER_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_REL_OUTPUT}")
-
-    add_custom_command(
-      OUTPUT ${SHADER_OUTPUT}
-      COMMAND ${CMAKE_COMMAND} -E make_directory
-              "${CMAKE_CURRENT_SOURCE_DIR}/generated"
-      COMMAND
-        ${SLANGC_EXECUTABLE} ${SHADER_SOURCE} -target spirv -profile spirv_1_4
-        -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry
-        fragMain -o ${SHADER_OUTPUT}
-      DEPENDS ${SHADER_SOURCE}
-      COMMENT "Compiling SPIR-V shader: ${SHADER}"
-      VERBATIM)
-  endif()
-
-  b_embed(${TARGET} ${SHADER_REL_OUTPUT})
-endfunction()
-
-add_slang_shader(ume_engine "src/ume/renderer/shaders/default.slang")
-
 set(UME_PLUGIN_LINK_TYPE
     "STATIC"
     CACHE STRING "STATIC or MODULE")

@@ -102,10 +102,15 @@ private:
 
     CameraState camera_state_;
 
+    ShaderHandle compute_test_shader_;
     ComputePipelineHandle compute_test_pipeline_;
-    std::unique_ptr<CompiledShader> compute_test_shader_;
     BufferHandle input_;
     BufferHandle output_;
+
+    ShaderHandle default_shader_;
+    uint32_t draw_uniforms_slot_ = 0;
+    uint32_t vertices_slot_ = 1;
+    GraphicsPipelineHandle default_pipeline_;
 
     static glm::vec4 debugColorFromId(uint32_t id) {
         uint32_t h = id * 0x9e3779b9u;

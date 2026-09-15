@@ -108,7 +108,6 @@ private:
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
-    NS::SharedPtr<MTL::RenderPipelineState> pipeline_state_ = nullptr;
     TextureHandle depth_texture_;
     NS::SharedPtr<MTL::DepthStencilState> depth_state_;
 
@@ -123,13 +122,12 @@ private:
     ResourcePool<MetalBuffer, BufferHandle> buffers_;
 
     NS::SharedPtr<MTL::Library>
-    libraryFromMetallib(std::span<const std::byte> bytes);
-    NS::SharedPtr<MTL::Library>
     libraryFromSource(std::span<const std::byte> bytes);
 
     NS::SharedPtr<MTL::RenderPipelineState>
     buildGraphicsPipeline(MTL::Library *library, const char *vert,
-                          const char *frag, bool with_depth);
+                          const char *frag, Format color_format,
+                          Format depth_format);
 
     NS::SharedPtr<MTL::ComputePipelineState>
     buildComputePipeline(MTL::Library *library, const char *entry);
@@ -139,5 +137,8 @@ private:
     MTL::Buffer *getBuffer(BufferHandle handle);
     MTL::Texture *getTexture(TextureHandle handle);
     MTL::SamplerState *getSampler(SamplerHandle handle);
+
+    bool bindResources(MTL::RenderCommandEncoder *encoder,
+                       const ResourceBindings &bindings, ShaderStage stage);
 };
 } // namespace ume

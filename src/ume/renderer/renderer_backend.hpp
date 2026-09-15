@@ -31,6 +31,8 @@ enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
 
 enum class BindingType : uint8_t { Buffer, Texture, Sampler };
 
+enum class Format : uint8_t { Undefined, BGRA8Unorm, Depth32Float };
+
 struct ShaderBinding {
     std::string name;
     BindingType type = BindingType::Buffer;
@@ -55,6 +57,8 @@ struct GraphicsPipelineDescription {
     ShaderHandle shader;
     const char *vertex_entry = "vertMain";
     const char *fragment_entry = "fragMain";
+    Format color_format = Format::BGRA8Unorm;
+    Format depth_format = Format::Undefined;
 };
 
 struct ComputePipelineDescription {
@@ -87,11 +91,12 @@ struct ResourceBindings {
 };
 
 struct DrawCommand {
-    BufferHandle vertex_buffer;
+    GraphicsPipelineHandle pipeline;
     BufferHandle index_buffer;
     uint32_t index_count = 0;
-    IndexType index_type;
-    std::span<const std::byte> push_constants;
+    IndexType index_type = IndexType::UInt32;
+    ResourceBindings vertex_bindings;
+    ResourceBindings fragment_bindings;
 };
 
 struct DispatchCommand {

@@ -2,6 +2,7 @@
 #include "ume/core/logger.hpp"
 #include "ume/platform/window.hpp"
 #include "ume/renderer/shader_compiler.hpp"
+#include "ume/core/error.hpp"
 
 #include <array>
 #include <algorithm>
@@ -45,24 +46,45 @@ Renderer::Renderer(const Window &window)
           backend_->shaderTarget(),
           std::filesystem::path(UME_SOURCE_DIR) / "include")) {
 
+    std::optional<CompiledShader> default_comp =
+        compiler_->compile(std::filesystem::path(UME_SOURCE_DIR) /
+                           "src/ume/renderer/shaders/default.slang");
+
+    if (default_comp != std::nullopt) {
+        default_shader_ = backend_->createShader({
+            .code = default_comp->code,
+            .entry_points = default_comp->entry_points,
+        });
+    }
+
+    default_pipeline_ = backend_->createGraphicsPipeline({
+        .shader = default_shader_,
+        .vertex_entry = "vertMain",
+        .fragment_entry = "fragMain",
+        .color_format = Format::BGRA8Unorm,
+        .depth_format = Format::Depth32Float,
+    });
+
+    if (!default_pipeline_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to build default pipeline");
+    }
+
     const auto path = std::filesystem::path(UME_SOURCE_DIR) /
                       "src/ume/renderer/shaders/compute_test.slang";
     std::optional<CompiledShader> comp = compiler_->compile(path);
 
     if (comp == std::nullopt) {
         UME_LOG_WARN(Renderer, "failed to compile compute test shader");
-        compute_test_shader_ = nullptr;
+        compute_test_shader_ = {};
     } else {
-        compute_test_shader_ =
-            std::make_unique<CompiledShader>(std::move(comp.value()));
-
-        ShaderHandle shader = backend_->createShader({
-            .code = compute_test_shader_->code,
-            .entry_points = compute_test_shader_->entry_points,
+        compute_test_shader_ = backend_->createShader({
+            .code = comp->code,
+            .entry_points = comp->entry_points,
         });
 
         compute_test_pipeline_ = backend_->createComputePipeline({
-            .shader = shader,
+            .shader = compute_test_shader_,
             .entry = "doubleArray",
         });
 
@@ -281,24 +303,6 @@ void Renderer::render() {
     backend_->readBuffer(output_, 0,
                          std::as_writable_bytes(std::span{readback}));
 
-    // std::cout << "### COMPUTE BUFFER READBACK ###\n" << readback[0];
-    // for (size_t i = 1; i < 10; i++) {
-    //     std::cout << ", " << readback[i];
-    // }
-    // std::cout << "...\n";
-
-    // size_t mismatches = 0;
-    // size_t first_bad = readback.size();
-    // for (size_t i = 0; i < readback.size(); i++) {
-    //     if (readback[i] != static_cast<float>(i) * 2.0f) {
-    //         if (mismatches == 0) first_bad = i;
-    //         mismatches++;
-    //     }
-    // }
-
-    // std::cout << "mismatches: " << mismatches << "\n";
-    // std::cout << "first bad: " << first_bad << "\n\n";
-
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 
@@ -334,12 +338,25 @@ void Renderer::render() {
                               .normal = glm::transpose(glm::inverse(model)),
                               .base_color = next.base_color};
 
+        const std::array<BufferBinding, 1> vertex_buffers = {
+            BufferBinding{
+                .slot = vertices_slot_,
+                .buffer = mesh.vertex_buffer,
+                .offset = 0,
+            },
+        };
+
         backend_->draw({
-            .vertex_buffer = mesh.vertex_buffer,
+            .pipeline = default_pipeline_,
             .index_buffer = mesh.index_buffer,
             .index_count = mesh.index_count,
             .index_type = mesh.index_type,
-            .push_constants = std::as_bytes(std::span(&uniforms, 1)),
+            .vertex_bindings{
+                .buffers = vertex_buffers,
+                .params = std::as_bytes(std::span(&uniforms, 1)),
+                .params_slot = draw_uniforms_slot_,
+            },
+
         });
     }
     submissions_.clear();
