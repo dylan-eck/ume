@@ -83,6 +83,13 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
         return UME_FALSE;
     }
 
+    self->ocean = api.findPostEffect(api.context, "ocean");
+    if (self->ocean == UME_POST_EFFECT_HANDLE_INVALID) {
+        api.log(api.context, UME_LOG_LEVEL_WARN,
+                "proc_planet: ocean effect unavailable, planets will render "
+                "without it");
+    }
+
     self->atmosphere = api.findPostEffect(api.context, "atmosphere");
     if (self->atmosphere == UME_POST_EFFECT_HANDLE_INVALID) {
         api.log(

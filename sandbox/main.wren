@@ -4,16 +4,16 @@ class Application {
     static init() {
         __fov_y = 45
 
-        __camera_move_speed = 2800000.0
+        __camera_move_speed = 125.0
         __camera_move_speed_min = 1.0
         __camera_move_speed_max = 1e8
         __camera_move_speed_factor = 2.0
         __camera_rotate_speed = 1.0
 
-        Renderer.setCamera(0, 0, 3e7, 0, 0, -1, __fov_y)
-
-        __planet_radius = 7e6
+        __planet_radius = 250
         __planet = Engine.createObject("proc_planet.Planet", {"radius": __planet_radius})
+
+         Renderer.setCamera(0, 0, 4 * __planet_radius, 0, 0, -1, __fov_y)
 
         __fps_update_period = 1.0
         __fps_timer = 0.0

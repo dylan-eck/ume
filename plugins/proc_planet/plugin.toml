@@ -1,5 +1,9 @@
 library = "proc_planet"
 
 [[post_effects]]
+name = "ocean"
+shader = "src/shaders/ocean.slang"
+
+[[post_effects]]
 name = "atmosphere"
 shader = "src/shaders/atmosphere.slang"

@@ -20,8 +20,12 @@ uint32_t postEffectParamsSize(const CompiledShader &shader) {
 // TODO: better naming?
 struct DrawUniforms {
     glm::mat4 model_view_projection;
+    glm::mat4 model; // mesh local -> camera-relative world
     glm::mat4 normal; // normal matrix
     glm::vec4 base_color = glm::vec4(1.0f);
+    // world origin in camera-relative space (i.e. -camera_position), so shaders
+    // can recover an absolute world position in float precision
+    glm::vec4 world_origin;
 };
 
 // TODO: reorder this?
@@ -333,10 +337,12 @@ void Renderer::render() {
             glm::translate(glm::mat4(1.0f), relative) * next.local_transform;
 
         Mesh mesh = next.mesh;
-        DrawUniforms uniforms{.model_view_projection =
-                                  projection * view_rotation * model,
-                              .normal = glm::transpose(glm::inverse(model)),
-                              .base_color = next.base_color};
+        DrawUniforms uniforms{
+            .model_view_projection = projection * view_rotation * model,
+            .model = model,
+            .normal = glm::transpose(glm::inverse(model)),
+            .base_color = next.base_color,
+            .world_origin = glm::vec4(glm::vec3(-camera_state_.position), 1.0f)};
 
         const std::array<BufferBinding, 1> vertex_buffers = {
             BufferBinding{

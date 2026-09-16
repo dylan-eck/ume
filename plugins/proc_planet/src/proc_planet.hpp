@@ -7,6 +7,7 @@
 
 struct ProcPlanetPlugin {
     UmePluginApi api;
+    UmePostEffectHandle ocean = UME_POST_EFFECT_HANDLE_INVALID;
     UmePostEffectHandle atmosphere = UME_POST_EFFECT_HANDLE_INVALID;
 };
 

@@ -35,7 +35,7 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     layer_->setDevice(device_.get());
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
     layer_->setFramebufferOnly(false);
-    layer_->setDisplaySyncEnabled(false);
+    layer_->setDisplaySyncEnabled(true);
 
     width_ = static_cast<uint32_t>(layer_->drawableSize().width);
     height_ = static_cast<uint32_t>(layer_->drawableSize().height);
@@ -108,6 +108,7 @@ void MetalRenderer::beginScenePass() {
 
     graphics_encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
     graphics_encoder_->setCullMode(MTL::CullModeBack);
+    // graphics_encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
     graphics_encoder_->setDepthStencilState(depth_state_.get());
 }
 

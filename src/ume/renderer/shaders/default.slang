@@ -1,7 +1,11 @@
+#include "ume/shaders/planet_lighting.slang"
+
 struct DrawUniforms {
     float4x4 model_view_projection;
+    float4x4 model; // mesh local -> camera-relative world
     float4x4 normal_matrix;
     float4 base_color;
+    float4 world_origin; // world origin in camera-relative space
 };
 
 [[vk::push_constant]]
@@ -21,11 +25,29 @@ struct VertexOutput {
     float4 color;
 };
 
+// Temporary: atmosphere parameters duplicated from the proc_planet plugin so
+// surface lighting can account for the atmosphere. These should eventually
+// come from the planet.
+static const float planet_radius = 250;
+static const float atmosphere_thickness = 100;
+static const PlanetAtmosphere atmosphere = {
+    float3(0, 0, 0), // planet center, world space
+    planet_radius,
+    atmosphere_thickness,
+    1.0 / atmosphere_thickness, // scattering strength, 1 / m
+};
+
+static const float4 beachColor = float4(1, 0.996, 0.753, 1);
+static const float4 mountainColor = float4(0.063, 0.478, 0.071, 1);
+
 [shader("vertex")]
 VertexOutput vertMain(uint vid: SV_VertexID) {
     VertexOutput output;
     output.sv_position =
         mul(draw.model_view_projection, vertices[vid].position);
+
+    float3 camera_relative = mul(draw.model, vertices[vid].position).xyz;
+    output.world_position = camera_relative - draw.world_origin.xyz;
 
     float4 normal = vertices[vid].normal;
     float3 normal_world =
@@ -33,21 +55,26 @@ VertexOutput vertMain(uint vid: SV_VertexID) {
 
     output.normal = normal_world;
     // output.color = draw.base_color;
+    output.color = float4(0.2, 0.8, 0.4, 1.0);
+    output.color = float4(0.17832, 0.41773, 0.10553, 1.0);
     // output.color = float4(1.0);
-    output.color = float4(0.01, 0.1, 0.1, 1.0);
+    // output.color = float4(0.01, 0.1, 0.1, 1.0);
     return output;
 }
 
 [shader("fragment")]
 float4 fragMain(VertexOutput input) : SV_Target {
     float3 n = normalize(input.normal);
-    float3 dir_to_light = normalize(float3(1, 0, 0));
+    float3 intensity =
+        planet_surface_lighting(atmosphere, input.world_position, n);
 
-    const float ambient = 0.03;
-    float intensity =
-        ambient + (1.0 - ambient) * max(dot(n, dir_to_light), 0.0);
+    float alt = ((length(input.world_position.xyz) - 250) + 20) / 40;
+    alt = clamp(alt, 0, 1);
 
-    return float4(input.color.rgb * intensity, input.color.a);
-    // return float4(input.color.rgb, 1);
+    float4 c = lerp(beachColor, mountainColor, alt);
+
+    // return float4(input.color.rgb * intensity, input.color.a);
+
+    return c;
 }
 
