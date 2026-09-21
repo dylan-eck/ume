@@ -5,5 +5,10 @@ name = "ocean"
 shader = "src/shaders/ocean.slang"
 
 [[post_effects]]
+name = "sun"
+shader = "src/shaders/sun.slang"
+
+
+[[post_effects]]
 name = "atmosphere"
 shader = "src/shaders/atmosphere.slang"

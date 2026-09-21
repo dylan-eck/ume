@@ -148,6 +148,8 @@ typedef struct UmeFrameContext {
     double camera_position[3];
     float camera_orientation[9];
     float fov_y, z_near, aspect, delta_time;
+    // Seconds since the engine started.
+    double elapsed_time;
 } UmeFrameContext;
 
 // Valid only for the duration of the create call.

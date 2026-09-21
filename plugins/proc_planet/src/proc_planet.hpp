@@ -8,6 +8,7 @@
 struct ProcPlanetPlugin {
     UmePluginApi api;
     UmePostEffectHandle ocean = UME_POST_EFFECT_HANDLE_INVALID;
+    UmePostEffectHandle sun = UME_POST_EFFECT_HANDLE_INVALID;
     UmePostEffectHandle atmosphere = UME_POST_EFFECT_HANDLE_INVALID;
 };
 
@@ -77,6 +78,8 @@ public:
 private:
     const ProcPlanetPlugin *plugin_;
     double radius_;
+
+    glm::vec3 sun_direction_;
 
     glm::dvec3 world_position_ = glm::dvec3(0.0);
     float rotation_angle_ = 0.0f;

@@ -27,7 +27,8 @@ Engine::Engine(const EngineConfig &config)
 
     script_engine_.init();
 
-    last_frame_time_ = std::chrono::steady_clock::now();
+    start_time_ = std::chrono::steady_clock::now();
+    last_frame_time_ = start_time_;
 
     UME_LOG_INFO(Core, "application initialized");
 }
@@ -69,6 +70,8 @@ void Engine::tick() {
         context.z_near = camera_state.z_near;
         context.aspect = renderer_.getAspect();
         context.delta_time = delta;
+        context.elapsed_time =
+            std::chrono::duration<double>(now - start_time_).count();
 
         plugin_host_.updateObjects(context);
         renderer_.render();

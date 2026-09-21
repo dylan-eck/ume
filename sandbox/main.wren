@@ -13,7 +13,7 @@ class Application {
         __planet_radius = 250
         __planet = Engine.createObject("proc_planet.Planet", {"radius": __planet_radius})
 
-         Renderer.setCamera(0, 0, 4 * __planet_radius, 0, 0, -1, __fov_y)
+         Renderer.setCamera(4 * __planet_radius, 0, 0, -1, 0, 0, __fov_y)
 
         __fps_update_period = 1.0
         __fps_timer = 0.0

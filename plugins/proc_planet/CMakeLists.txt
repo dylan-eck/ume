@@ -23,4 +23,4 @@ else()
                "${CMAKE_SOURCE_DIR}/sandbox/plugins/proc_planet" PREFIX "")
 endif()
 
-ume_plugin_assets(proc_planet plugin.toml src/shaders/ocean.slang src/shaders/atmosphere.slang)
+ume_plugin_assets(proc_planet plugin.toml src/shaders/ocean.slang src/shaders/sun.slang src/shaders/atmosphere.slang)

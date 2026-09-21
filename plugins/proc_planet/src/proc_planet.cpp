@@ -13,6 +13,7 @@ namespace proc_planet {
 Planet::Planet(const ProcPlanetPlugin *plugin, double radius,
                glm::dvec3 world_position)
     : plugin_(plugin), radius_(radius), world_position_(world_position) {
+    sun_direction_ = glm::vec3(1, 0, 0);
     generate();
 }
 
@@ -230,13 +231,19 @@ struct OceanParams {
 };
 static_assert(sizeof(OceanParams) == 32);
 
+struct SunParams {
+    float sun_dir[4];
+};
+static_assert(sizeof(SunParams) == 16);
+
 struct AtmosphereParams {
     // xyz: planet center relative to the camera, w: atmosphere radius
     float center_and_radius[4];
     // x: planet radius, y: atmosphere thickness, z: scattering strength (1/m)
     float planet_radius_thickness_strength[4];
+    float sun_dir[4];
 };
-static_assert(sizeof(AtmosphereParams) == 32);
+static_assert(sizeof(AtmosphereParams) == 48);
 
 // Atmosphere thickness as a fraction of the planet radius, so the atmosphere
 // keeps the same proportions whatever the planet size.
@@ -279,30 +286,45 @@ void Planet::update(const UmeFrameContext *frame_context) {
     const double scattering_strength =
         0.025; // kAtmosphereOpticalDepth / atmosphere_thickness;
 
-    // if (plugin_->ocean != UME_POST_EFFECT_HANDLE_INVALID) {
-    //     const OceanParams params{
-    //         .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
-    //                               float(radius_)},
-    //         .planet_radius_thickness_strength = {
-    //             float(radius_), float(atmosphere_thickness),
-    //             float(scattering_strength), 0.0f}};
+    sun_direction_ =
+        glm::vec3(glm::rotate(glm::mat4(1.0f), 0.0f * frame_context->delta_time,
+                              glm::vec3(0.0f, 1.0f, 0.0f)) *
+                  glm::vec4(sun_direction_, 0.0f));
 
-    //     plugin_->api.submitPostEffect(plugin_->api.context, plugin_->ocean,
-    //                                   &params, sizeof(params));
-    // }
+    if (plugin_->ocean != UME_POST_EFFECT_HANDLE_INVALID) {
+        const OceanParams params{
+            .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
+                                  float(radius_)},
+            .planet_radius_thickness_strength = {
+                float(radius_), float(atmosphere_thickness),
+                float(scattering_strength), 0.0f}};
 
-    // if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->ocean,
+                                      &params, sizeof(params));
+    }
 
-    //     const AtmosphereParams params{
-    //         .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
-    //                               float(radius_ + atmosphere_thickness)},
-    //         .planet_radius_thickness_strength = {
-    //             float(radius_), float(atmosphere_thickness),
-    //             float(scattering_strength), 0.0f}};
+    if (plugin_->sun != UME_POST_EFFECT_HANDLE_INVALID) {
+        const SunParams params{.sun_dir = {sun_direction_.x, sun_direction_.y,
+                                           sun_direction_.z, 0.0f}};
 
-    //     plugin_->api.submitPostEffect(plugin_->api.context,
-    //     plugin_->atmosphere,
-    //                                   &params, sizeof(params));
-    // }
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->sun,
+                                      &params, sizeof(params));
+    }
+
+    if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
+
+        const AtmosphereParams params{
+            .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
+                                  float(radius_ + atmosphere_thickness)},
+            .planet_radius_thickness_strength = {float(radius_),
+                                                 float(atmosphere_thickness),
+                                                 float(scattering_strength),
+                                                 0.0f},
+            .sun_dir = {sun_direction_.x, sun_direction_.y, sun_direction_.z,
+                        0.0f}};
+
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
+                                      &params, sizeof(params));
+    }
 }
 } // namespace proc_planet

@@ -38,7 +38,25 @@ static const PlanetAtmosphere atmosphere = {
 };
 
 static const float4 beachColor = float4(1, 0.996, 0.753, 1);
+static const float4 grassColor = float4(0.608, 0.851, 0.29, 1);
 static const float4 mountainColor = float4(0.063, 0.478, 0.071, 1);
+static const float4 peakColor = float4(0.471, 0.49, 0.443, 1);
+static const float4 highPeakColor = float4(0.8, 0.8, 0.8, 1);
+
+struct ColorStop {
+    float4 color;
+    float stop;
+};
+
+static const int numColors = 6;
+static const ColorStop colors[numColors] = {
+    { beachColor, 0 },      { beachColor, 0.45 }, { grassColor, 0.51 },
+    { mountainColor, 0.6 }, { peakColor, 0.8 },   { highPeakColor, 0.95 },
+};
+
+// static const float4 terrain_colors[numColors] = {
+//     beachColor, grassColor, mountainColor, peakColor, highPeakColor,
+// };
 
 [shader("vertex")]
 VertexOutput vertMain(uint vid: SV_VertexID) {
@@ -68,13 +86,47 @@ float4 fragMain(VertexOutput input) : SV_Target {
     float3 intensity =
         planet_surface_lighting(atmosphere, input.world_position, n);
 
-    float alt = ((length(input.world_position.xyz) - 250) + 20) / 40;
+    float alt = ((length(input.world_position.xyz) - 250) + 20) / 50;
     alt = clamp(alt, 0, 1);
 
-    float4 c = lerp(beachColor, mountainColor, alt);
+    float4 color;
 
-    // return float4(input.color.rgb * intensity, input.color.a);
+    // if (alt == 0) {
+    //     color = terrain_colors[0];
+    // } else if (alt == 1) {
+    //     color = terrain_colors[numColors - 1];
+    // } else {
+    //     int idx = int(alt * (numColors - 1));
 
-    return c;
+    //     float4 colorA = terrain_colors[idx];
+    //     float4 colorB = terrain_colors[idx + 1];
+
+    //     float t = (alt - 1.0 / (numColors - 1) * idx) * (numColors - 1);
+    //     color = lerp(colorA, colorB, t);
+    // }
+
+    ColorStop stopA = colors[0];
+    int next_index = 1;
+    for (int i = 1; i < numColors; i++) {
+        if (alt >= colors[i].stop) {
+            stopA = colors[i];
+            next_index++;
+        } else {
+            break;
+        }
+    }
+
+    if (next_index == numColors) {
+        color = stopA.color;
+    } else {
+        ColorStop stopB = colors[next_index];
+
+        float range = stopB.stop - stopA.stop;
+        float t = (alt - stopA.stop) / range;
+
+        color = lerp(stopA.color, stopB.color, t);
+    }
+
+    return float4(color.rgb * intensity, 1.0);
 }
 

@@ -42,7 +42,7 @@ float2 ray_sphere_intersect(float3 center, float radius, float3 ray_origin,
 [shader("fragment")]
 float4 fragMain(FullscreenOutput input) : SV_Target {
     float2 uv = input.uv;
-    float4 scene = scene_color.Sample(scene_sampler, uv);
+    float4 scene = scene_texture.Sample(scene_sampler, uv);
 
     float3 ndc = float3(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 1.0);
     float4 p = mul(frame.inverse_projection, float4(ndc, 1.0));

@@ -145,13 +145,29 @@ function(ume_plugin_assets TARGET)
     set(src "${CMAKE_CURRENT_SOURCE_DIR}/${asset}")
     set(dst "${dest}/${asset}")
     get_filename_component(dst_dir "${dst}" DIRECTORY)
-    add_custom_command(
-      OUTPUT "${dst}"
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${src}" "${dst}"
-      DEPENDS "${src}"
-      COMMENT "Copying plugin asset: ${TARGET}/${asset}"
-      VERBATIM)
+    get_filename_component(ext "${asset}" LAST_EXT)
+    if(ext STREQUAL ".slang")
+      # shaders are hot reloaded from the sandbox path at runtime, so link them
+      # back to the source tree instead of copying a snapshot that only
+      # refreshes on the next build. rm first: create_symlink does not replace
+      # a regular file left behind by an earlier copy
+      add_custom_command(
+        OUTPUT "${dst}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
+        COMMAND ${CMAKE_COMMAND} -E rm -f "${dst}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink "${src}" "${dst}"
+        DEPENDS "${src}"
+        COMMENT "Linking plugin shader: ${TARGET}/${asset}"
+        VERBATIM)
+    else()
+      add_custom_command(
+        OUTPUT "${dst}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${src}" "${dst}"
+        DEPENDS "${src}"
+        COMMENT "Copying plugin asset: ${TARGET}/${asset}"
+        VERBATIM)
+    endif()
     list(APPEND outputs "${dst}")
   endforeach()
   add_custom_target(${TARGET}_assets ALL DEPENDS ${outputs})
