@@ -72,10 +72,13 @@ float smoothMax(float x, float y, float k) {
 } // namespace
 
 void Planet::generate() {
+    plugin_->api.log(plugin_->api.context, UME_LOG_LEVEL_INFO,
+                     "generating planet");
+
     chunks_.clear();
     chunks_.reserve(6);
 
-    const uint32_t resolution = 256;
+    const uint32_t resolution = 300;
     const double inv_res = 1.0 / resolution;
     const uint32_t grid_width = resolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
@@ -151,7 +154,7 @@ void Planet::generate() {
 
         auto fractal = FastNoise::New<FastNoise::FractalFBm>();
         fractal->SetSource(simplex);
-        fractal->SetOctaveCount(4);
+        fractal->SetOctaveCount(6);
         // fractal->SetLacunarity(0.5);
 
         std::vector<float> noise_values(vertex_count);
@@ -220,6 +223,9 @@ void Planet::generate() {
                                        .local_origin = face_origin});
         }
     }
+
+    plugin_->api.log(plugin_->api.context, UME_LOG_LEVEL_INFO,
+                     "finished generating planet");
 }
 
 namespace {
