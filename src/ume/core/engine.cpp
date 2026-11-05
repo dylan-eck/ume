@@ -1,12 +1,16 @@
 #include "engine.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
+#include "ume/platform/input.hpp"
+#include "ume/plugin/plugin_host.hpp"
+#include "ume/renderer/camera.hpp"
+#include "ume/plugin/plugin_api.h"
+#include "ume/platform/window.hpp"
 
 #include <glaze/toml.hpp>
-#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <wren.hpp>
 
+#include <filesystem>
 #include <string>
 #include <cstring>
 #include <thread>

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #if defined UME_RENDER_BACKEND_VULKAN
 #include <vulkan/vulkan_core.h>
 #endif

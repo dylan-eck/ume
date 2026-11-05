@@ -6,6 +6,7 @@
 #include "ume/plugin/plugin_host.hpp"
 #include "ume/scripting/script_engine.hpp"
 
+#include <cstdint>
 #include <string>
 #include <chrono>
 

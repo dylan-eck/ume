@@ -4,7 +4,9 @@
 #include <glm/glm.hpp>
 #include <FastNoise/FastNoise.h>
 
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 struct TerrainPlugin {
     UmePluginApi api;

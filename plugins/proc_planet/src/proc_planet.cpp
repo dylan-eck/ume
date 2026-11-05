@@ -1,12 +1,16 @@
 #include "proc_planet.hpp"
+#include "ume/plugin/plugin_api.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <FastNoise/FastNoise.h>
 
+#include <cstdint>
+#include <cstddef>
 #include <cmath>
 #include <array>
+#include <vector>
 
 namespace proc_planet {
 

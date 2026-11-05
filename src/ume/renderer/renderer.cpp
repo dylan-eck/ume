@@ -1,11 +1,23 @@
 #include "renderer.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/resource_handle.hpp"
 #include "ume/platform/window.hpp"
+#include "ume/renderer/renderer_backend.hpp"
+#include "ume/renderer/camera.hpp"
 #include "ume/renderer/shader_compiler.hpp"
 #include "ume/core/error.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <array>
 #include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <vector>
+#include <span>
 
 namespace ume {
 
@@ -175,8 +187,6 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
     });
 
     return handle;
-
-    return {};
 }
 
 void Renderer::destroyMesh(MeshHandle handle) {
@@ -217,6 +227,8 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
         .entry_points = compiled->entry_points,
     });
 
+    if (!shader) return {};
+
     auto itr = std::ranges::find(compiled->entry_points, ShaderStage::Fragment,
                                  &EntryPoint::stage);
 
@@ -225,6 +237,8 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
             Renderer,
             "could not find fragment entry point in post effect shader {}",
             shader_path.string());
+
+        backend_->destroyShader(shader);
         return {};
     }
 
@@ -232,7 +246,10 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
 
     GraphicsPipelineHandle pipeline =
         backend_->createGraphicsPipeline({.shader = shader});
-    if (!pipeline) return {};
+    if (!pipeline) {
+        backend_->destroyShader(shader);
+        return {};
+    }
 
     return post_effects_.insert({
         .shader = shader,
@@ -285,6 +302,7 @@ void Renderer::destroyPostEffect(PostEffectHandle handle) {
         return;
     }
     backend_->destroyGraphicsPipeline(effect->pipeline);
+    backend_->destroyShader(effect->shader);
 }
 
 void Renderer::submitPostEffect(PostEffectHandle handle,
@@ -312,10 +330,6 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
 
 void Renderer::render() {
     if (pixel_width_ == 0 || pixel_height_ == 0) return;
-
-    std::array<float, 1000> readback{};
-    backend_->readBuffer(output_, 0,
-                         std::as_writable_bytes(std::span{readback}));
 
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);

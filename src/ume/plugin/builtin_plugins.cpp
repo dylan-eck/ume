@@ -2,6 +2,8 @@
 #include "ume/core/logger.hpp"
 
 #include <filesystem>
+#include <string_view>
+#include <system_error>
 
 #ifndef UME_PLUGIN_SUFFIX
 #define UME_PLUGIN_SUFFIX ".so"

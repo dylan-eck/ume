@@ -3,6 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <cmath>
+
 namespace ume {
 struct CameraState {
     glm::dvec3 position{0.0};

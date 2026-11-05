@@ -1,15 +1,19 @@
 #pragma once
 
 #include "renderer_backend.hpp"
+#include "ume/core/resource_handle.hpp"
 #include "ume/core/resource_pool.hpp"
 #include "ume/renderer/camera.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/color_space.hpp>
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <filesystem>
+#include <span>
+#include <vector>
 
 namespace ume {
 class ShaderCompiler;

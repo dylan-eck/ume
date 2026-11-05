@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ume/core/resource_handle.hpp"
 #include "ume/plugin/plugin_host.hpp"
 #include "ume/platform/window.hpp"
 #include "ume/platform/input.hpp"

@@ -5,6 +5,8 @@
 #include "ume/core/resource_pool.hpp"
 #include "ume/plugin/plugin_manifest.hpp"
 
+#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>

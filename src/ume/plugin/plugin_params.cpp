@@ -1,4 +1,5 @@
 #include "plugin_params.hpp"
+#include "ume/plugin/plugin_api.h"
 
 namespace ume {
 namespace {

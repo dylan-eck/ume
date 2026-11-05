@@ -5,9 +5,18 @@
 #include "ume/platform/metal/metal_renderer.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
+#include "ume/core/resource_handle.hpp"
+#include "ume/platform/window.hpp"
+#include "ume/renderer/renderer_backend.hpp"
 
 #include <array>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <span>
+#include <utility>
 
 namespace ume {
 
@@ -155,11 +164,7 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
     graphics_encoder_ = nullptr;
 
     drawable_ = layer_->nextDrawable();
-    if (drawable_ == nullptr) {
-        graphics_encoder_ = nullptr;
-        command_buffer_ = nullptr;
-        return;
-    }
+    if (drawable_ == nullptr) return;
 
     if (cmd.passes.empty()) {
         MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
@@ -214,12 +219,6 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
 }
 
 void MetalRenderer::endFrame() {
-    // if (drawable_ == nullptr) {
-    //     frame_pool_->release();
-    //     frame_pool_ = nullptr;
-    //     return;
-    // }
-
     if (graphics_encoder_ != nullptr) {
         graphics_encoder_->endEncoding();
         graphics_encoder_ = nullptr;

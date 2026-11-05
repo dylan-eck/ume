@@ -1,5 +1,9 @@
 #include "script_engine.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/resource_handle.hpp"
+#include "ume/renderer/camera.hpp"
+#include "ume/plugin/plugin_api.h"
+#include "ume/platform/input.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/error.hpp"
 #include "ume/plugin/plugin_params.hpp"
@@ -8,6 +12,11 @@
 #include <wren.hpp>
 #include <battery/embed.hpp>
 
+#include <vector>
+#include <cstdint>
+#include <utility>
+#include <string_view>
+#include <array>
 #include <iostream>
 #include <fstream>
 #include <sstream>

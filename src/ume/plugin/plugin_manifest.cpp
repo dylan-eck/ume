@@ -3,6 +3,9 @@
 
 #include <glaze/toml.hpp>
 
+#include <filesystem>
+#include <optional>
+
 namespace ume {
 std::optional<PluginManifest> loadManifest(const std::filesystem::path &dir) {
     const std::filesystem::path path = dir / "plugin.toml";

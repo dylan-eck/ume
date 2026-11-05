@@ -1,14 +1,23 @@
 #include "plugin_host.hpp"
+#include "ume/plugin/plugin_api.h"
+#include "ume/plugin/plugin_manifest.hpp"
+#include "ume/core/resource_handle.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/dynamic_library.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <filesystem>
+#include <cstdint>
 #include <algorithm>
+#include <memory>
 #include <ranges>
 #include <cstddef>
 #include <optional>
+#include <utility>
+#include <vector>
+#include <span>
 
 namespace ume {
 namespace {

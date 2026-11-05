@@ -2,6 +2,8 @@
 
 #include "ume/core/resource_handle.hpp"
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <span>
 #include <array>

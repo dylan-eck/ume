@@ -1,11 +1,15 @@
 #include "terrain.hpp"
+#include "ume/plugin/plugin_api.h"
 
-#include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
+#include <cstdint>
+#include <cstddef>
 #include <array>
-#include <iostream>
+#include <vector>
+#include <utility>
 
 namespace terrain {
 const uint64_t kCoordBits = 29;

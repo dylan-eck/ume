@@ -1,6 +1,10 @@
 #include "dynamic_library.hpp"
 #include "ume/core/logger.hpp"
+
 #include <dlfcn.h>
+
+#include <filesystem>
+#include <system_error>
 
 // TODO: Everything currently in this file will not work on windows
 

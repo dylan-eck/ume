@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ume/core/resource_handle.hpp"
 #include "ume/renderer/renderer_backend.hpp"
 #include "ume/core/resource_pool.hpp"
 #include "ume/platform/window.hpp"
@@ -9,6 +10,10 @@
 #include <Metal/Metal.hpp>
 
 #include <array>
+#include <cstddef>
+#include <vector>
+#include <cstdint>
+#include <span>
 
 namespace ume {
 
@@ -116,7 +121,6 @@ private:
     MTL::CommandBuffer *command_buffer_ = nullptr;
     MTL::RenderCommandEncoder *graphics_encoder_ = nullptr;
 
-    NS::SharedPtr<NS::AutoreleasePool> compute_pool_ = nullptr;
     MTL::ComputeCommandEncoder *compute_encoder_ = nullptr;
 
     ResourcePool<MetalBuffer, BufferHandle> buffers_;

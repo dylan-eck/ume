@@ -5,6 +5,7 @@
 #include <slang-com-ptr.h>
 #include <slang.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <vector>

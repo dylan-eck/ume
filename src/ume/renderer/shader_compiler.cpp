@@ -1,12 +1,20 @@
 #include "shader_compiler.hpp"
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/renderer/renderer_backend.hpp"
 
+#include <filesystem>
+#include <cstdint>
+#include <cstddef>
 #include <fstream>
+#include <optional>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <array>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 namespace ume {
 namespace {
