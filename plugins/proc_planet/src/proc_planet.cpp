@@ -86,14 +86,16 @@ void Planet::generate() {
     const double noise_freq = 1.0 / 2.0; // 1 / feature wavelength in meters
     const float noise_amp = 20.0f;       // +/- height variation in meters
 
-    const std::array<glm::vec3, 6> face_normals{{
-        glm::vec3(0.0f, 0.0f, 1.0f),
-        glm::vec3(0.0f, 0.0f, -1.0f),
-        glm::vec3(1.0f, 0.0f, 0.0f),
-        glm::vec3(-1.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        glm::vec3(0.0f, -1.0f, 0.0f),
-    }};
+    const std::array<glm::vec3, 6> face_normals{
+        {
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f),
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(-1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, -1.0f, 0.0f),
+        },
+    };
 
     for (const auto &face_normal : face_normals) {
         const glm::dvec3 n(face_normal);
@@ -219,8 +221,10 @@ void Planet::generate() {
             plugin_->api.createMesh(plugin_->api.context, &desc);
 
         if (handle != UME_MESH_HANDLE_INVALID) {
-            chunks_.emplace_back(Chunk{.mesh = MeshRef(&plugin_->api, handle),
-                                       .local_origin = face_origin});
+            chunks_.emplace_back(Chunk{
+                .mesh = MeshRef(&plugin_->api, handle),
+                .local_origin = face_origin,
+            });
         }
     }
 
@@ -299,19 +303,36 @@ void Planet::update(const UmeFrameContext *frame_context) {
 
     if (plugin_->ocean != UME_POST_EFFECT_HANDLE_INVALID) {
         const OceanParams params{
-            .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
-                                  float(radius_)},
-            .planet_radius_thickness_strength = {
-                float(radius_), float(atmosphere_thickness),
-                float(scattering_strength), 0.0f}};
+            .center_and_radius =
+                {
+                    float(rel.x),
+                    float(rel.y),
+                    float(rel.z),
+                    float(radius_),
+                },
+            .planet_radius_thickness_strength =
+                {
+                    float(radius_),
+                    float(atmosphere_thickness),
+                    float(scattering_strength),
+                    0.0f,
+                },
+        };
 
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->ocean,
                                       &params, sizeof(params));
     }
 
     if (plugin_->sun != UME_POST_EFFECT_HANDLE_INVALID) {
-        const SunParams params{.sun_dir = {sun_direction_.x, sun_direction_.y,
-                                           sun_direction_.z, 0.0f}};
+        const SunParams params{
+            .sun_dir =
+                {
+                    sun_direction_.x,
+                    sun_direction_.y,
+                    sun_direction_.z,
+                    0.0f,
+                },
+        };
 
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->sun,
                                       &params, sizeof(params));
@@ -320,14 +341,28 @@ void Planet::update(const UmeFrameContext *frame_context) {
     if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
 
         const AtmosphereParams params{
-            .center_and_radius = {float(rel.x), float(rel.y), float(rel.z),
-                                  float(radius_ + atmosphere_thickness)},
-            .planet_radius_thickness_strength = {float(radius_),
-                                                 float(atmosphere_thickness),
-                                                 float(scattering_strength),
-                                                 0.0f},
-            .sun_dir = {sun_direction_.x, sun_direction_.y, sun_direction_.z,
-                        0.0f}};
+            .center_and_radius =
+                {
+                    float(rel.x),
+                    float(rel.y),
+                    float(rel.z),
+                    float(radius_ + atmosphere_thickness),
+                },
+            .planet_radius_thickness_strength =
+                {
+                    float(radius_),
+                    float(atmosphere_thickness),
+                    float(scattering_strength),
+                    0.0f,
+                },
+            .sun_dir =
+                {
+                    sun_direction_.x,
+                    sun_direction_.y,
+                    sun_direction_.z,
+                    0.0f,
+                },
+        };
 
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
                                       &params, sizeof(params));

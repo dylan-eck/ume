@@ -19,7 +19,7 @@ enum class Category : uint8_t {
 #define UME_LOG_CATEGORY_ENUMERATOR(name, str) name,
     UME_LOG_CATEGORY_LIST(UME_LOG_CATEGORY_ENUMERATOR)
 #undef UME_LOG_CATEGORY_ENUMERATOR
-        Count
+        Count,
 };
 
 enum class Level : uint8_t { Info, Warn, Error };

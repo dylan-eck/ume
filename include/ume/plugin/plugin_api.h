@@ -128,7 +128,7 @@ typedef enum UmeLogLevel {
     UME_LOG_LEVEL_INFO = 0,
     UME_LOG_LEVEL_WARN = 1,
     UME_LOG_LEVEL_ERROR = 2,
-    UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff
+    UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff,
 } UmeLogLevel;
 
 typedef struct UmeMeshDescription {
@@ -163,7 +163,7 @@ typedef enum UmeBindingType {
     UME_BINDING_TYPE_BUFFER = 0,
     UME_BINDING_TYPE_TEXTURE = 1,
     UME_BINDING_TYPE_SAMPLER = 2,
-    UME_BINDING_TYPE_FORCE_U32 = 0x7fffffff
+    UME_BINDING_TYPE_FORCE_U32 = 0x7fffffff,
 } UmeBindingType;
 
 typedef struct UmeBinding {

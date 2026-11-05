@@ -102,9 +102,11 @@ ProjectDescription Engine::loadProject(const std::string &working_dir) {
 }
 
 WindowConfig getWindowConfig(const ProjectDescription &project) {
-    return WindowConfig{.title = project.name,
-                        .width = project.window_config.width,
-                        .height = project.window_config.height};
+    return WindowConfig{
+        .title = project.name,
+        .width = project.window_config.width,
+        .height = project.window_config.height,
+    };
 }
 
 } // namespace ume

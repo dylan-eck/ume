@@ -267,10 +267,12 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
 
     const UmePluginApi &api = plugin_->api;
 
-    Chunk chunk{.level = level,
-                .x = x,
-                .y = y,
-                .mesh = api.createMesh(api.context, &desc)};
+    Chunk chunk{
+        .level = level,
+        .x = x,
+        .y = y,
+        .mesh = api.createMesh(api.context, &desc),
+    };
 
     loaded_chunks_[id] = chunk;
     return loaded_chunks_[id];

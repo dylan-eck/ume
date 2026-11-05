@@ -163,7 +163,10 @@ void scriptCreateMesh(WrenVM *vm) {
 
     MeshHandle handle =
         getScriptContext(vm).renderer->createMesh(MeshDescription{
-            .positions = positions, .normals = normals, .indices = indices});
+            .positions = positions,
+            .normals = normals,
+            .indices = indices,
+        });
 
     if (!handle) {
         abortWithError(vm, "createMesh: renderer failed to create mesh");

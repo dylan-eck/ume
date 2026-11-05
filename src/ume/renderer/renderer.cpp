@@ -20,7 +20,7 @@ uint32_t postEffectParamsSize(const CompiledShader &shader) {
 // TODO: better naming?
 struct DrawUniforms {
     glm::mat4 model_view_projection;
-    glm::mat4 model; // mesh local -> camera-relative world
+    glm::mat4 model;  // mesh local -> camera-relative world
     glm::mat4 normal; // normal matrix
     glm::vec4 base_color = glm::vec4(1.0f);
     // world origin in camera-relative space (i.e. -camera_position), so shaders
@@ -99,13 +99,17 @@ Renderer::Renderer(const Window &window)
             ramp[i] = static_cast<float>(i);
         }
 
-        input_ = backend_->createBuffer({.size = 1000 * sizeof(float),
-                                         .initial_data = ramp.data(),
-                                         .usage = BufferUsage::CpuToGpu});
+        input_ = backend_->createBuffer({
+            .size = 1000 * sizeof(float),
+            .initial_data = ramp.data(),
+            .usage = BufferUsage::CpuToGpu,
+        });
 
-        output_ = backend_->createBuffer({.size = 1000 * sizeof(float),
-                                          .initial_data = zeroes.data(),
-                                          .usage = BufferUsage::CpuToGpu});
+        output_ = backend_->createBuffer({
+            .size = 1000 * sizeof(float),
+            .initial_data = zeroes.data(),
+            .usage = BufferUsage::CpuToGpu,
+        });
     }
 }
 
@@ -147,16 +151,18 @@ MeshHandle Renderer::createMesh(const MeshDescription &desc) {
         });
     }
 
-    BufferHandle vertex_buffer =
-        backend_->createBuffer({.size = vertices.size() * sizeof(vertices[0]),
-                                .initial_data = vertices.data(),
-                                .usage = BufferUsage::CpuToGpu});
+    BufferHandle vertex_buffer = backend_->createBuffer({
+        .size = vertices.size() * sizeof(vertices[0]),
+        .initial_data = vertices.data(),
+        .usage = BufferUsage::CpuToGpu,
+    });
     if (!vertex_buffer) return {};
 
-    BufferHandle index_buffer =
-        backend_->createBuffer({.size = desc.indices.size_bytes(),
-                                .initial_data = desc.indices.data(),
-                                .usage = BufferUsage::CpuToGpu});
+    BufferHandle index_buffer = backend_->createBuffer({
+        .size = desc.indices.size_bytes(),
+        .initial_data = desc.indices.data(),
+        .usage = BufferUsage::CpuToGpu,
+    });
     if (!index_buffer) {
         backend_->destroyBuffer(vertex_buffer);
         return {};
@@ -193,10 +199,12 @@ void Renderer::submit(MeshHandle handle, const glm::dvec3 &world_position,
         return;
     }
 
-    submissions_.push_back({.mesh = *mesh,
-                            .world_position = world_position,
-                            .local_transform = local_transform,
-                            .base_color = debugColorFromId(handle.id)});
+    submissions_.push_back({
+        .mesh = *mesh,
+        .world_position = world_position,
+        .local_transform = local_transform,
+        .base_color = debugColorFromId(handle.id),
+    });
 }
 
 PostEffectHandle
@@ -295,9 +303,11 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
     const size_t offset = post_param_arena_.size();
     post_param_arena_.insert(post_param_arena_.end(), params.begin(),
                              params.end());
-    post_submissions_.push_back({.pipeline = effect->pipeline,
-                                 .param_offset = offset,
-                                 .param_size = params.size()});
+    post_submissions_.push_back({
+        .pipeline = effect->pipeline,
+        .param_offset = offset,
+        .param_size = params.size(),
+    });
 }
 
 void Renderer::render() {
@@ -321,9 +331,11 @@ void Renderer::render() {
         BufferBinding{.slot = 1, .buffer = output_},
     };
 
-    backend_->dispatch({.pipeline = compute_test_pipeline_,
-                        .work_size = {1000, 1, 1},
-                        .bindings = {.buffers = bindings}});
+    backend_->dispatch({
+        .pipeline = compute_test_pipeline_,
+        .work_size = {1000, 1, 1},
+        .bindings = {.buffers = bindings},
+    });
 
     backend_->endComputePass();
 
@@ -342,7 +354,8 @@ void Renderer::render() {
             .model = model,
             .normal = glm::transpose(glm::inverse(model)),
             .base_color = next.base_color,
-            .world_origin = glm::vec4(glm::vec3(-camera_state_.position), 1.0f)};
+            .world_origin = glm::vec4(glm::vec3(-camera_state_.position), 1.0f),
+        };
 
         const std::array<BufferBinding, 1> vertex_buffers = {
             BufferBinding{
@@ -378,15 +391,17 @@ void Renderer::render() {
 
     post_passes_.clear();
     for (const auto &s : post_submissions_) {
-        post_passes_.push_back(
-            {.pipeline = s.pipeline,
-             .params = std::span(post_param_arena_)
-                           .subspan(s.param_offset, s.param_size)});
+        post_passes_.push_back({
+            .pipeline = s.pipeline,
+            .params = std::span(post_param_arena_)
+                          .subspan(s.param_offset, s.param_size),
+        });
     }
 
-    backend_->postProcess(
-        {.frame_uniforms = std::as_bytes(std::span(&frame_uniforms, 1)),
-         .passes = post_passes_});
+    backend_->postProcess({
+        .frame_uniforms = std::as_bytes(std::span(&frame_uniforms, 1)),
+        .passes = post_passes_,
+    });
 
     post_submissions_.clear();
     post_param_arena_.clear();
