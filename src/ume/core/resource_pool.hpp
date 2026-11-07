@@ -54,7 +54,7 @@ public:
         slot.alive = false;
 
         slot.generation =
-            slot.generation > kHandleMaxGeneration ? 1 : slot.generation + 1;
+            slot.generation >= kHandleMaxGeneration ? 1 : slot.generation + 1;
 
         free_list_.push_back(index);
         return out;
