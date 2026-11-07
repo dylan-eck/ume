@@ -81,6 +81,9 @@ public:
     TextureHandle createTexture(const TextureDescription &desc) override;
     void destroyTexture(TextureHandle handle) override;
 
+    SamplerHandle createSampler(const SamplerDescription &desc) override;
+    void destroySampler(SamplerHandle handle) override;
+
     ShaderHandle createShader(const ShaderDescription &desc) override;
     void destroyShader(ShaderHandle handle) override;
 

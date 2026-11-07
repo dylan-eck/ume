@@ -8,22 +8,32 @@
 #include <span>
 #include <array>
 #include <string>
+#include <utility>
 
 namespace ume {
 
 enum class BufferUsage : uint8_t { CpuToGpu, GpuOnly };
 
-struct BufferDescription {
-    size_t size;
-    const void *initial_data = nullptr;
-    BufferUsage usage = BufferUsage::CpuToGpu;
+enum class TextureUsage : uint8_t {
+    None = 0,
+    RenderTarget = 1 << 0,
+    ShaderRead = 1 << 1,
+    ShaderWrite = 1 << 2,
 };
 
-struct TextureDescription {
-    uint32_t width;
-    uint32_t height;
-    // TODO: add format
-};
+constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) {
+    return static_cast<TextureUsage>(std::to_underlying(a) |
+                                     std::to_underlying(b));
+}
+
+constexpr TextureUsage operator&(TextureUsage a, TextureUsage b) {
+    return static_cast<TextureUsage>(std::to_underlying(a) &
+                                     std::to_underlying(b));
+}
+
+constexpr bool hasFlag(TextureUsage set, TextureUsage flag) {
+    return (set & flag) == flag;
+}
 
 enum class IndexType : uint8_t { UInt16, UInt32 };
 
@@ -34,6 +44,36 @@ enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
 enum class BindingType : uint8_t { Buffer, Texture, Sampler };
 
 enum class Format : uint8_t { Undefined, BGRA8Unorm, Depth32Float };
+
+enum class Filter : uint8_t { Nearest, Linear };
+
+enum class AddressMode : uint8_t {
+    ClampToEdge,
+    MirrorClampToEdge,
+    Repeat,
+    MirrorRepeat,
+    ClampToZero,
+    ClampToBorderColor,
+};
+
+struct BufferDescription {
+    size_t size;
+    const void *initial_data = nullptr;
+    BufferUsage usage = BufferUsage::CpuToGpu;
+};
+
+struct TextureDescription {
+    uint32_t width;
+    uint32_t height;
+    Format format;
+    TextureUsage usage;
+};
+
+struct SamplerDescription {
+    Filter min_filter;
+    Filter mag_filter;
+    AddressMode address_mode;
+};
 
 struct ShaderBinding {
     std::string name;
@@ -150,6 +190,9 @@ public:
 
     virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;
+
+    virtual SamplerHandle createSampler(const SamplerDescription &desc) = 0;
+    virtual void destroySampler(SamplerHandle handle) = 0;
 
     virtual ShaderHandle createShader(const ShaderDescription &desc) = 0;
     virtual void destroyShader(ShaderHandle handle) = 0;

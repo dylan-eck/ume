@@ -51,15 +51,16 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 
     createRenderTargets(width_, height_);
 
-    auto sampler_desc =
-        NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
-    sampler_desc->setMinFilter(MTL::SamplerMinMagFilterLinear);
-    sampler_desc->setMagFilter(MTL::SamplerMinMagFilterLinear);
-    sampler_desc->setSAddressMode(MTL::SamplerAddressModeClampToEdge);
-    sampler_desc->setTAddressMode(MTL::SamplerAddressModeClampToEdge);
+    // TODO: separate these out (do in resize too)
+    if (!color_targets_[0] || !color_targets_[1] || !depth_texture_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create on or more render targets");
+    }
 
-    linear_sampler_ = samplers_.insert({
-        .state = NS::TransferPtr(device_->newSamplerState(sampler_desc.get())),
+    linear_sampler_ = createSampler({
+        .min_filter = Filter::Linear,
+        .mag_filter = Filter::Linear,
+        .address_mode = AddressMode::ClampToEdge,
     });
 
     command_queue_ = NS::TransferPtr(device_->newCommandQueue());
@@ -90,6 +91,12 @@ void MetalRenderer::resize(uint32_t width, uint32_t height) {
     height_ = static_cast<uint32_t>(layer_->drawableSize().height);
 
     createRenderTargets(width_, height_);
+
+    if (!color_targets_[0] || !color_targets_[1] || !depth_texture_) {
+        UME_LOG_WARN(
+            Renderer,
+            "failed to re-create on or more render targets during resize");
+    }
 }
 
 void MetalRenderer::beginFrame() {
@@ -369,12 +376,123 @@ void MetalRenderer::readBuffer(BufferHandle handle, size_t offset,
     std::memcpy(out.data(), src + offset, out.size());
 }
 
+namespace {
+MTL::PixelFormat getMTLPixelFormat(Format format) {
+    switch (format) {
+    case Format::Undefined:
+        return MTL::PixelFormatInvalid;
+    case Format::BGRA8Unorm:
+        return MTL::PixelFormatBGRA8Unorm;
+    case Format::Depth32Float:
+        return MTL::PixelFormatDepth32Float;
+    }
+    std::unreachable();
+}
+
+MTL::TextureUsage getMTLTextureUsage(TextureUsage usage) {
+    MTL::TextureUsage mtl_usage = MTL::TextureUsageUnknown;
+    if (hasFlag(usage, TextureUsage::RenderTarget)) {
+        mtl_usage |= MTL::TextureUsageRenderTarget;
+    }
+    if (hasFlag(usage, TextureUsage::ShaderRead)) {
+        mtl_usage |= MTL::TextureUsageShaderRead;
+    }
+    if (hasFlag(usage, TextureUsage::ShaderWrite)) {
+        mtl_usage |= MTL::TextureUsageShaderWrite;
+    }
+
+    return mtl_usage;
+}
+} // namespace
+
 TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
-    return {};
+    if (desc.width == 0 || desc.height == 0) {
+        UME_LOG_WARN(Renderer,
+                     "createTexture() called with zero width or height");
+        return {};
+    }
+
+    if (desc.format == Format::Undefined) {
+        UME_LOG_WARN(Renderer, "createTexture() called with undefined format");
+        return {};
+    }
+
+    auto descriptor = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
+    // TODO: support other texture types
+    descriptor->setTextureType(MTL::TextureType2D);
+    descriptor->setPixelFormat(getMTLPixelFormat(desc.format));
+    descriptor->setWidth(desc.width);
+    descriptor->setHeight(desc.height);
+    descriptor->setStorageMode(MTL::StorageModePrivate);
+    descriptor->setUsage(getMTLTextureUsage(desc.usage));
+
+    auto texture = NS::TransferPtr(device_->newTexture(descriptor.get()));
+    if (!texture) {
+        // TODO: log format as well
+        UME_LOG_WARN(Renderer, "failed to create {}x{} texture", desc.width,
+                     desc.height);
+        return {};
+    }
+
+    return textures_.insert({
+        .texture = texture,
+    });
 }
 
 void MetalRenderer::destroyTexture(TextureHandle handle) {
     textures_.remove(handle);
+}
+
+namespace {
+MTL::SamplerMinMagFilter getMTLFilterType(Filter filter) {
+    switch (filter) {
+    case Filter::Nearest:
+        return MTL::SamplerMinMagFilterNearest;
+    case Filter::Linear:
+        return MTL::SamplerMinMagFilterLinear;
+    }
+    std::unreachable();
+}
+
+MTL::SamplerAddressMode getMTLAddressMode(AddressMode mode) {
+    switch (mode) {
+    case AddressMode::ClampToEdge:
+        return MTL::SamplerAddressModeClampToEdge;
+    case AddressMode::MirrorClampToEdge:
+        return MTL::SamplerAddressModeMirrorClampToEdge;
+    case AddressMode::Repeat:
+        return MTL::SamplerAddressModeRepeat;
+    case AddressMode::MirrorRepeat:
+        return MTL::SamplerAddressModeMirrorRepeat;
+    case AddressMode::ClampToZero:
+        return MTL::SamplerAddressModeClampToZero;
+    case AddressMode::ClampToBorderColor:
+        return MTL::SamplerAddressModeClampToBorderColor;
+    }
+    std::unreachable();
+}
+} // namespace
+
+SamplerHandle MetalRenderer::createSampler(const SamplerDescription &desc) {
+    auto descriptor = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
+    descriptor->setMinFilter(getMTLFilterType(desc.min_filter));
+    descriptor->setMagFilter(getMTLFilterType(desc.mag_filter));
+    descriptor->setSAddressMode(getMTLAddressMode(desc.address_mode));
+    descriptor->setTAddressMode(getMTLAddressMode(desc.address_mode));
+
+    auto sampler = NS::TransferPtr(device_->newSamplerState(descriptor.get()));
+    if (!sampler) {
+        UME_LOG_WARN(Renderer, "failed to create sampler");
+        return {};
+    }
+
+    return samplers_.insert({
+        .state = sampler,
+    });
+}
+
+void MetalRenderer::destroySampler(SamplerHandle handle) {
+    samplers_.remove(handle);
 }
 
 ShaderHandle MetalRenderer::createShader(const ShaderDescription &desc) {
@@ -537,36 +655,29 @@ MetalRenderer::buildComputePipeline(MTL::Library *library, const char *entry) {
 }
 
 void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
-    auto make_target = [&](MTL::PixelFormat format, const char *name) {
-        MTL::TextureDescriptor *desc =
-            MTL::TextureDescriptor::texture2DDescriptor(format, width, height,
-                                                        false);
-        desc->setStorageMode(MTL::StorageModePrivate);
-        desc->setUsage(MTL::TextureUsageRenderTarget |
-                       MTL::TextureUsageShaderRead);
-
-        auto tex = NS::TransferPtr(device_->newTexture(desc));
-        if (!tex) {
-            throw Error(logger::Category::Renderer,
-                        "failed to create {} texture", name);
-        }
-        return tex;
-    };
-
     destroyTexture(color_targets_[0]);
     destroyTexture(color_targets_[1]);
     destroyTexture(depth_texture_);
 
-    color_targets_[0] = textures_.insert({
-        .texture = make_target(MTL::PixelFormatBGRA8Unorm, "scene color"),
+    color_targets_[0] = createTexture({
+        .width = width,
+        .height = height,
+        .format = Format::BGRA8Unorm,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
     });
 
-    color_targets_[1] = textures_.insert({
-        .texture = make_target(MTL::PixelFormatBGRA8Unorm, "post color"),
+    color_targets_[1] = createTexture({
+        .width = width,
+        .height = height,
+        .format = Format::BGRA8Unorm,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
     });
 
-    depth_texture_ = textures_.insert({
-        .texture = make_target(MTL::PixelFormatDepth32Float, "depth"),
+    depth_texture_ = createTexture({
+        .width = width,
+        .height = height,
+        .format = Format::Depth32Float,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
     });
 }
 
