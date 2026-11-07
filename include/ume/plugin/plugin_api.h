@@ -211,6 +211,9 @@ typedef struct UmePluginApi {
     uint32_t struct_size;
     uint32_t abi_version;
     void *context;
+    /* Function pointers are named like methods, since plugins call them as
+     * api->createMesh(...). */
+    /* NOLINTBEGIN(readability-identifier-naming) */
     UME_PLUGIN_BOOL (*registerObjectType)(void *context,
                                           const UmeObjectType *type);
     UmeMeshHandle (*createMesh)(void *context,
@@ -223,6 +226,7 @@ typedef struct UmePluginApi {
     UmePostEffectHandle (*findPostEffect)(void *context, const char *name);
     void (*submitPostEffect)(void *context, UmePostEffectHandle handle,
                              const void *params, uint32_t params_size);
+    /* NOLINTEND(readability-identifier-naming) */
 } UmePluginApi;
 
 /* The plugin description is owned by the host and is valid only during the

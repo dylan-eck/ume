@@ -48,7 +48,7 @@ struct PostFrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    std::array<float, 3> _pad;
+    std::array<float, 3> pad;
 };
 static_assert(sizeof(PostFrameUniforms) == 160);
 

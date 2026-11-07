@@ -7,7 +7,7 @@ struct FrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    float3 _pad;
+    float3 pad;
 };
 
 Texture2D<float4> scene_texture;
