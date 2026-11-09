@@ -11,6 +11,9 @@
 
 #include <array>
 #include <cstddef>
+#include <expected>
+#include <optional>
+#include <string>
 #include <vector>
 #include <cstdint>
 #include <span>
@@ -28,6 +31,7 @@ struct MetalShader {
 };
 
 struct MetalGraphicsPipeline {
+    GraphicsPipelineDescription description;
     NS::SharedPtr<MTL::RenderPipelineState> state;
 };
 
@@ -37,6 +41,7 @@ struct MetalComputePipeline {
 };
 
 struct MetalTexture {
+    TextureDescription description;
     NS::SharedPtr<MTL::Texture> texture;
 };
 
@@ -64,6 +69,8 @@ public:
     void resize(uint32_t width, uint32_t height) override;
 
     void beginFrame() override;
+    void beginRenderPass(const RenderPassDescription &desc) override;
+    void endRenderPass() override;
     void beginScenePass() override;
     void draw(const DrawCommand &cmd) override;
     void postProcess(const PostProcessCommand &cmd) override;
@@ -123,6 +130,12 @@ private:
     CA::MetalDrawable *drawable_ = nullptr;
     MTL::CommandBuffer *command_buffer_ = nullptr;
     MTL::RenderCommandEncoder *graphics_encoder_ = nullptr;
+    std::string last_error_;
+
+    bool curr_frame_failed_ = false;
+    std::optional<RenderPassDescription> curr_pass_desc_;
+    std::array<Format, kMaxColorAttachments> curr_pass_color_formats_{};
+    Format curr_pass_depth_format_ = Format::Undefined;
 
     MTL::ComputeCommandEncoder *compute_encoder_ = nullptr;
 
@@ -132,9 +145,8 @@ private:
     libraryFromSource(std::span<const std::byte> bytes);
 
     NS::SharedPtr<MTL::RenderPipelineState>
-    buildGraphicsPipeline(MTL::Library *library, const char *vert,
-                          const char *frag, Format color_format,
-                          Format depth_format);
+    buildGraphicsPipeline(const GraphicsPipelineDescription &desc,
+                          MTL::Library *library);
 
     NS::SharedPtr<MTL::ComputePipelineState>
     buildComputePipeline(MTL::Library *library, const char *entry);
@@ -147,5 +159,10 @@ private:
 
     bool bindResources(MTL::RenderCommandEncoder *encoder,
                        const ResourceBindings &bindings, ShaderStage stage);
+
+    std::expected<void, std::string>
+    validateRenderPass(const RenderPassDescription &desc);
+
+    [[nodiscard]] bool isCurrentPassAttachment(TextureHandle handle) const;
 };
 } // namespace ume

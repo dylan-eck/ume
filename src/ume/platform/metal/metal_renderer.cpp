@@ -14,9 +14,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <expected>
+#include <format>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <span>
 #include <utility>
+
+#include <iostream>
 
 namespace ume {
 
@@ -102,22 +108,170 @@ void MetalRenderer::resize(uint32_t width, uint32_t height) {
 void MetalRenderer::beginFrame() {
     frame_pool_ = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
     command_buffer_ = command_queue_->commandBuffer();
+    curr_frame_failed_ = false;
 }
 
-void MetalRenderer::beginScenePass() {
+namespace {
+MTL::LoadAction getMTLLoadAction(LoadAction action) {
+    switch (action) {
+    case LoadAction::DontCare:
+        return MTL::LoadActionDontCare;
+    case LoadAction::Load:
+        return MTL::LoadActionLoad;
+    case LoadAction::Clear:
+        return MTL::LoadActionClear;
+    }
+    std::unreachable();
+}
+
+MTL::StoreAction getMTLStoreAction(StoreAction action) {
+    switch (action) {
+    case StoreAction::DontCare:
+        return MTL::StoreActionDontCare;
+    case StoreAction::Store:
+        return MTL::StoreActionStore;
+    }
+    std::unreachable();
+}
+
+MTL::ClearColor makeMTLClearColor(glm::vec4 color) {
+    return {color[0], color[1], color[2], color[3]};
+}
+} // namespace
+
+std::expected<void, std::string>
+MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
+    if (desc.color_attachments.empty() && !desc.depth_attachment.has_value()) {
+        return std::unexpected("render pass must have at least one attachment");
+    }
+
+    std::optional<std::pair<uint32_t, uint32_t>> size;
+
+    auto check = [&](TextureHandle handle, std::string_view kind, size_t index,
+                     bool is_depth) -> std::expected<void, std::string> {
+        const MetalTexture *texture = textures_.get(handle);
+
+        if (texture == nullptr) {
+            return std::unexpected(
+                std::format("{} {} texture handle is invalid", kind, index));
+        }
+
+        // TODO: may need to support multiple depth formats in future
+        if (is_depth && texture->description.format != Format::Depth32Float) {
+            return std::unexpected(
+                std::format("{} format is not a depth format", kind));
+        }
+
+        if (!is_depth && texture->description.format == Format::Depth32Float) {
+            return std::unexpected(
+                std::format("{} {} format is not a color format", kind, index));
+        }
+
+        if (!size.has_value()) {
+            size = std::pair(texture->description.width,
+                             texture->description.height);
+            return {};
+        }
+
+        if (texture->description.width != size->first ||
+            texture->description.height != size->second) {
+            return std::unexpected(
+                std::format("{} {} is a different size than other attachments",
+                            kind, index));
+        }
+
+        return {};
+    };
+
+    for (size_t i = 0; i < desc.color_attachments.size(); i++) {
+        if (!desc.color_attachments[i].texture) continue;
+
+        if (auto result = check(desc.color_attachments[i].texture,
+                                "color attachment", i, false);
+            !result) {
+            return result;
+        }
+    }
+
+    if (desc.depth_attachment.has_value()) {
+        if (auto result = check(desc.depth_attachment->texture,
+                                "depth attachment", 0, true);
+            !result) {
+            return result;
+        }
+    }
+
+    return {};
+}
+
+void MetalRenderer::beginRenderPass(const RenderPassDescription &desc) {
+    if (curr_frame_failed_) return;
+
+    // TODO: make this not log every frame
+    if (curr_pass_desc_) {
+        UME_LOG_WARN(
+            Renderer,
+            "cannot start new render pass before previous has finished");
+        curr_frame_failed_ = true;
+        return;
+    }
+
+    if (auto result = validateRenderPass(desc); !result) {
+        curr_frame_failed_ = true;
+
+        if (result.error() != last_error_) {
+            UME_LOG_WARN(Renderer, "invalid render pass: {}", result.error());
+        }
+        last_error_ = result.error();
+        return;
+    }
+
+    curr_pass_desc_ = desc;
+
+    std::ranges::transform(desc.color_attachments,
+                           curr_pass_color_formats_.begin(),
+                           [&](const ColorAttachment &color_attachment) {
+                               const MetalTexture *texture =
+                                   textures_.get(color_attachment.texture);
+                               return texture != nullptr
+                                          ? texture->description.format
+                                          : Format::Undefined;
+                           });
+
+    if (desc.depth_attachment) {
+        const MetalTexture *texture =
+            textures_.get(desc.depth_attachment->texture);
+        // texture shouldn't ever be null here
+        curr_pass_depth_format_ = texture->description.format;
+    } else {
+        curr_pass_depth_format_ = Format::Undefined;
+    }
+
     auto pass_descriptor =
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
-    auto *color_attachment = pass_descriptor->colorAttachments()->object(0);
-    color_attachment->setTexture(getTexture(color_targets_[0]));
-    color_attachment->setLoadAction(MTL::LoadActionClear);
-    color_attachment->setStoreAction(MTL::StoreActionStore);
-    color_attachment->setClearColor(MTL::ClearColor(0, 0, 0, 1));
 
-    auto *depth_attachment = pass_descriptor->depthAttachment();
-    depth_attachment->setTexture(getTexture(depth_texture_));
-    depth_attachment->setLoadAction(MTL::LoadActionClear);
-    depth_attachment->setStoreAction(MTL::StoreActionStore);
-    depth_attachment->setClearDepth(0.0);
+    for (size_t i = 0; i < desc.color_attachments.size(); i++) {
+        const ColorAttachment &color = desc.color_attachments[i];
+
+        if (!color.texture) continue;
+
+        auto *mtl_color = pass_descriptor->colorAttachments()->object(i);
+
+        mtl_color->setTexture(getTexture(color.texture));
+        mtl_color->setLoadAction(getMTLLoadAction(color.load_action));
+        mtl_color->setStoreAction(getMTLStoreAction(color.store_action));
+        mtl_color->setClearColor(makeMTLClearColor(color.clear_value));
+    }
+
+    if (desc.depth_attachment.has_value()) {
+        const DepthAttachment &depth = desc.depth_attachment.value();
+        auto *mtl_depth = pass_descriptor->depthAttachment();
+
+        mtl_depth->setTexture(getTexture(depth.texture));
+        mtl_depth->setLoadAction(getMTLLoadAction(depth.load_action));
+        mtl_depth->setStoreAction(getMTLStoreAction(depth.store_action));
+        mtl_depth->setClearDepth(depth.clear_value);
+    }
 
     graphics_encoder_ =
         command_buffer_->renderCommandEncoder(pass_descriptor.get());
@@ -128,14 +282,52 @@ void MetalRenderer::beginScenePass() {
     graphics_encoder_->setDepthStencilState(depth_state_.get());
 }
 
+void MetalRenderer::endRenderPass() {
+    curr_pass_desc_.reset();
+    curr_pass_color_formats_ = {};
+    curr_pass_depth_format_ = Format::Undefined;
+
+    if (graphics_encoder_ != nullptr) {
+        graphics_encoder_->endEncoding();
+        graphics_encoder_ = nullptr;
+    }
+}
+
+void MetalRenderer::beginScenePass() {
+    beginRenderPass({
+        .color_attachments =
+            {
+                ColorAttachment{
+                    .texture = color_targets_[0],
+                    // TODO: does it make sense to clear alpha to 1?
+                    .clear_value = {0.0f, 0.0f, 0.0f, 1.0f},
+                },
+            },
+        .depth_attachment = DepthAttachment{.texture = depth_texture_},
+    });
+}
+
 void MetalRenderer::draw(const DrawCommand &cmd) {
-    if (graphics_encoder_ == nullptr) return;
+    if (curr_frame_failed_) return;
+
+    if (!curr_pass_desc_) {
+        UME_LOG_WARN(Renderer, "draw() called outside of a render pass");
+        return;
+    }
 
     MetalGraphicsPipeline *pipeline = graphics_pipelines_.get(cmd.pipeline);
     if (pipeline == nullptr) {
         UME_LOG_WARN(Renderer,
                      "draw() called with invalid graphics pipeline {}",
                      cmd.pipeline.id);
+        return;
+    }
+
+    if (pipeline->description.color_formats != curr_pass_color_formats_ ||
+        pipeline->description.depth_format != curr_pass_depth_format_) {
+        UME_LOG_WARN(
+            Renderer,
+            "pipeline formats and render pass attachments do not match");
         return;
     }
 
@@ -167,8 +359,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
 
 void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
     if (graphics_encoder_ == nullptr) return;
-    graphics_encoder_->endEncoding();
-    graphics_encoder_ = nullptr;
+    endRenderPass();
 
     drawable_ = layer_->nextDrawable();
     if (drawable_ == nullptr) return;
@@ -226,13 +417,17 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
 }
 
 void MetalRenderer::endFrame() {
-    if (graphics_encoder_ != nullptr) {
-        graphics_encoder_->endEncoding();
-        graphics_encoder_ = nullptr;
+    if (curr_pass_desc_) {
+        endRenderPass();
+        UME_LOG_WARN(Renderer, "render pass not closed before end of frame");
     }
 
-    if (drawable_ != nullptr) {
-        command_buffer_->presentDrawable(drawable_);
+    if (!curr_frame_failed_) {
+        last_error_ = "";
+
+        if (drawable_ != nullptr) {
+            command_buffer_->presentDrawable(drawable_);
+        }
     }
 
     command_buffer_->commit();
@@ -435,6 +630,7 @@ TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
     }
 
     return textures_.insert({
+        .description = desc,
         .texture = texture,
     });
 }
@@ -515,13 +711,11 @@ MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
     if (shader == nullptr) return {};
 
     auto library = shader->library;
-    auto state = buildGraphicsPipeline(library.get(), desc.vertex_entry,
-                                       desc.fragment_entry, desc.color_format,
-                                       desc.depth_format);
+    auto state = buildGraphicsPipeline(desc, library.get());
     if (!state) return {};
 
     return graphics_pipelines_.insert(
-        MetalGraphicsPipeline{.state = std::move(state)});
+        MetalGraphicsPipeline{.description = desc, .state = std::move(state)});
 }
 
 void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
@@ -588,46 +782,38 @@ MetalRenderer::libraryFromSource(std::span<const std::byte> bytes) {
 }
 
 NS::SharedPtr<MTL::RenderPipelineState>
-MetalRenderer::buildGraphicsPipeline(MTL::Library *library, const char *vert,
-                                     const char *frag, Format color_format,
-                                     Format depth_format) {
-    auto vfn = NS::TransferPtr(
-        library->newFunction(NS::String::string(vert, NS::UTF8StringEncoding)));
-    auto ffn = NS::TransferPtr(
-        library->newFunction(NS::String::string(frag, NS::UTF8StringEncoding)));
+MetalRenderer::buildGraphicsPipeline(const GraphicsPipelineDescription &desc,
+                                     MTL::Library *library) {
+    auto vfn = NS::TransferPtr(library->newFunction(
+        NS::String::string(desc.vertex_entry.c_str(), NS::UTF8StringEncoding)));
+    auto ffn = NS::TransferPtr(library->newFunction(NS::String::string(
+        desc.fragment_entry.c_str(), NS::UTF8StringEncoding)));
     if (!vfn || !ffn) {
-        UME_LOG_ERROR(Renderer, "entrypoints '{}'/'{}' not found", vert, frag);
+        UME_LOG_ERROR(Renderer, "entrypoints '{}'/'{}' not found",
+                      desc.vertex_entry.c_str(), desc.fragment_entry.c_str());
         return {};
     }
 
-    auto desc = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
-    desc->setVertexFunction(vfn.get());
-    desc->setFragmentFunction(ffn.get());
+    auto mtl_pipeline_desc =
+        NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
+    mtl_pipeline_desc->setVertexFunction(vfn.get());
+    mtl_pipeline_desc->setFragmentFunction(ffn.get());
 
-    switch (color_format) {
-    case Format::BGRA8Unorm:
-        desc->colorAttachments()->object(0)->setPixelFormat(
-            MTL::PixelFormatBGRA8Unorm);
-        break;
-    default:
-        // TODO: should this be a warning or an error?
-        UME_LOG_WARN(
-            Renderer,
-            "color format must be specified when creating graphics pipeline");
-        return {};
+    for (size_t i = 0; i < desc.color_formats.size(); i++) {
+        if (desc.color_formats[i] == Format::Undefined) continue;
+
+        mtl_pipeline_desc->colorAttachments()->object(i)->setPixelFormat(
+            getMTLPixelFormat(desc.color_formats[i]));
     }
 
-    switch (depth_format) {
-    case Format::Depth32Float:
-        desc->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
-        break;
-    default:
-        break;
+    if (desc.depth_format != Format::Undefined) {
+        mtl_pipeline_desc->setDepthAttachmentPixelFormat(
+            getMTLPixelFormat(desc.depth_format));
     }
 
     NS::Error *error = nullptr;
-    auto state =
-        NS::TransferPtr(device_->newRenderPipelineState(desc.get(), &error));
+    auto state = NS::TransferPtr(
+        device_->newRenderPipelineState(mtl_pipeline_desc.get(), &error));
     if (!state) {
         UME_LOG_ERROR(Renderer, "failed to create pipeline state: {}",
                       errorString(error));
@@ -741,12 +927,23 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
 
     for (const auto &binding : bindings.textures) {
         MTL::Texture *texture = getTexture(binding.texture);
+
         if (texture == nullptr) {
             UME_LOG_WARN(Renderer,
                          "draw() called with invalid texture {} at slot {}",
                          binding.texture.id, binding.slot);
             return false;
         }
+
+        // TODO: maybe detect this earlier (before binding a bunch of stuff?)
+        if (isCurrentPassAttachment(binding.texture)) {
+            UME_LOG_WARN(Renderer,
+                         "texture binding {} slot {} is an attachment of the "
+                         "current pass",
+                         binding.texture.id, binding.slot);
+            return false;
+        }
+
         if (vertex) {
             encoder->setVertexTexture(texture, binding.slot);
         } else {
@@ -771,6 +968,14 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
     }
 
     return true;
+}
+
+bool MetalRenderer::isCurrentPassAttachment(TextureHandle handle) const {
+    if (!handle || !curr_pass_desc_) return false;
+    const RenderPassDescription &pass = *curr_pass_desc_;
+    return std::ranges::contains(pass.color_attachments, handle,
+                                 &ColorAttachment::texture) ||
+           (pass.depth_attachment && pass.depth_attachment->texture == handle);
 }
 
 std::unique_ptr<RendererBackend> createRendererBackend(const Window &window) {

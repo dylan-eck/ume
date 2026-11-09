@@ -77,7 +77,7 @@ Renderer::Renderer(const Window &window)
         .shader = default_shader_,
         .vertex_entry = "vertMain",
         .fragment_entry = "fragMain",
-        .color_format = Format::BGRA8Unorm,
+        .color_formats = {Format::BGRA8Unorm},
         .depth_format = Format::Depth32Float,
     });
 
@@ -244,8 +244,8 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
 
     const uint32_t params_size = postEffectParamsSize(*compiled);
 
-    GraphicsPipelineHandle pipeline =
-        backend_->createGraphicsPipeline({.shader = shader});
+    GraphicsPipelineHandle pipeline = backend_->createGraphicsPipeline(
+        {.shader = shader, .color_formats = {Format::BGRA8Unorm}});
     if (!pipeline) {
         backend_->destroyShader(shader);
         return {};
@@ -276,8 +276,8 @@ bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     });
     if (!shader) return false;
 
-    GraphicsPipelineHandle pipeline =
-        backend_->createGraphicsPipeline({.shader = shader});
+    GraphicsPipelineHandle pipeline = backend_->createGraphicsPipeline(
+        {.shader = shader, .color_formats = {Format::BGRA8Unorm}});
     if (!pipeline) {
         backend_->destroyShader(shader);
         return false;

@@ -2,9 +2,12 @@
 
 #include "ume/core/resource_handle.hpp"
 
+#include <glm/glm.hpp>
+
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <span>
 #include <array>
 #include <string>
@@ -35,6 +38,9 @@ constexpr bool hasFlag(TextureUsage set, TextureUsage flag) {
     return (set & flag) == flag;
 }
 
+// this limit is set by metal
+constexpr size_t kMaxColorAttachments = 8;
+
 enum class IndexType : uint8_t { UInt16, UInt32 };
 
 enum class ShaderTarget : uint8_t { Msl, SpirV };
@@ -46,6 +52,10 @@ enum class BindingType : uint8_t { Buffer, Texture, Sampler };
 enum class Format : uint8_t { Undefined, BGRA8Unorm, Depth32Float };
 
 enum class Filter : uint8_t { Nearest, Linear };
+
+enum class LoadAction : uint8_t { DontCare, Load, Clear };
+
+enum class StoreAction : uint8_t { DontCare, Store };
 
 enum class AddressMode : uint8_t {
     ClampToEdge,
@@ -97,10 +107,29 @@ struct ShaderDescription {
 // TODO: maybe don't have default entry names
 struct GraphicsPipelineDescription {
     ShaderHandle shader;
-    const char *vertex_entry = "vertMain";
-    const char *fragment_entry = "fragMain";
-    Format color_format = Format::BGRA8Unorm;
+    std::string vertex_entry = "vertMain";
+    std::string fragment_entry = "fragMain";
+    std::array<Format, kMaxColorAttachments> color_formats;
     Format depth_format = Format::Undefined;
+};
+
+struct ColorAttachment {
+    TextureHandle texture;
+    LoadAction load_action = LoadAction::Clear;
+    StoreAction store_action = StoreAction::Store;
+    glm::vec4 clear_value{0.0f};
+};
+
+struct DepthAttachment {
+    TextureHandle texture;
+    LoadAction load_action = LoadAction::Clear;
+    StoreAction store_action = StoreAction::Store;
+    float clear_value = 0.0f;
+};
+
+struct RenderPassDescription {
+    std::array<ColorAttachment, kMaxColorAttachments> color_attachments;
+    std::optional<DepthAttachment> depth_attachment{};
 };
 
 struct ComputePipelineDescription {
@@ -174,6 +203,8 @@ public:
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
     virtual void beginFrame() = 0;
+    virtual void beginRenderPass(const RenderPassDescription &desc) = 0;
+    virtual void endRenderPass() = 0;
     virtual void beginScenePass() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
     virtual void postProcess(const PostProcessCommand &cmd) = 0;
