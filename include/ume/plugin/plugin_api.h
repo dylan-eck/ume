@@ -166,14 +166,16 @@ typedef enum UmeBindingType {
     UME_BINDING_TYPE_FORCE_U32 = 0x7fffffff,
 } UmeBindingType;
 
+typedef struct UmeBufferBinding {
+    UmeBufferHandle handle;
+    uint64_t offset;
+} UmeBufferBinding;
+
 typedef struct UmeBinding {
     uint32_t slot;
     UmeBindingType type;
     union {
-        struct {
-            UmeBufferHandle handle;
-            uint64_t offset;
-        } buffer;
+        UmeBufferBinding buffer;
         UmeTextureHandle texture;
         UmeSamplerHandle sampler;
     };

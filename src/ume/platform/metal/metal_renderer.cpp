@@ -51,9 +51,13 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     layer_->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
     layer_->setFramebufferOnly(false);
     layer_->setDisplaySyncEnabled(true);
+    layer_->setDrawableSize({
+        .width = static_cast<CGFloat>(pixel_width),
+        .height = static_cast<CGFloat>(pixel_height),
+    });
 
-    width_ = static_cast<uint32_t>(layer_->drawableSize().width);
-    height_ = static_cast<uint32_t>(layer_->drawableSize().height);
+    width_ = pixel_width;
+    height_ = pixel_height;
 
     createRenderTargets(width_, height_);
 
@@ -93,8 +97,13 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 void MetalRenderer::resize(uint32_t width, uint32_t height) {
     if (width == width_ && height == height_) return;
 
-    width_ = static_cast<uint32_t>(layer_->drawableSize().width);
-    height_ = static_cast<uint32_t>(layer_->drawableSize().height);
+    layer_->setDrawableSize({
+        .width = static_cast<CGFloat>(width),
+        .height = static_cast<CGFloat>(height),
+    });
+
+    width_ = width;
+    height_ = height;
 
     createRenderTargets(width_, height_);
 

@@ -174,13 +174,9 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
 
     std::vector<float> noise_values(vertex_count);
     fractal_noise_->SetOctaveCount(static_cast<int>(level + 1));
-    FastNoise::OutputMinMax output_min_max = fractal_noise_->GenPositionArray2D(
-        noise_values.data(), vertex_count, noise_input_x.data(),
-        noise_input_z.data(), 0, 0, 0);
-
-    // std::cout << "level: " << level
-    //           << " noise output range: " << output_min_max.min << " "
-    //           << output_min_max.max << "\n";
+    fractal_noise_->GenPositionArray2D(noise_values.data(), vertex_count,
+                                       noise_input_x.data(),
+                                       noise_input_z.data(), 0, 0, 0);
 
     for (size_t i = 0; i < vertex_count; i++) {
         const float height = noise_amp * noise_values[i];

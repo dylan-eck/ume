@@ -297,8 +297,9 @@ void Planet::update(const UmeFrameContext *frame_context) {
     const glm::dvec3 rel = world_position_ - camera;
 
     const double atmosphere_thickness = radius_ * kAtmosphereThicknessRatio;
+    // the times two is just because the planet is very small right now;
     const double scattering_strength =
-        0.025; // kAtmosphereOpticalDepth / atmosphere_thickness;
+        kAtmosphereOpticalDepth / atmosphere_thickness * 2;
 
     sun_direction_ =
         glm::vec3(glm::rotate(glm::mat4(1.0f), 0.0f * frame_context->delta_time,

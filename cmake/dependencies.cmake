@@ -1,3 +1,24 @@
+function(ume_silence_vendor_warnings dir)
+  get_property(
+    targets
+    DIRECTORY "${dir}"
+    PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(target IN LISTS targets)
+    get_target_property(type ${target} TYPE)
+    if(type MATCHES "^(STATIC|SHARED|MODULE|OBJECT)_LIBRARY$|^EXECUTABLE$")
+      target_compile_options(${target} PRIVATE -w)
+    endif()
+  endforeach()
+
+  get_property(
+    subdirs
+    DIRECTORY "${dir}"
+    PROPERTY SUBDIRECTORIES)
+  foreach(subdir IN LISTS subdirs)
+    ume_silence_vendor_warnings("${subdir}")
+  endforeach()
+endfunction()
+
 set(SDL_SHARED
     OFF
     CACHE BOOL "" FORCE)
@@ -29,17 +50,20 @@ set(SDL_GPU
     OFF
     CACHE BOOL "" FORCE)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/SDL)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/SDL SYSTEM)
+ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/SDL)
 
 add_library(glaze INTERFACE)
-target_include_directories(glaze
+target_include_directories(glaze SYSTEM
                            INTERFACE ${CMAKE_SOURCE_DIR}/vendor/glaze/include)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog SYSTEM)
+ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
 if(UME_RENDER_BACKEND STREQUAL "vulkan")
-    find_package(Vulkan REQUIRED)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
+  find_package(Vulkan REQUIRED)
+  add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap SYSTEM)
+  ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
 endif()
 
 find_program(
@@ -53,9 +77,14 @@ endif()
 
 message(STATUS "Using slangc: ${SLANGC_EXECUTABLE}")
 
-find_path(SLANG_INCLUDE_DIR slang.h
-          HINTS "$ENV{VULKAN_SDK}/include" PATH_SUFFIXES slang)
-find_library(SLANG_LIBRARY NAMES slang HINTS "$ENV{VULKAN_SDK}/lib")
+find_path(
+  SLANG_INCLUDE_DIR slang.h
+  HINTS "$ENV{VULKAN_SDK}/include"
+  PATH_SUFFIXES slang)
+find_library(
+  SLANG_LIBRARY
+  NAMES slang
+  HINTS "$ENV{VULKAN_SDK}/lib")
 if(NOT SLANG_INCLUDE_DIR OR NOT SLANG_LIBRARY)
   message(FATAL_ERROR "failed to locate slang library/headers")
 endif()
@@ -74,9 +103,11 @@ else()
       OFF
       CACHE BOOL "" FORCE)
 endif()
-add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/embed)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/embed SYSTEM)
+ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/embed)
 
-add_subdirectory(vendor/glm)
+add_subdirectory(vendor/glm SYSTEM)
+ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/glm)
 
 set(TINYGLTF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinygltf")
 
@@ -93,6 +124,7 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON)
 
 target_compile_definitions(tinygltf PUBLIC TINYGLTF3_ENABLE_FS)
+target_compile_options(tinygltf PRIVATE -w)
 
 set(WREN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/wren")
 add_library(
@@ -109,7 +141,7 @@ add_library(
 
 add_library(wren::wren ALIAS wren)
 
-target_include_directories(wren PUBLIC "${WREN_DIR}/src/include")
+target_include_directories(wren SYSTEM PUBLIC "${WREN_DIR}/src/include")
 target_include_directories(wren PRIVATE "${WREN_DIR}/src/optional")
 target_include_directories(wren PRIVATE "${WREN_DIR}/src/vm")
 
@@ -121,3 +153,4 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON)
 
 target_compile_definitions(wren PRIVATE WREN_OPT_META=1 WREN_OPT_RANDOM=1)
+target_compile_options(wren PRIVATE -w)

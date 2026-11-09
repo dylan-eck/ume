@@ -4,7 +4,9 @@
 
 namespace {
 
-void *createTerrain(void *user_data, const UmeParams *params) noexcept {
+// signature fixed by plugin abi
+void *createTerrain(void *user_data,
+                    [[maybe_unused]] const UmeParams *params) noexcept {
     auto *self = static_cast<TerrainPlugin *>(user_data);
 
     terrain::Terrain *terrain = nullptr;
