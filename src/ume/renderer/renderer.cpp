@@ -379,6 +379,13 @@ void Renderer::render() {
             },
         };
 
+        const std::array<InlineDataBinding, 1> inline_data = {
+            InlineDataBinding{
+                .slot = 0,
+                .data = std::as_bytes(std::span(&uniforms, 1)),
+            },
+        };
+
         backend_->draw({
             .pipeline = default_pipeline_,
             .index_count = mesh.index_count,
@@ -386,8 +393,7 @@ void Renderer::render() {
             .index_type = mesh.index_type,
             .vertex_bindings{
                 .buffers = vertex_buffers,
-                .params = std::as_bytes(std::span(&uniforms, 1)),
-                .params_slot = draw_uniforms_slot_,
+                .inline_data = inline_data,
             },
 
         });

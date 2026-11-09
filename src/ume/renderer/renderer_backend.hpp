@@ -153,12 +153,16 @@ struct SamplerBinding {
     SamplerHandle sampler;
 };
 
+struct InlineDataBinding {
+    uint32_t slot;
+    std::span<const std::byte> data;
+};
+
 struct ResourceBindings {
     std::span<const BufferBinding> buffers;
     std::span<const TextureBinding> textures;
     std::span<const SamplerBinding> samplers;
-    std::span<const std::byte> params;
-    uint32_t params_slot = 0;
+    std::span<const InlineDataBinding> inline_data;
 };
 
 struct DrawCommand {

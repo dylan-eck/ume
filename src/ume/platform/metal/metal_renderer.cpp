@@ -925,18 +925,6 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
         return false;
     }
 
-    if (!bindings.params.empty()) {
-        if (vertex) {
-            encoder->setVertexBytes(bindings.params.data(),
-                                    bindings.params.size(),
-                                    bindings.params_slot);
-        } else {
-            encoder->setFragmentBytes(bindings.params.data(),
-                                      bindings.params.size(),
-                                      bindings.params_slot);
-        }
-    }
-
     for (const auto &binding : bindings.buffers) {
         MTL::Buffer *buffer = getBuffer(binding.buffer);
         if (buffer == nullptr) {
@@ -991,6 +979,16 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
             encoder->setVertexSamplerState(sampler, binding.slot);
         } else {
             encoder->setFragmentSamplerState(sampler, binding.slot);
+        }
+    }
+
+    for (const InlineDataBinding binding : bindings.inline_data) {
+        if (vertex) {
+            encoder->setVertexBytes(binding.data.data(), binding.data.size(),
+                                    binding.slot);
+        } else {
+            encoder->setFragmentBytes(binding.data.data(), binding.data.size(),
+                                      binding.slot);
         }
     }
 
