@@ -163,8 +163,9 @@ struct ResourceBindings {
 
 struct DrawCommand {
     GraphicsPipelineHandle pipeline;
-    BufferHandle index_buffer{};
+    uint32_t vertex_count = 0;
     uint32_t index_count = 0;
+    BufferHandle index_buffer{};
     IndexType index_type = IndexType::UInt32;
     ResourceBindings vertex_bindings{};
     ResourceBindings fragment_bindings{};

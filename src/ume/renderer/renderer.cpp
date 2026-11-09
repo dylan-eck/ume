@@ -381,8 +381,8 @@ void Renderer::render() {
 
         backend_->draw({
             .pipeline = default_pipeline_,
-            .index_buffer = mesh.index_buffer,
             .index_count = mesh.index_count,
+            .index_buffer = mesh.index_buffer,
             .index_type = mesh.index_type,
             .vertex_bindings{
                 .buffers = vertex_buffers,

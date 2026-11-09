@@ -333,18 +333,6 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
 
     graphics_encoder_->setRenderPipelineState(pipeline->state.get());
 
-    MTL::Buffer *index_buffer = getBuffer(cmd.index_buffer);
-    if (index_buffer == nullptr) {
-        UME_LOG_WARN(Renderer,
-                     "attempted to draw using invalid index buffer {}",
-                     cmd.index_buffer.id);
-        return;
-    }
-
-    MTL::IndexType index_type = cmd.index_type == IndexType::UInt16
-                                    ? MTL::IndexTypeUInt16
-                                    : MTL::IndexTypeUInt32;
-
     if (!bindResources(graphics_encoder_, cmd.vertex_bindings,
                        ShaderStage::Vertex) ||
         !bindResources(graphics_encoder_, cmd.fragment_bindings,
@@ -352,9 +340,39 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
-    graphics_encoder_->drawIndexedPrimitives(
-        MTL::PrimitiveTypeTriangle, NS::UInteger(cmd.index_count), index_type,
-        index_buffer, NS::UInteger(0));
+    if (cmd.index_buffer) {
+        if (cmd.index_count <= 3 || cmd.index_count % 3 != 0) {
+            UME_LOG_WARN(Renderer, "attempted indexed draw with index count {}",
+                         cmd.index_count);
+            return;
+        }
+
+        MTL::Buffer *index_buffer = getBuffer(cmd.index_buffer);
+        if (index_buffer == nullptr) {
+            UME_LOG_WARN(Renderer,
+                         "attempted indexed draw using stale index buffer {}",
+                         cmd.index_buffer.id);
+            return;
+        }
+
+        MTL::IndexType index_type = cmd.index_type == IndexType::UInt16
+                                        ? MTL::IndexTypeUInt16
+                                        : MTL::IndexTypeUInt32;
+
+        graphics_encoder_->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle,
+                                                 cmd.index_count, index_type,
+                                                 index_buffer, 0);
+    } else {
+        if (cmd.vertex_count < 3 || cmd.vertex_count % 3 != 0) {
+            UME_LOG_WARN(
+                Renderer,
+                "attempted non-indexed draw with invalid vertex count {}",
+                cmd.vertex_count);
+        }
+
+        graphics_encoder_->drawPrimitives(MTL::PrimitiveTypeTriangle,
+                                          NS::UInteger{0}, cmd.vertex_count);
+    }
 }
 
 void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
