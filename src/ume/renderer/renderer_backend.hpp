@@ -134,17 +134,17 @@ struct ResourceBindings {
 
 struct DrawCommand {
     GraphicsPipelineHandle pipeline;
-    BufferHandle index_buffer;
+    BufferHandle index_buffer{};
     uint32_t index_count = 0;
     IndexType index_type = IndexType::UInt32;
-    ResourceBindings vertex_bindings;
-    ResourceBindings fragment_bindings;
+    ResourceBindings vertex_bindings{};
+    ResourceBindings fragment_bindings{};
 };
 
 struct DispatchCommand {
     ComputePipelineHandle pipeline;
     std::array<uint32_t, 3> work_size = {1, 1, 1};
-    ResourceBindings bindings;
+    ResourceBindings bindings{};
 };
 
 struct PostProcessPass {

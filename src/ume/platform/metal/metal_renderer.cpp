@@ -754,6 +754,7 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
         }
     }
 
+    // NOLINTNEXTLINE(readability-use-anyofallof)
     for (const auto &binding : bindings.samplers) {
         MTL::SamplerState *sampler = getSampler(binding.sampler);
         if (sampler == nullptr) {

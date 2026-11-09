@@ -29,8 +29,8 @@ struct ScriptContext {
     PluginHost *plugin_host;
     const Input *input;
 
-    std::vector<ObjectHandle> objects;
-    std::vector<MeshHandle> meshes;
+    std::vector<ObjectHandle> objects{};
+    std::vector<MeshHandle> meshes{};
 };
 
 class ScriptEngine {

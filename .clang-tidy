@@ -8,7 +8,8 @@ Checks: >
   -readability-identifier-length,
   -cppcoreguidelines-avoid-magic-numbers,
   modernize-*,
-  -modernize-use-trailing-return-type
+  -modernize-use-trailing-return-type,
+  -bugprone-easily-swappable-parameters
 
 CheckOptions:
   - key: readability-identifier-naming.StructCase
@@ -67,9 +68,6 @@ CheckOptions:
 
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
-
-  - key: bugprone-easily-swappable-parameters.ModelImplicitConversions
-    value: 'false'
 
   - key: readability-braces-around-statements.ShortStatementLines
     value: 1

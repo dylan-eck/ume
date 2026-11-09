@@ -481,14 +481,11 @@ constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
     },
 });
 
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 // function signature is dictated by wren
 WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
                                         const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
-    // NOLINTEND(bugprone-easily-swappable-parameters)
-
     if (module != std::string_view("ume") || !is_static) return nullptr;
 
     for (const auto &entry : kForeignMethodTable) {

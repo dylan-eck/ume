@@ -18,7 +18,7 @@ struct Chunk {
     uint32_t x;
     uint32_t y;
     UmeMeshHandle mesh;
-    uint64_t last_used_frame;
+    uint64_t last_used_frame = 0;
 };
 
 class Terrain {

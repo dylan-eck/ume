@@ -20,14 +20,12 @@ void *createTerrain(void *user_data, const UmeParams *params) noexcept {
 }
 
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void destroyTerrain([[maybe_unused]] void *user_data, void *object) noexcept {
     delete static_cast<terrain::Terrain *>(object);
 }
 
 // TODO: change frame_context to const reference?
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void updateTerrain(void *user_data, void *object,
                    const UmeFrameContext *frame_context) noexcept {
 
