@@ -48,6 +48,17 @@ enum class ShaderTarget : uint8_t { Msl, SpirV };
 enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
 
 enum class BindingType : uint8_t { Buffer, Texture, Sampler };
+constexpr std::string_view toString(BindingType type) {
+    switch (type) {
+    case BindingType::Buffer:
+        return "buffer";
+    case BindingType::Texture:
+        return "texture";
+    case BindingType::Sampler:
+        return "sampler";
+    }
+    std::unreachable();
+}
 
 enum class Format : uint8_t { Undefined, BGRA8Unorm, Depth32Float };
 
@@ -104,11 +115,10 @@ struct ShaderDescription {
     std::span<const EntryPoint> entry_points;
 };
 
-// TODO: maybe don't have default entry names
 struct GraphicsPipelineDescription {
     ShaderHandle shader;
-    std::string vertex_entry = "vertMain";
-    std::string fragment_entry = "fragMain";
+    std::string vertex_entry;
+    std::string fragment_entry;
     std::array<Format, kMaxColorAttachments> color_formats;
     Format depth_format = Format::Undefined;
 };

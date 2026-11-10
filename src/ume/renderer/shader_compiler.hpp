@@ -16,6 +16,7 @@ struct CompiledShader {
     std::vector<std::byte> code;
     std::vector<EntryPoint> entry_points;
     // module scope parameters, shared by every entry point
+    // slang assigns slots per module, so slot numbers are valid for any stage
     std::vector<ShaderBinding> bindings;
 };
 

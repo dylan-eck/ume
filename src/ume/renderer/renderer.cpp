@@ -16,20 +16,27 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 #include <span>
 
 namespace ume {
 
 namespace {
-uint32_t postEffectParamsSize(const CompiledShader &shader) {
-    auto itr =
-        std::ranges::find(shader.bindings, "params", &ShaderBinding::name);
-    return itr == shader.bindings.end() ? 0 : itr->size;
+const EntryPoint *findEntryPoint(std::span<const EntryPoint> entry_points,
+                                 ShaderStage stage) {
+    auto itr = std::ranges::find(entry_points, stage, &EntryPoint::stage);
+    return itr != entry_points.end() ? &*itr : nullptr;
 }
+
+const ShaderBinding *findBinding(std::span<const ShaderBinding> bindings,
+                                 std::string_view name) {
+    auto itr = std::ranges::find(bindings, name, &ShaderBinding::name);
+    return itr != bindings.end() ? &*itr : nullptr;
+}
+
 } // namespace
 
-// TODO: better naming?
 struct DrawUniforms {
     glm::mat4 model_view_projection;
     glm::mat4 model;  // mesh local -> camera-relative world
@@ -40,7 +47,6 @@ struct DrawUniforms {
     glm::vec4 world_origin;
 };
 
-// TODO: reorder this?
 struct PostFrameUniforms {
     glm::mat4 inverse_projection;
     glm::mat4 camera_to_world;
@@ -66,17 +72,59 @@ Renderer::Renderer(const Window &window)
         compiler_->compile(std::filesystem::path(UME_SOURCE_DIR) /
                            "src/ume/renderer/shaders/default.slang");
 
-    if (default_comp != std::nullopt) {
-        default_shader_ = backend_->createShader({
-            .code = default_comp->code,
-            .entry_points = default_comp->entry_points,
-        });
+    if (default_comp == std::nullopt) {
+        throw Error(logger::Category::Renderer,
+                    "failed to compile default shader");
     }
+
+    const EntryPoint *vertex_entry =
+        findEntryPoint(default_comp->entry_points, ShaderStage::Vertex);
+    const EntryPoint *fragment_entry =
+        findEntryPoint(default_comp->entry_points, ShaderStage::Fragment);
+
+    if (vertex_entry == nullptr) {
+        throw Error(logger::Category::Renderer,
+                    "failed to find vertex entry point in default shader");
+    }
+
+    if (fragment_entry == nullptr) {
+        throw Error(logger::Category::Renderer,
+                    "failed to find fragment entry point in default shader");
+    }
+
+    const ShaderBinding *draw_uniforms =
+        findBinding(default_comp->bindings, "draw");
+    const ShaderBinding *vertex_buffer =
+        findBinding(default_comp->bindings, "vertices");
+
+    if (draw_uniforms == nullptr ||
+        draw_uniforms->type != BindingType::Buffer ||
+        draw_uniforms->size != sizeof(DrawUniforms)) {
+        throw Error(
+            logger::Category::Renderer,
+            "draw uniforms binding in default shader is missing or invalid");
+    }
+
+    draw_uniforms_slot_ = draw_uniforms->slot;
+
+    if (vertex_buffer == nullptr ||
+        vertex_buffer->type != BindingType::Buffer) {
+        throw Error(
+            logger::Category::Renderer,
+            "vertex buffer binding in default shader is missing or invalid");
+    }
+
+    vertex_buffer_slot_ = vertex_buffer->slot;
+
+    default_shader_ = backend_->createShader({
+        .code = default_comp->code,
+        .entry_points = default_comp->entry_points,
+    });
 
     default_pipeline_ = backend_->createGraphicsPipeline({
         .shader = default_shader_,
-        .vertex_entry = "vertMain",
-        .fragment_entry = "fragMain",
+        .vertex_entry = vertex_entry->name,
+        .fragment_entry = fragment_entry->name,
         .color_formats = {Format::BGRA8Unorm},
         .depth_format = Format::Depth32Float,
     });
@@ -226,26 +274,18 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
         .code = compiled->code,
         .entry_points = compiled->entry_points,
     });
-
     if (!shader) return {};
 
-    auto itr = std::ranges::find(compiled->entry_points, ShaderStage::Fragment,
-                                 &EntryPoint::stage);
-
-    if (itr == compiled->entry_points.end()) {
-        UME_LOG_ERROR(
-            Renderer,
-            "could not find fragment entry point in post effect shader {}",
-            shader_path.string());
-
+    auto bindings = resolvePostEffectBindings(*compiled, shader_path);
+    if (!bindings) {
+        UME_LOG_ERROR(Renderer, "failed to resolve bindings for post effect {}",
+                      shader_path.string());
         backend_->destroyShader(shader);
         return {};
     }
 
-    const uint32_t params_size = postEffectParamsSize(*compiled);
-
-    GraphicsPipelineHandle pipeline = backend_->createGraphicsPipeline(
-        {.shader = shader, .color_formats = {Format::BGRA8Unorm}});
+    GraphicsPipelineHandle pipeline =
+        createPostEffectPipeline(shader, *compiled, shader_path);
     if (!pipeline) {
         backend_->destroyShader(shader);
         return {};
@@ -254,15 +294,16 @@ Renderer::createPostEffect(const std::filesystem::path &shader_path) {
     return post_effects_.insert({
         .shader = shader,
         .pipeline = pipeline,
-        .params_size = params_size,
-        .source = shader_path,
+        .source_path = shader_path,
+        .bindings = *bindings,
     });
 }
 
 bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     PostEffect *effect = post_effects_.get(handle);
     if (effect == nullptr) return false;
-    std::optional<CompiledShader> compiled = compiler_->compile(effect->source);
+    std::optional<CompiledShader> compiled =
+        compiler_->compile(effect->source_path);
     if (!compiled) {
         return false; // keep the last good pipeline; the error is already
                       // logged
@@ -276,8 +317,16 @@ bool Renderer::reloadPostEffect(PostEffectHandle handle) {
     });
     if (!shader) return false;
 
-    GraphicsPipelineHandle pipeline = backend_->createGraphicsPipeline(
-        {.shader = shader, .color_formats = {Format::BGRA8Unorm}});
+    auto bindings = resolvePostEffectBindings(*compiled, effect->source_path);
+    if (!bindings) {
+        UME_LOG_ERROR(Renderer, "failed to resolve bindings for post effect {}",
+                      effect->source_path.string());
+        backend_->destroyShader(shader);
+        return false;
+    }
+
+    GraphicsPipelineHandle pipeline =
+        createPostEffectPipeline(shader, *compiled, effect->source_path);
     if (!pipeline) {
         backend_->destroyShader(shader);
         return false;
@@ -288,8 +337,8 @@ bool Renderer::reloadPostEffect(PostEffectHandle handle) {
 
     effect->shader = shader;
     effect->pipeline = pipeline;
-    effect->params_size = postEffectParamsSize(*compiled);
-    UME_LOG_INFO(Renderer, "reloaded '{}'", effect->source.string());
+    effect->bindings = *bindings;
+    UME_LOG_INFO(Renderer, "reloaded '{}'", effect->source_path.string());
     return true;
 }
 
@@ -313,9 +362,9 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
                      handle.id);
         return;
     }
-    if (params.size() != effect->params_size) {
+    if (params.size() != effect->bindings.params_size) {
         UME_LOG_WARN(Renderer, "post effect {} expects {} param bytes, got {}",
-                     handle.id, effect->params_size, params.size());
+                     handle.id, effect->bindings.params_size, params.size());
         return;
     }
     const size_t offset = post_param_arena_.size();
@@ -373,7 +422,7 @@ void Renderer::render() {
 
         const std::array<BufferBinding, 1> vertex_buffers = {
             BufferBinding{
-                .slot = vertices_slot_,
+                .slot = vertex_buffer_slot_,
                 .buffer = mesh.vertex_buffer,
                 .offset = 0,
             },
@@ -381,7 +430,7 @@ void Renderer::render() {
 
         const std::array<InlineDataBinding, 1> inline_data = {
             InlineDataBinding{
-                .slot = 0,
+                .slot = draw_uniforms_slot_,
                 .data = std::as_bytes(std::span(&uniforms, 1)),
             },
         };
@@ -431,6 +480,110 @@ void Renderer::render() {
 
 void Renderer::setCamera(const CameraState &camera_state) {
     camera_state_ = camera_state;
+}
+
+std::optional<Renderer::PostEffectBindings>
+Renderer::resolvePostEffectBindings(const CompiledShader &shader,
+                                    const std::filesystem::path &path) {
+    bool invalid_bindings = false;
+
+    auto resolve_binding = [&](std::string_view name, BindingType type,
+                               bool required = false) -> const ShaderBinding * {
+        const ShaderBinding *binding = findBinding(shader.bindings, name);
+
+        if (binding == nullptr) {
+            if (required) {
+                UME_LOG_ERROR(Renderer,
+                              "post effect {} is missing required binding {}",
+                              path.string(), name);
+                invalid_bindings = true;
+            }
+            return nullptr;
+        }
+
+        if (binding->type != type) {
+            UME_LOG_ERROR(Renderer,
+                          "binding {} in post effect {} has incorrect type: "
+                          "expected {}, got {}",
+                          name, path.string(), toString(type),
+                          toString(binding->type));
+            invalid_bindings = true;
+            return nullptr;
+        }
+
+        return binding;
+    };
+
+    const ShaderBinding *frame_uniforms =
+        resolve_binding("frame", BindingType::Buffer, true);
+    const ShaderBinding *scene_texture =
+        resolve_binding("scene_texture", BindingType::Texture, true);
+    const ShaderBinding *scene_sampler =
+        resolve_binding("scene_sampler", BindingType::Sampler, true);
+    const ShaderBinding *depth_texture =
+        resolve_binding("depth_texture", BindingType::Texture, false);
+    const ShaderBinding *params =
+        resolve_binding("params", BindingType::Buffer, false);
+
+    if (invalid_bindings) {
+        return std::nullopt;
+    }
+
+    if (frame_uniforms->size != sizeof(PostFrameUniforms)) {
+        UME_LOG_ERROR(Renderer,
+                      "frame uniforms binding for post effect {} is incorrect "
+                      "size: expected {}, got {}",
+                      path.string(), sizeof(PostFrameUniforms),
+                      frame_uniforms->size);
+        return std::nullopt;
+    }
+
+    return PostEffectBindings{
+        .frame_uniforms_slot = frame_uniforms->slot,
+        .scene_texture_slot = scene_texture->slot,
+        .scene_sampler_slot = scene_sampler->slot,
+        .depth_texture_slot = depth_texture != nullptr
+                                  ? std::optional(depth_texture->slot)
+                                  : std::nullopt,
+        .params_slot =
+            params != nullptr ? std::optional(params->slot) : std::nullopt,
+        .params_size = params != nullptr ? params->size : 0,
+    };
+}
+
+GraphicsPipelineHandle
+Renderer::createPostEffectPipeline(ShaderHandle shader,
+                                   const CompiledShader &compiled,
+                                   const std::filesystem::path &path) {
+
+    const EntryPoint *vertex_entry =
+        findEntryPoint(compiled.entry_points, ShaderStage::Vertex);
+    const EntryPoint *fragment_entry =
+        findEntryPoint(compiled.entry_points, ShaderStage::Fragment);
+
+    if (vertex_entry == nullptr) {
+        UME_LOG_ERROR(Renderer, "vertex entry not found in post effect {}",
+                      path.string());
+        return {};
+    }
+
+    if (fragment_entry == nullptr) {
+        UME_LOG_ERROR(Renderer, "fragment entry not found in post effect {}",
+                      path.string());
+        return {};
+    }
+
+    GraphicsPipelineHandle pipeline = backend_->createGraphicsPipeline({
+        .shader = shader,
+        .vertex_entry = vertex_entry->name,
+        .fragment_entry = fragment_entry->name,
+        .color_formats = {Format::BGRA8Unorm},
+    });
+    if (!pipeline) {
+        return {};
+    }
+
+    return pipeline;
 }
 
 } // namespace ume

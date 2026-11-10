@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <memory>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -77,11 +78,20 @@ private:
         glm::vec4 base_color = glm::vec4(1.0f);
     };
 
+    struct PostEffectBindings {
+        uint32_t frame_uniforms_slot;
+        uint32_t scene_texture_slot;
+        uint32_t scene_sampler_slot;
+        std::optional<uint32_t> depth_texture_slot;
+        std::optional<uint32_t> params_slot;
+        uint32_t params_size;
+    };
+
     struct PostEffect {
         ShaderHandle shader;
         GraphicsPipelineHandle pipeline;
-        uint32_t params_size;
-        std::filesystem::path source;
+        std::filesystem::path source_path;
+        PostEffectBindings bindings;
     };
 
     struct PostSubmission {
@@ -112,8 +122,18 @@ private:
     BufferHandle output_;
 
     ShaderHandle default_shader_;
-    uint32_t vertices_slot_ = 1;
+    uint32_t draw_uniforms_slot_ = 0;
+    uint32_t vertex_buffer_slot_ = 0;
     GraphicsPipelineHandle default_pipeline_;
+
+    static std::optional<Renderer::PostEffectBindings>
+    resolvePostEffectBindings(const CompiledShader &shader,
+                              const std::filesystem::path &path);
+
+    [[nodiscard]] GraphicsPipelineHandle
+    createPostEffectPipeline(ShaderHandle shader,
+                             const CompiledShader &compiled,
+                             const std::filesystem::path &path);
 
     static glm::vec4 debugColorFromId(uint32_t id) {
         uint32_t h = id * 0x9e3779b9u;

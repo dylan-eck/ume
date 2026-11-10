@@ -416,7 +416,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
     }
 
     if (cmd.index_buffer) {
-        if (cmd.index_count <= 3 || cmd.index_count % 3 != 0) {
+        if (cmd.index_count == 0 || cmd.index_count % 3 != 0) {
             UME_LOG_WARN(Renderer, "attempted indexed draw with index count {}",
                          cmd.index_count);
             return;
@@ -443,6 +443,7 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
                 Renderer,
                 "attempted non-indexed draw with invalid vertex count {}",
                 cmd.vertex_count);
+            return;
         }
 
         graphics_encoder_->drawPrimitives(MTL::PrimitiveTypeTriangle,
@@ -773,6 +774,29 @@ GraphicsPipelineHandle
 MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
     MetalShader *shader = shaders_.get(desc.shader);
     if (shader == nullptr) return {};
+
+    auto check_entry = [&](std::string_view name, ShaderStage stage) -> bool {
+        auto itr =
+            std::ranges::find(shader->entry_points, name, &EntryPoint::name);
+
+        if (itr == shader->entry_points.end()) {
+            UME_LOG_WARN(Renderer, "no entry point named '{}' in shader", name);
+            return false;
+        }
+
+        if ((*itr).stage != stage) {
+            UME_LOG_WARN(Renderer,
+                         "entry point '{}' exists, but has incorrect stage",
+                         name);
+            return false;
+        }
+        return true;
+    };
+
+    if (!check_entry(desc.vertex_entry, ShaderStage::Vertex) ||
+        !check_entry(desc.fragment_entry, ShaderStage::Fragment)) {
+        return {};
+    }
 
     auto library = shader->library;
     auto state = buildGraphicsPipeline(desc, library.get());

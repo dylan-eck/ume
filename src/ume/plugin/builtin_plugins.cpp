@@ -15,8 +15,10 @@ inline constexpr std::string_view kPluginSuffix = UME_PLUGIN_SUFFIX;
 extern "C" UME_PLUGIN_BOOL
     UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
                                  UmePluginDescription *description);
-UME_PLUGIN_ENTRY(terrain)(const UmePluginApi *api,
-                          UmePluginDescription *description);
+
+extern "C" UME_PLUGIN_BOOL
+    UME_PLUGIN_ENTRY(terrain)(const UmePluginApi *api,
+                              UmePluginDescription *description);
 #endif
 
 namespace ume {
@@ -76,8 +78,8 @@ void registerBuiltinPlugins(PluginHost &host,
                              plugin_dir / "proc_planet")) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'proc_planet'");
     }
-    if (!host.registerStatic("terrain", &UME_PLUGIN_ENTRY(procPlanet),
-                             plugin_dir / "proc_planet")) {
+    if (!host.registerStatic("terrain", &UME_PLUGIN_ENTRY(terrain),
+                             plugin_dir / "terrain")) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'terrain'");
     }
 #else

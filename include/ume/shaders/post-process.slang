@@ -7,13 +7,12 @@ struct FrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    float3 pad;
 };
 
-Texture2D<float4> scene_texture;
-Texture2D<float> depth_texture;
-SamplerState scene_sampler;
 ConstantBuffer<FrameUniforms> frame;
+Texture2D<float4> scene_texture;
+SamplerState scene_sampler;
+Texture2D<float> depth_texture;
 
 struct FullscreenOutput {
     float4 sv_position : SV_POSITION;
