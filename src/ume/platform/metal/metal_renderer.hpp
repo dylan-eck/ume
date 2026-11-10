@@ -157,8 +157,8 @@ private:
     MTL::Texture *getTexture(TextureHandle handle);
     MTL::SamplerState *getSampler(SamplerHandle handle);
 
-    bool bindResources(MTL::RenderCommandEncoder *encoder,
-                       const ResourceBindings &bindings, ShaderStage stage);
+    template <typename Binder>
+    bool bindResources(const Binder &binder, const ResourceBindings &bindings);
 
     std::expected<void, std::string>
     validateRenderPass(const RenderPassDescription &desc);

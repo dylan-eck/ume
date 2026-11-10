@@ -22,8 +22,6 @@
 #include <span>
 #include <utility>
 
-#include <iostream>
-
 namespace ume {
 
 namespace {
@@ -33,6 +31,75 @@ const char *errorString(NS::Error *error) {
     }
     return error->localizedDescription()->utf8String();
 }
+
+struct VertexBinder {
+    MTL::RenderCommandEncoder *encoder;
+    static constexpr const char *kName = "vertex";
+
+    void buffer(MTL::Buffer *buffer, NS::UInteger offset,
+                NS::UInteger slot) const {
+        encoder->setVertexBuffer(buffer, offset, slot);
+    }
+
+    void texture(MTL::Texture *texture, NS::UInteger slot) const {
+        encoder->setVertexTexture(texture, slot);
+    }
+
+    void sampler(MTL::SamplerState *sampler, NS::UInteger slot) const {
+        encoder->setVertexSamplerState(sampler, slot);
+    }
+
+    void inlineData(const void *data, NS::UInteger size,
+                    NS::UInteger slot) const {
+        encoder->setVertexBytes(data, size, slot);
+    }
+};
+
+struct FragmentBinder {
+    MTL::RenderCommandEncoder *encoder;
+    static constexpr const char *kName = "fragment";
+
+    void buffer(MTL::Buffer *buffer, NS::UInteger offset,
+                NS::UInteger slot) const {
+        encoder->setFragmentBuffer(buffer, offset, slot);
+    }
+
+    void texture(MTL::Texture *texture, NS::UInteger slot) const {
+        encoder->setFragmentTexture(texture, slot);
+    }
+
+    void sampler(MTL::SamplerState *sampler, NS::UInteger slot) const {
+        encoder->setFragmentSamplerState(sampler, slot);
+    }
+
+    void inlineData(const void *data, NS::UInteger size,
+                    NS::UInteger slot) const {
+        encoder->setFragmentBytes(data, size, slot);
+    }
+};
+
+struct ComputeBinder {
+    MTL::ComputeCommandEncoder *encoder;
+    static constexpr const char *kName = "compute";
+
+    void buffer(MTL::Buffer *buffer, NS::UInteger offset,
+                NS::UInteger slot) const {
+        encoder->setBuffer(buffer, offset, slot);
+    }
+
+    void texture(MTL::Texture *texture, NS::UInteger slot) const {
+        encoder->setTexture(texture, slot);
+    }
+
+    void sampler(MTL::SamplerState *sampler, NS::UInteger slot) const {
+        encoder->setSamplerState(sampler, slot);
+    }
+
+    void inlineData(const void *data, NS::UInteger size,
+                    NS::UInteger slot) const {
+        encoder->setBytes(data, size, slot);
+    }
+};
 } // namespace
 
 MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
@@ -342,10 +409,9 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
 
     graphics_encoder_->setRenderPipelineState(pipeline->state.get());
 
-    if (!bindResources(graphics_encoder_, cmd.vertex_bindings,
-                       ShaderStage::Vertex) ||
-        !bindResources(graphics_encoder_, cmd.fragment_bindings,
-                       ShaderStage::Fragment)) {
+    if (!bindResources(VertexBinder{graphics_encoder_}, cmd.vertex_bindings) ||
+        !bindResources(FragmentBinder{graphics_encoder_},
+                       cmd.fragment_bindings)) {
         return;
     }
 
@@ -487,37 +553,8 @@ void MetalRenderer::dispatch(const DispatchCommand &cmd) {
 
     compute_encoder_->setComputePipelineState(pipeline->state.get());
 
-    for (const auto &binding : cmd.bindings.buffers) {
-        MTL::Buffer *buffer = getBuffer(binding.buffer);
-        if (buffer == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "dispatch() called with invalid buffer {} at slot {}",
-                         binding.buffer.id, binding.slot);
-            return;
-        }
-        compute_encoder_->setBuffer(buffer, binding.offset, binding.slot);
-    }
-
-    for (const auto &binding : cmd.bindings.textures) {
-        MTL::Texture *texture = getTexture(binding.texture);
-        if (texture == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "dispatch() called with invalid texture {} at slot {}",
-                         binding.texture.id, binding.slot);
-            return;
-        }
-        compute_encoder_->setTexture(texture, binding.slot);
-    }
-
-    for (const auto &binding : cmd.bindings.samplers) {
-        MTL::SamplerState *sampler = getSampler(binding.sampler);
-        if (sampler == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "dispatch() called with invalid sampler {} at slot {}",
-                         binding.sampler.id, binding.slot);
-            return;
-        }
-        compute_encoder_->setSamplerState(sampler, binding.slot);
+    if (!bindResources(ComputeBinder{compute_encoder_}, cmd.bindings)) {
+        return;
     }
 
     const auto &wg = pipeline->workgroup_size;
@@ -915,38 +952,27 @@ MTL::SamplerState *MetalRenderer::getSampler(SamplerHandle handle) {
     return nullptr;
 }
 
-bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
-                                  const ResourceBindings &bindings,
-                                  ShaderStage stage) {
-    const bool vertex = stage == ShaderStage::Vertex;
-    if (!vertex && stage != ShaderStage::Fragment) {
-        UME_LOG_WARN(Renderer,
-                     "bindResources() called with non-graphics shader stage");
-        return false;
-    }
+template <typename Binder>
+bool MetalRenderer::bindResources(const Binder &binder,
+                                  const ResourceBindings &bindings) {
 
     for (const auto &binding : bindings.buffers) {
         MTL::Buffer *buffer = getBuffer(binding.buffer);
         if (buffer == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "draw() called with invalid buffer {} at slot {}",
-                         binding.buffer.id, binding.slot);
+            UME_LOG_WARN(Renderer, "invalid {} buffer binding {} at slot {}",
+                         Binder::kName, binding.buffer.id, binding.slot);
             return false;
         }
-        if (vertex) {
-            encoder->setVertexBuffer(buffer, binding.offset, binding.slot);
-        } else {
-            encoder->setFragmentBuffer(buffer, binding.offset, binding.slot);
-        }
+
+        binder.buffer(buffer, binding.offset, binding.slot);
     }
 
     for (const auto &binding : bindings.textures) {
         MTL::Texture *texture = getTexture(binding.texture);
 
         if (texture == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "draw() called with invalid texture {} at slot {}",
-                         binding.texture.id, binding.slot);
+            UME_LOG_WARN(Renderer, "invalid {} texture binding {} at slot {}",
+                         Binder::kName, binding.texture.id, binding.slot);
             return false;
         }
 
@@ -959,37 +985,24 @@ bool MetalRenderer::bindResources(MTL::RenderCommandEncoder *encoder,
             return false;
         }
 
-        if (vertex) {
-            encoder->setVertexTexture(texture, binding.slot);
-        } else {
-            encoder->setFragmentTexture(texture, binding.slot);
-        }
+        binder.texture(texture, binding.slot);
     }
 
     // NOLINTNEXTLINE(readability-use-anyofallof)
     for (const auto &binding : bindings.samplers) {
         MTL::SamplerState *sampler = getSampler(binding.sampler);
         if (sampler == nullptr) {
-            UME_LOG_WARN(Renderer,
-                         "draw() called with invalid sampler {} at slot {}",
-                         binding.sampler.id, binding.slot);
+            UME_LOG_WARN(Renderer, "invalid {} sampler binding {} at slot {}",
+                         Binder::kName, binding.sampler.id, binding.slot);
             return false;
         }
-        if (vertex) {
-            encoder->setVertexSamplerState(sampler, binding.slot);
-        } else {
-            encoder->setFragmentSamplerState(sampler, binding.slot);
-        }
+
+        binder.sampler(sampler, binding.slot);
     }
 
     for (const InlineDataBinding binding : bindings.inline_data) {
-        if (vertex) {
-            encoder->setVertexBytes(binding.data.data(), binding.data.size(),
-                                    binding.slot);
-        } else {
-            encoder->setFragmentBytes(binding.data.data(), binding.data.size(),
-                                      binding.slot);
-        }
+        binder.inlineData(binding.data.data(), binding.data.size(),
+                          binding.slot);
     }
 
     return true;
