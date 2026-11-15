@@ -33,6 +33,7 @@ struct MetalShader {
 struct MetalGraphicsPipeline {
     GraphicsPipelineDescription description;
     NS::SharedPtr<MTL::RenderPipelineState> state;
+    NS::SharedPtr<MTL::DepthStencilState> depth_state;
 };
 
 struct MetalComputePipeline {
@@ -118,13 +119,14 @@ private:
 
     ResourcePool<MetalGraphicsPipeline, GraphicsPipelineHandle>
         graphics_pipelines_;
+    GraphicsPipelineHandle curr_graphics_pipeline_{};
+
     ResourcePool<MetalComputePipeline, ComputePipelineHandle>
         compute_pipelines_;
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
     TextureHandle depth_texture_;
-    NS::SharedPtr<MTL::DepthStencilState> depth_state_;
 
     NS::SharedPtr<NS::AutoreleasePool> frame_pool_ = nullptr;
     CA::MetalDrawable *drawable_ = nullptr;

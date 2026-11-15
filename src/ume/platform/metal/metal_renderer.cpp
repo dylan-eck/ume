@@ -8,6 +8,8 @@
 #include "ume/core/resource_handle.hpp"
 #include "ume/platform/window.hpp"
 #include "ume/renderer/renderer_backend.hpp"
+#include "ume/renderer/backend_types.hpp"
+#include "ume/platform/metal/metal_conversions.hpp"
 
 #include <array>
 #include <algorithm>
@@ -146,18 +148,6 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
                     "failed to create metal command queue");
     }
 
-    auto depth_desc =
-        NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
-    depth_desc->setDepthCompareFunction(MTL::CompareFunctionGreater);
-    depth_desc->setDepthWriteEnabled(true);
-
-    depth_state_ =
-        NS::TransferPtr(device_->newDepthStencilState(depth_desc.get()));
-    if (!depth_state_) {
-        throw Error(logger::Category::Renderer,
-                    "failed to create depth stencil state");
-    }
-
     UME_LOG_INFO(Renderer, "initialized metal renderer backend");
 }
 
@@ -186,34 +176,6 @@ void MetalRenderer::beginFrame() {
     command_buffer_ = command_queue_->commandBuffer();
     curr_frame_failed_ = false;
 }
-
-namespace {
-MTL::LoadAction getMTLLoadAction(LoadAction action) {
-    switch (action) {
-    case LoadAction::DontCare:
-        return MTL::LoadActionDontCare;
-    case LoadAction::Load:
-        return MTL::LoadActionLoad;
-    case LoadAction::Clear:
-        return MTL::LoadActionClear;
-    }
-    std::unreachable();
-}
-
-MTL::StoreAction getMTLStoreAction(StoreAction action) {
-    switch (action) {
-    case StoreAction::DontCare:
-        return MTL::StoreActionDontCare;
-    case StoreAction::Store:
-        return MTL::StoreActionStore;
-    }
-    std::unreachable();
-}
-
-MTL::ClearColor makeMTLClearColor(glm::vec4 color) {
-    return {color[0], color[1], color[2], color[3]};
-}
-} // namespace
 
 std::expected<void, std::string>
 MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
@@ -334,9 +296,9 @@ void MetalRenderer::beginRenderPass(const RenderPassDescription &desc) {
         auto *mtl_color = pass_descriptor->colorAttachments()->object(i);
 
         mtl_color->setTexture(getTexture(color.texture));
-        mtl_color->setLoadAction(getMTLLoadAction(color.load_action));
-        mtl_color->setStoreAction(getMTLStoreAction(color.store_action));
-        mtl_color->setClearColor(makeMTLClearColor(color.clear_value));
+        mtl_color->setLoadAction(metal::toMTLLoadAction(color.load_action));
+        mtl_color->setStoreAction(metal::toMTLStoreAction(color.store_action));
+        mtl_color->setClearColor(metal::toMTLClearColor(color.clear_value));
     }
 
     if (desc.depth_attachment.has_value()) {
@@ -344,18 +306,15 @@ void MetalRenderer::beginRenderPass(const RenderPassDescription &desc) {
         auto *mtl_depth = pass_descriptor->depthAttachment();
 
         mtl_depth->setTexture(getTexture(depth.texture));
-        mtl_depth->setLoadAction(getMTLLoadAction(depth.load_action));
-        mtl_depth->setStoreAction(getMTLStoreAction(depth.store_action));
+        mtl_depth->setLoadAction(metal::toMTLLoadAction(depth.load_action));
+        mtl_depth->setStoreAction(metal::toMTLStoreAction(depth.store_action));
         mtl_depth->setClearDepth(depth.clear_value);
     }
 
     graphics_encoder_ =
         command_buffer_->renderCommandEncoder(pass_descriptor.get());
 
-    graphics_encoder_->setFrontFacingWinding(MTL::WindingCounterClockwise);
-    graphics_encoder_->setCullMode(MTL::CullModeBack);
-    // graphics_encoder_->setTriangleFillMode(MTL::TriangleFillModeLines);
-    graphics_encoder_->setDepthStencilState(depth_state_.get());
+    curr_graphics_pipeline_ = {};
 }
 
 void MetalRenderer::endRenderPass() {
@@ -407,7 +366,21 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
         return;
     }
 
-    graphics_encoder_->setRenderPipelineState(pipeline->state.get());
+    if (cmd.pipeline != curr_graphics_pipeline_) {
+        graphics_encoder_->setRenderPipelineState(pipeline->state.get());
+        curr_graphics_pipeline_ = cmd.pipeline;
+
+        graphics_encoder_->setCullMode(
+            metal::toMTLCullMode(pipeline->description.raster_state.cull_mode));
+
+        graphics_encoder_->setFrontFacingWinding(metal::toMTLWinding(
+            pipeline->description.raster_state.front_face_winding));
+
+        if (pipeline->depth_state) {
+            graphics_encoder_->setDepthStencilState(
+                pipeline->depth_state.get());
+        }
+    }
 
     if (!bindResources(VertexBinder{graphics_encoder_}, cmd.vertex_bindings) ||
         !bindResources(FragmentBinder{graphics_encoder_},
@@ -491,7 +464,6 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
         MTL::RenderCommandEncoder *enc =
             command_buffer_->renderCommandEncoder(pass_desc.get());
         enc->setRenderPipelineState(pipeline->state.get());
-        enc->setCullMode(MTL::CullModeNone);
         enc->setFragmentTexture(getTexture(color_targets_[src]), 0);
         enc->setFragmentTexture(getTexture(depth_texture_), 1);
         enc->setFragmentSamplerState(getSampler(linear_sampler_), 0);
@@ -636,35 +608,6 @@ void MetalRenderer::readBuffer(BufferHandle handle, size_t offset,
     std::memcpy(out.data(), src + offset, out.size());
 }
 
-namespace {
-MTL::PixelFormat getMTLPixelFormat(Format format) {
-    switch (format) {
-    case Format::Undefined:
-        return MTL::PixelFormatInvalid;
-    case Format::BGRA8Unorm:
-        return MTL::PixelFormatBGRA8Unorm;
-    case Format::Depth32Float:
-        return MTL::PixelFormatDepth32Float;
-    }
-    std::unreachable();
-}
-
-MTL::TextureUsage getMTLTextureUsage(TextureUsage usage) {
-    MTL::TextureUsage mtl_usage = MTL::TextureUsageUnknown;
-    if (hasFlag(usage, TextureUsage::RenderTarget)) {
-        mtl_usage |= MTL::TextureUsageRenderTarget;
-    }
-    if (hasFlag(usage, TextureUsage::ShaderRead)) {
-        mtl_usage |= MTL::TextureUsageShaderRead;
-    }
-    if (hasFlag(usage, TextureUsage::ShaderWrite)) {
-        mtl_usage |= MTL::TextureUsageShaderWrite;
-    }
-
-    return mtl_usage;
-}
-} // namespace
-
 TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
     if (desc.width == 0 || desc.height == 0) {
         UME_LOG_WARN(Renderer,
@@ -680,11 +623,11 @@ TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
     auto descriptor = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     // TODO: support other texture types
     descriptor->setTextureType(MTL::TextureType2D);
-    descriptor->setPixelFormat(getMTLPixelFormat(desc.format));
+    descriptor->setPixelFormat(metal::toMTLPixelFormat(desc.format));
     descriptor->setWidth(desc.width);
     descriptor->setHeight(desc.height);
     descriptor->setStorageMode(MTL::StorageModePrivate);
-    descriptor->setUsage(getMTLTextureUsage(desc.usage));
+    descriptor->setUsage(metal::toMTLTextureUsage(desc.usage));
 
     auto texture = NS::TransferPtr(device_->newTexture(descriptor.get()));
     if (!texture) {
@@ -704,42 +647,12 @@ void MetalRenderer::destroyTexture(TextureHandle handle) {
     textures_.remove(handle);
 }
 
-namespace {
-MTL::SamplerMinMagFilter getMTLFilterType(Filter filter) {
-    switch (filter) {
-    case Filter::Nearest:
-        return MTL::SamplerMinMagFilterNearest;
-    case Filter::Linear:
-        return MTL::SamplerMinMagFilterLinear;
-    }
-    std::unreachable();
-}
-
-MTL::SamplerAddressMode getMTLAddressMode(AddressMode mode) {
-    switch (mode) {
-    case AddressMode::ClampToEdge:
-        return MTL::SamplerAddressModeClampToEdge;
-    case AddressMode::MirrorClampToEdge:
-        return MTL::SamplerAddressModeMirrorClampToEdge;
-    case AddressMode::Repeat:
-        return MTL::SamplerAddressModeRepeat;
-    case AddressMode::MirrorRepeat:
-        return MTL::SamplerAddressModeMirrorRepeat;
-    case AddressMode::ClampToZero:
-        return MTL::SamplerAddressModeClampToZero;
-    case AddressMode::ClampToBorderColor:
-        return MTL::SamplerAddressModeClampToBorderColor;
-    }
-    std::unreachable();
-}
-} // namespace
-
 SamplerHandle MetalRenderer::createSampler(const SamplerDescription &desc) {
     auto descriptor = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
-    descriptor->setMinFilter(getMTLFilterType(desc.min_filter));
-    descriptor->setMagFilter(getMTLFilterType(desc.mag_filter));
-    descriptor->setSAddressMode(getMTLAddressMode(desc.address_mode));
-    descriptor->setTAddressMode(getMTLAddressMode(desc.address_mode));
+    descriptor->setMinFilter(metal::toMTLFilterType(desc.min_filter));
+    descriptor->setMagFilter(metal::toMTLFilterType(desc.mag_filter));
+    descriptor->setSAddressMode(metal::toMTLAddressMode(desc.address_mode));
+    descriptor->setTAddressMode(metal::toMTLAddressMode(desc.address_mode));
 
     auto sampler = NS::TransferPtr(device_->newSamplerState(descriptor.get()));
     if (!sampler) {
@@ -772,6 +685,14 @@ void MetalRenderer::destroyShader(ShaderHandle handle) {
 
 GraphicsPipelineHandle
 MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
+    if (desc.depth_format == Format::Undefined &&
+        (desc.depth_state.compare != CompareFunction::Always ||
+         desc.depth_state.write)) {
+        UME_LOG_WARN(Renderer,
+                     "pipeline with depth enabled must have a depth format");
+        return {};
+    }
+
     MetalShader *shader = shaders_.get(desc.shader);
     if (shader == nullptr) return {};
 
@@ -802,8 +723,31 @@ MetalRenderer::createGraphicsPipeline(const GraphicsPipelineDescription &desc) {
     auto state = buildGraphicsPipeline(desc, library.get());
     if (!state) return {};
 
-    return graphics_pipelines_.insert(
-        MetalGraphicsPipeline{.description = desc, .state = std::move(state)});
+    MetalGraphicsPipeline metal_pipeline{
+        .description = desc,
+        .state = std::move(state),
+    };
+
+    if (desc.depth_format != Format::Undefined) {
+        auto depth_desc =
+            NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
+        depth_desc->setDepthCompareFunction(
+            metal::toMTLCompareFunction(desc.depth_state.compare));
+        depth_desc->setDepthWriteEnabled(desc.depth_state.write);
+
+        auto depth_state =
+            NS::TransferPtr(device_->newDepthStencilState(depth_desc.get()));
+
+        if (!depth_state) {
+            UME_LOG_ERROR(Renderer,
+                          "failed to create metal depth stencil state");
+            return {};
+        }
+
+        metal_pipeline.depth_state = std::move(depth_state);
+    }
+
+    return graphics_pipelines_.insert(metal_pipeline);
 }
 
 void MetalRenderer::destroyGraphicsPipeline(GraphicsPipelineHandle handle) {
@@ -891,12 +835,12 @@ MetalRenderer::buildGraphicsPipeline(const GraphicsPipelineDescription &desc,
         if (desc.color_formats[i] == Format::Undefined) continue;
 
         mtl_pipeline_desc->colorAttachments()->object(i)->setPixelFormat(
-            getMTLPixelFormat(desc.color_formats[i]));
+            metal::toMTLPixelFormat(desc.color_formats[i]));
     }
 
     if (desc.depth_format != Format::Undefined) {
         mtl_pipeline_desc->setDepthAttachmentPixelFormat(
-            getMTLPixelFormat(desc.depth_format));
+            metal::toMTLPixelFormat(desc.depth_format));
     }
 
     NS::Error *error = nullptr;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ume/renderer/renderer_backend.hpp"
+#include "ume/renderer/backend_types.hpp"
 
 #include <slang-com-ptr.h>
 #include <slang.h>

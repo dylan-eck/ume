@@ -2,6 +2,7 @@
 #include "ume/core/logger.hpp"
 #include "ume/core/resource_handle.hpp"
 #include "ume/platform/window.hpp"
+#include "ume/renderer/backend_types.hpp"
 #include "ume/renderer/renderer_backend.hpp"
 #include "ume/renderer/camera.hpp"
 #include "ume/renderer/shader_compiler.hpp"
@@ -127,6 +128,16 @@ Renderer::Renderer(const Window &window)
         .fragment_entry = fragment_entry->name,
         .color_formats = {Format::BGRA8Unorm},
         .depth_format = Format::Depth32Float,
+        .depth_state =
+            {
+                .compare = CompareFunction::Greater,
+                .write = true,
+            },
+        .raster_state =
+            {
+                .cull_mode = CullMode::Back,
+                .front_face_winding = Winding::CounterClockwise,
+            },
     });
 
     if (!default_pipeline_) {
