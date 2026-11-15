@@ -128,6 +128,15 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     width_ = pixel_width;
     height_ = pixel_height;
 
+    backbuffer_ = textures_.insert({.description =
+                                        {
+                                            .width = width_,
+                                            .height = height_,
+                                            .format = Format::BGRA8Unorm,
+                                            .usage = TextureUsage::RenderTarget,
+                                        },
+                                    .texture = {}});
+
     createRenderTargets(width_, height_);
 
     // TODO: separate these out (do in resize too)
@@ -154,13 +163,17 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
 void MetalRenderer::resize(uint32_t width, uint32_t height) {
     if (width == width_ && height == height_) return;
 
+    width_ = width;
+    height_ = height;
+
     layer_->setDrawableSize({
         .width = static_cast<CGFloat>(width),
         .height = static_cast<CGFloat>(height),
     });
 
-    width_ = width;
-    height_ = height;
+    MetalTexture *bb_texture = textures_.get(backbuffer_);
+    bb_texture->description.width = width;
+    bb_texture->description.height = height;
 
     createRenderTargets(width_, height_);
 
@@ -170,6 +183,8 @@ void MetalRenderer::resize(uint32_t width, uint32_t height) {
             "failed to re-create on or more render targets during resize");
     }
 }
+
+TextureHandle MetalRenderer::backbuffer() const { return backbuffer_; }
 
 void MetalRenderer::beginFrame() {
     frame_pool_ = NS::TransferPtr(NS::AutoreleasePool::alloc()->init());
@@ -198,6 +213,11 @@ MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
         if (is_depth && texture->description.format != Format::Depth32Float) {
             return std::unexpected(
                 std::format("{} format is not a depth format", kind));
+        }
+
+        if (is_depth && handle == backbuffer_) {
+            return std::unexpected(
+                "backbuffer cannot be bound as a depth texture");
         }
 
         if (!is_depth && texture->description.format == Format::Depth32Float) {
@@ -245,22 +265,20 @@ MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
 void MetalRenderer::beginRenderPass(const RenderPassDescription &desc) {
     if (curr_frame_failed_) return;
 
-    // TODO: make this not log every frame
     if (curr_pass_desc_) {
-        UME_LOG_WARN(
-            Renderer,
-            "cannot start new render pass before previous has finished");
-        curr_frame_failed_ = true;
+        failFrame("cannot start new render pass before previous has finished");
         return;
     }
 
     if (auto result = validateRenderPass(desc); !result) {
-        curr_frame_failed_ = true;
+        failFrame(std::format("invalid render pass: {}", result.error()));
+        return;
+    }
 
-        if (result.error() != last_error_) {
-            UME_LOG_WARN(Renderer, "invalid render pass: {}", result.error());
-        }
-        last_error_ = result.error();
+    if (std::ranges::contains(desc.color_attachments, backbuffer_,
+                              &ColorAttachment::texture) &&
+        !acquireBackbuffer()) {
+        failFrame("failed to acquire drawable");
         return;
     }
 
@@ -428,14 +446,10 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
     if (graphics_encoder_ == nullptr) return;
     endRenderPass();
 
-    drawable_ = layer_->nextDrawable();
-    if (drawable_ == nullptr) return;
+    if (!acquireBackbuffer()) return;
 
     if (cmd.passes.empty()) {
-        MTL::BlitCommandEncoder *blit = command_buffer_->blitCommandEncoder();
-        blit->copyFromTexture(getTexture(color_targets_[0]),
-                              drawable_->texture());
-        blit->endEncoding();
+        copyTexture(color_targets_[0], backbuffer_);
         return;
     }
 
@@ -451,8 +465,8 @@ void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
         }
 
         const bool last = (i + 1 == cmd.passes.size());
-        MTL::Texture *dst =
-            last ? drawable_->texture() : getTexture(color_targets_[1 - src]);
+        MTL::Texture *dst = last ? getTexture(backbuffer_)
+                                 : getTexture(color_targets_[1 - src]);
 
         auto pass_desc =
             NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
@@ -503,6 +517,9 @@ void MetalRenderer::endFrame() {
     drawable_ = nullptr;
 
     frame_pool_.reset();
+
+    MetalTexture *bb_texture = textures_.get(backbuffer_);
+    bb_texture->texture = {};
 }
 
 void MetalRenderer::beginComputePass() {
@@ -644,7 +661,61 @@ TextureHandle MetalRenderer::createTexture(const TextureDescription &desc) {
 }
 
 void MetalRenderer::destroyTexture(TextureHandle handle) {
+    if (handle == backbuffer_) {
+        UME_LOG_WARN(Renderer, "attempted to destroy backbuffer");
+        return;
+    }
     textures_.remove(handle);
+}
+
+void MetalRenderer::copyTexture(TextureHandle src, TextureHandle dst) {
+    if (curr_frame_failed_) return;
+
+    if (curr_pass_desc_ || compute_encoder_ != nullptr) {
+        UME_LOG_WARN(Renderer,
+                     "cannot copy texture while render pass is in progress");
+        return;
+    }
+
+    if (src == backbuffer_) {
+        UME_LOG_WARN(Renderer, "cannot copy from the backbuffer");
+        return;
+    }
+
+    MetalTexture *src_texture = textures_.get(src);
+    MetalTexture *dst_texture = textures_.get(dst);
+
+    if (src_texture == nullptr) {
+        UME_LOG_WARN(Renderer, "source texture is invalid");
+        return;
+    }
+
+    if (dst_texture == nullptr) {
+        UME_LOG_WARN(Renderer, "destination texture is invalid");
+        return;
+    }
+
+    if (src_texture->description.format != dst_texture->description.format) {
+        UME_LOG_WARN(Renderer,
+                     "source and destination textures have different format");
+        return;
+    }
+
+    if (src_texture->description.width != dst_texture->description.width ||
+        src_texture->description.height != dst_texture->description.height) {
+        UME_LOG_WARN(Renderer,
+                     "source and destination textures are different sizes");
+        return;
+    }
+
+    if (dst == backbuffer_ && !acquireBackbuffer()) {
+        failFrame("failed to acquire drawable");
+        return;
+    }
+
+    MTL::BlitCommandEncoder *encoder = command_buffer_->blitCommandEncoder();
+    encoder->copyFromTexture(getTexture(src), getTexture(dst));
+    encoder->endEncoding();
 }
 
 SamplerHandle MetalRenderer::createSampler(const SamplerDescription &desc) {
@@ -920,6 +991,27 @@ MTL::SamplerState *MetalRenderer::getSampler(SamplerHandle handle) {
     return nullptr;
 }
 
+bool MetalRenderer::acquireBackbuffer() {
+    if (drawable_ != nullptr) return true;
+
+    drawable_ = layer_->nextDrawable();
+    if (drawable_ == nullptr) return false;
+
+    MetalTexture *bb_texture = textures_.get(backbuffer_);
+    bb_texture->texture = NS::RetainPtr(drawable_->texture());
+    return true;
+}
+
+void MetalRenderer::failFrame(std::string message) {
+    curr_frame_failed_ = true;
+
+    if (message != last_error_) {
+        UME_LOG_WARN(Renderer, "{}", message);
+    }
+
+    last_error_ = std::move(message);
+}
+
 template <typename Binder>
 bool MetalRenderer::bindResources(const Binder &binder,
                                   const ResourceBindings &bindings) {
@@ -941,6 +1033,11 @@ bool MetalRenderer::bindResources(const Binder &binder,
         if (texture == nullptr) {
             UME_LOG_WARN(Renderer, "invalid {} texture binding {} at slot {}",
                          Binder::kName, binding.texture.id, binding.slot);
+            return false;
+        }
+
+        if (binding.texture == backbuffer_) {
+            UME_LOG_WARN(Renderer, "backbuffer cannot be bound as a texture");
             return false;
         }
 

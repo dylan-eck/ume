@@ -26,6 +26,8 @@ public:
     // resize() can only be called before beginFrame() or after endFrame()
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
+    [[nodiscard]] virtual TextureHandle backbuffer() const = 0;
+
     virtual void beginFrame() = 0;
     virtual void beginRenderPass(const RenderPassDescription &desc) = 0;
     virtual void endRenderPass() = 0;
@@ -45,6 +47,7 @@ public:
 
     virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;
+    virtual void copyTexture(TextureHandle src, TextureHandle dst) = 0;
 
     virtual SamplerHandle createSampler(const SamplerDescription &desc) = 0;
     virtual void destroySampler(SamplerHandle handle) = 0;

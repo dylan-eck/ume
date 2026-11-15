@@ -69,6 +69,8 @@ public:
 
     void resize(uint32_t width, uint32_t height) override;
 
+    [[nodiscard]] TextureHandle backbuffer() const override;
+
     void beginFrame() override;
     void beginRenderPass(const RenderPassDescription &desc) override;
     void endRenderPass() override;
@@ -88,6 +90,7 @@ public:
 
     TextureHandle createTexture(const TextureDescription &desc) override;
     void destroyTexture(TextureHandle handle) override;
+    void copyTexture(TextureHandle src, TextureHandle dst) override;
 
     SamplerHandle createSampler(const SamplerDescription &desc) override;
     void destroySampler(SamplerHandle handle) override;
@@ -112,6 +115,7 @@ private:
     ResourcePool<MetalSampler, SamplerHandle> samplers_;
     ResourcePool<MetalTexture, TextureHandle> textures_;
 
+    TextureHandle backbuffer_;
     std::array<TextureHandle, 2> color_targets_;
     SamplerHandle linear_sampler_;
 
@@ -159,12 +163,14 @@ private:
     MTL::Texture *getTexture(TextureHandle handle);
     MTL::SamplerState *getSampler(SamplerHandle handle);
 
+    bool acquireBackbuffer();
+    void failFrame(std::string message);
+
     template <typename Binder>
     bool bindResources(const Binder &binder, const ResourceBindings &bindings);
 
     std::expected<void, std::string>
     validateRenderPass(const RenderPassDescription &desc);
-
     [[nodiscard]] bool isCurrentPassAttachment(TextureHandle handle) const;
 };
 } // namespace ume
