@@ -4,12 +4,12 @@
     {
       "label": "Build Debug",
       "type": "shell",
-      "command": "./build.sh debug"
+      "command": "./build.sh debug-metal-dynamic"
     },
     {
       "label": "Build Release",
       "type": "shell",
-      "command": "./build.sh release"
+      "command": "./build.sh release-metal"
     }
   ]
 }

@@ -5,16 +5,17 @@
       "name": "Debug",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/debug/sandbox",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Build Debug"
+      "program": "${workspaceFolder}/build/debug-metal-dynamic/ume",
+      "cwd": "${workspaceFolder}/sandbox",
+      "preLaunchTask": "Build Debug",
+      "env": { "MTL_DEBUG_LAYER": "1" }
     },
     {
       "name": "Release",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/release/sandbox",
-      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/build/release-metal/ume",
+      "cwd": "${workspaceFolder}/sandbox",
       "preLaunchTask": "Build Release"
     }
   ]

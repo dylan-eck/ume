@@ -11,28 +11,26 @@ distributed with a copy of this file (or its contents).
 Where a component is offered under a choice of licenses, ume uses it under the
 option named in that component's entry.
 
-| Component                                                         | Location                                         | License                                                             |
-| ----------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
-| SDL3                                                              | `vendor/SDL`                                     | zlib                                                                |
-| hidapi (bundled in SDL3)                                          | `vendor/SDL/src/hidapi`                          | BSD-3-Clause (chosen from GPL-3.0 / BSD-3-Clause / original HIDAPI) |
-| yuv2rgb (bundled in SDL3)                                         | `vendor/SDL/src/video/yuv2rgb`                   | BSD-3-Clause                                                        |
-| Khronos API headers (bundled in SDL3)                             | `vendor/SDL/src/video/khronos`                   | MIT (chosen from Apache-2.0 / MIT)                                  |
-| spdlog                                                            | `vendor/spdlog`                                  | MIT                                                                 |
-| {fmt} (bundled in spdlog)                                         | `vendor/spdlog/include/spdlog/fmt/bundled`       | MIT with binary-embedding exception                                 |
-| Glaze                                                             | `vendor/glaze`                                   | MIT                                                                 |
-| fast_float (bundled in Glaze)                                     | `vendor/glaze/include/glaze/util/fast_float.hpp` | MIT (chosen from Apache-2.0 / MIT / BSL-1.0)                        |
-| zmij (bundled in Glaze)                                           | `vendor/glaze/include/glaze/util/zmij.hpp`       | MIT (chosen from MIT / BSL-1.0)                                     |
-| TinyGLTF v3                                                       | `vendor/tinygltf`                                | MIT                                                                 |
-| fast_float and Dragonbox derived code (in TinyGLTF)               | `vendor/tinygltf/tinygltf_json_c.h`              | BSL-1.0 (chosen from the options offered by each upstream)          |
-| Wren                                                              | `vendor/wren`                                    | MIT                                                                 |
-| GLM                                                               | `vendor/glm`                                     | MIT (chosen from Happy Bunny / MIT)                                 |
-| FastNoise2                                                        | `plugins/shared/vendor/FastNoise2`               | MIT                                                                 |
-| battery::embed                                                    | `vendor/embed`                                   | Apache-2.0                                                          |
-| metal-cpp                                                         | `vendor/metal-cpp`                               | Apache-2.0                                                          |
-| Slang (`libslang` linked at runtime; `slangc` used at build time) | system install / Vulkan SDK                      | Apache-2.0 with LLVM Exceptions                                     |
+| Component                             | Location                                         | License                                                             |
+| ------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| SDL3                                  | `vendor/SDL`                                     | zlib                                                                |
+| hidapi (bundled in SDL3)              | `vendor/SDL/src/hidapi`                          | BSD-3-Clause (chosen from GPL-3.0 / BSD-3-Clause / original HIDAPI) |
+| yuv2rgb (bundled in SDL3)             | `vendor/SDL/src/video/yuv2rgb`                   | BSD-3-Clause                                                        |
+| Khronos API headers (bundled in SDL3) | `vendor/SDL/src/video/khronos`                   | MIT (chosen from Apache-2.0 / MIT)                                  |
+| spdlog                                | `vendor/spdlog`                                  | MIT                                                                 |
+| {fmt} (bundled in spdlog)             | `vendor/spdlog/include/spdlog/fmt/bundled`       | MIT with binary-embedding exception                                 |
+| Glaze                                 | `vendor/glaze`                                   | MIT                                                                 |
+| fast_float (bundled in Glaze)         | `vendor/glaze/include/glaze/util/fast_float.hpp` | MIT (chosen from Apache-2.0 / MIT / BSL-1.0)                        |
+| zmij (bundled in Glaze)               | `vendor/glaze/include/glaze/util/zmij.hpp`       | MIT (chosen from MIT / BSL-1.0)                                     |
+| Wren                                  | `vendor/wren`                                    | MIT                                                                 |
+| GLM                                   | `vendor/glm`                                     | MIT (chosen from Happy Bunny / MIT)                                 |
+| FastNoise2                            | `plugins/shared/vendor/FastNoise2`               | MIT                                                                 |
+| battery::embed                        | `vendor/embed`                                   | Apache-2.0                                                          |
+| metal-cpp                             | `vendor/metal-cpp`                               | Apache-2.0                                                          |
+| Slang (`libslang` linked)             | system install / Vulkan SDK                      | Apache-2.0 with LLVM Exceptions                                     |
 
-The full text of the Apache License, Version 2.0 and of the Boost Software
-License 1.0 appear once each at the end of this file.
+The full text of the Apache License, Version 2.0 appears once at
+the end of this file.
 
 ---
 
@@ -651,34 +649,4 @@ Applies to battery::embed, metal-cpp, and Slang.
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
-```
-
-## Boost Software License 1.0
-
-Applies to the fast_float and Dragonbox derived code in TinyGLTF.
-
-```text
-Boost Software License - Version 1.0 - August 17th, 2003
-
-Permission is hereby granted, free of charge, to any person or organization
-obtaining a copy of the software and accompanying documentation covered by
-this license (the "Software") to use, reproduce, display, distribute,
-execute, and transmit the Software, and to prepare derivative works of the
-Software, and to permit third-parties to whom the Software is furnished to
-do so, all subject to the following:
-
-The copyright notices in the Software and this entire statement, including
-the above license grant, this restriction and the following disclaimer,
-must be included in all copies of the Software, in whole or in part, and
-all derivative works of the Software, unless such copies or derivative
-works are solely in the form of machine-executable object code generated by
-a source language processor.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
-SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
-FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 ```

@@ -52,12 +52,7 @@ PluginHost::~PluginHost() {
     while (!plugins_.empty()) {
         unloadPluginAt(plugins_.size() - 1);
     }
-    // if (!live_.empty() || !types_.empty()) {
-    //     UME_LOG_ERROR(Plugin,
-    //                   "{} orphaned object(s) and {} orphaned type(s) after
-    //                   all " "plugins unloaded", live_.size(), types_.size());
-    // }
-};
+}
 
 bool PluginHost::registerStatic(const char *name,
                                 UmePluginRegisterFunction register_function,

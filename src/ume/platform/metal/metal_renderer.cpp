@@ -926,7 +926,6 @@ bool MetalRenderer::bindResources(const Binder &binder,
             return false;
         }
 
-        // TODO: maybe detect this earlier (before binding a bunch of stuff?)
         if (isCurrentPassAttachment(binding.texture)) {
             UME_LOG_WARN(Renderer,
                          "texture binding {} slot {} is an attachment of the "

@@ -84,12 +84,7 @@ target_include_directories(ume_engine PUBLIC src)
 target_link_libraries(
   ume_engine
   PUBLIC ume_config ume_plugin_api
-  PRIVATE SDL3::SDL3-static
-          glaze
-          spdlog::spdlog
-          tinygltf::tinygltf
-          wren::wren
-          slang::slang
+  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog wren::wren slang::slang
           ${CMAKE_DL_LIBS})
 target_compile_definitions(
   ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}"

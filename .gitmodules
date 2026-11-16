@@ -16,9 +16,6 @@
 [submodule "vendor/glm"]
 	path = vendor/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "vendor/tinygltf"]
-	path = vendor/tinygltf
-	url = https://github.com/syoyo/tinygltf.git
 [submodule "vendor/wren"]
 	path = vendor/wren
 	url = https://github.com/wren-lang/wren.git

@@ -60,17 +60,6 @@ target_include_directories(glaze SYSTEM
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog SYSTEM)
 ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
-find_program(
-  SLANGC_EXECUTABLE
-  NAMES slangc
-  HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin" NO_CACHE)
-
-if(NOT SLANGC_EXECUTABLE)
-  message(FATAL_ERROR "failed to locate slangc executable")
-endif()
-
-message(STATUS "Using slangc: ${SLANGC_EXECUTABLE}")
-
 find_path(
   SLANG_INCLUDE_DIR slang.h
   HINTS "$ENV{VULKAN_SDK}/include"
@@ -102,23 +91,6 @@ ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/embed)
 
 add_subdirectory(vendor/glm SYSTEM)
 ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/glm)
-
-set(TINYGLTF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinygltf")
-
-add_library(tinygltf STATIC "${TINYGLTF_DIR}/tiny_gltf_v3.c")
-add_library(tinygltf::tinygltf ALIAS tinygltf)
-
-target_include_directories(tinygltf SYSTEM PUBLIC "${TINYGLTF_DIR}")
-
-set_target_properties(
-  tinygltf
-  PROPERTIES C_STANDARD 11
-             C_STANDARD_REQUIRED ON
-             C_EXTENSIONS OFF
-             POSITION_INDEPENDENT_CODE ON)
-
-target_compile_definitions(tinygltf PUBLIC TINYGLTF3_ENABLE_FS)
-target_compile_options(tinygltf PRIVATE -w)
 
 set(WREN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/wren")
 add_library(
