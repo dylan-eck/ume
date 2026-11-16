@@ -1,19 +1,24 @@
 #pragma once
 
 #include "renderer_backend.hpp"
-
+#include "ume/core/resource_handle.hpp"
 #include "ume/core/resource_pool.hpp"
 #include "ume/renderer/camera.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/color_space.hpp>
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <filesystem>
+#include <optional>
+#include <span>
+#include <vector>
 
 namespace ume {
 class ShaderCompiler;
+struct CompiledShader;
 
 struct Vertex {
     glm::vec4 position;
@@ -46,11 +51,12 @@ public:
                 const glm::mat4 &local_transform);
 
     [[nodiscard]] PostEffectHandle
-    createPostEffect(const std::filesystem::path &shader);
+    createPostEffect(const std::filesystem::path &shader_path);
     bool reloadPostEffect(PostEffectHandle handle);
     void destroyPostEffect(PostEffectHandle handle);
 
-    void submitPostEffect(PostEffectHandle, std::span<const std::byte> params);
+    void submitPostEffect(PostEffectHandle handle,
+                          std::span<const std::byte> params);
 
     void setCamera(const CameraState &camera_state);
     [[nodiscard]] CameraState getCamera() const { return camera_state_; };
@@ -73,14 +79,24 @@ private:
         glm::vec4 base_color = glm::vec4(1.0f);
     };
 
-    struct PostEffect {
-        PipelineHandle pipeline;
+    struct PostEffectBindings {
+        uint32_t frame_uniforms_slot;
+        uint32_t scene_texture_slot;
+        uint32_t scene_sampler_slot;
+        std::optional<uint32_t> depth_texture_slot;
+        std::optional<uint32_t> params_slot;
         uint32_t params_size;
-        std::filesystem::path source;
+    };
+
+    struct PostEffect {
+        ShaderHandle shader;
+        GraphicsPipelineHandle pipeline;
+        std::filesystem::path source_path;
+        PostEffectBindings bindings;
     };
 
     struct PostSubmission {
-        PipelineHandle pipeline;
+        PostEffectHandle effect;
         size_t param_offset;
         size_t param_size;
     };
@@ -97,9 +113,29 @@ private:
     ResourcePool<PostEffect, PostEffectHandle> post_effects_;
     std::vector<PostSubmission> post_submissions_;
     std::vector<std::byte> post_param_arena_;
-    std::vector<PostProcessPass> post_passes_;
 
     CameraState camera_state_;
+
+    ShaderHandle default_shader_;
+    uint32_t draw_uniforms_slot_ = 0;
+    uint32_t vertex_buffer_slot_ = 0;
+    GraphicsPipelineHandle default_pipeline_;
+
+    TextureHandle scene_color_;
+    TextureHandle post_color_;
+    TextureHandle depth_;
+    SamplerHandle linear_sampler_;
+
+    bool createRenderTargets();
+
+    static std::optional<Renderer::PostEffectBindings>
+    resolvePostEffectBindings(const CompiledShader &shader,
+                              const std::filesystem::path &path);
+
+    [[nodiscard]] GraphicsPipelineHandle
+    createPostEffectPipeline(ShaderHandle shader,
+                             const CompiledShader &compiled,
+                             const std::filesystem::path &path);
 
     static glm::vec4 debugColorFromId(uint32_t id) {
         uint32_t h = id * 0x9e3779b9u;
@@ -110,8 +146,7 @@ private:
         h ^= h >> 16;
 
         const float hue = static_cast<float>(h) * (1.0f / 4294967296.0f);
-        return glm::vec4(glm::rgbColor(glm::vec3(hue * 360.0f, 0.75f, 0.8f)),
-                         1.0f);
+        return {glm::rgbColor(glm::vec3(hue * 360.0f, 0.75f, 0.8f)), 1.0f};
     }
 };
 } // namespace ume

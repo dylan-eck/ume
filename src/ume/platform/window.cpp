@@ -3,11 +3,9 @@
 #include "ume/core/error.hpp"
 
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_vulkan.h>
 
 namespace ume {
 
-#if defined UME_RENDER_BACKEND_METAL
 void MetalSurface::ViewDeleter::operator()(void *view) const {
     SDL_Metal_DestroyView(static_cast<SDL_MetalView>(view));
 }
@@ -27,30 +25,13 @@ MetalSurface Window::createMetalSurface() const {
 
     return MetalSurface(view);
 }
-#elif defined UME_RENDER_BACKEND_VULKAN
-VkSurfaceKHR Window::createVulkanSurface(VkInstance instance) const {
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    if (!SDL_Vulkan_CreateSurface(window_.get(), instance, nullptr, &surface)) {
-        const char *error = SDL_GetError();
-
-        throw Error(logger::Category::Renderer,
-                    "failed to create vulkan surface: {}", error);
-    }
-
-    return surface;
-}
-#endif
 
 namespace {
 SDL_Window *createSDLWindow(const WindowConfig &config) {
     SDL_Init(SDL_INIT_VIDEO);
 
     Uint32 flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE;
-#if defined(UME_RENDER_BACKEND_METAL)
     flags |= SDL_WINDOW_METAL;
-#elif defined(UME_RENDER_BACKEND_VULKAN)
-    flags |= SDL_WINDOW_VULKAN;
-#endif
 
     return SDL_CreateWindow(config.title.c_str(),
                             static_cast<int>(config.width),
@@ -91,5 +72,9 @@ void Window::handleEvent(const SDL_Event &event) {
     default:
         break;
     }
+}
+
+void Window::setTitle(const char *title) {
+    SDL_SetWindowTitle(window_.get(), title);
 }
 } // namespace ume

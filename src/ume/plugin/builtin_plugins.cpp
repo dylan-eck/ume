@@ -2,6 +2,8 @@
 #include "ume/core/logger.hpp"
 
 #include <filesystem>
+#include <string_view>
+#include <system_error>
 
 #ifndef UME_PLUGIN_SUFFIX
 #define UME_PLUGIN_SUFFIX ".so"
@@ -13,8 +15,10 @@ inline constexpr std::string_view kPluginSuffix = UME_PLUGIN_SUFFIX;
 extern "C" UME_PLUGIN_BOOL
     UME_PLUGIN_ENTRY(procPlanet)(const UmePluginApi *api,
                                  UmePluginDescription *description);
-UME_PLUGIN_ENTRY(terrain)(const UmePluginApi *api,
-                          UmePluginDescription *description);
+
+extern "C" UME_PLUGIN_BOOL
+    UME_PLUGIN_ENTRY(terrain)(const UmePluginApi *api,
+                              UmePluginDescription *description);
 #endif
 
 namespace ume {
@@ -24,13 +28,9 @@ findPluginLibrary(const std::filesystem::path &plugin_dir) {
 
     for (const auto &entry :
          std::filesystem::directory_iterator(plugin_dir, ec)) {
-        if (!entry.is_regular_file(ec)) {
-            continue;
-        }
+        if (!entry.is_regular_file(ec)) continue;
 
-        if (entry.path().extension() == kPluginSuffix) {
-            return entry.path();
-        }
+        if (entry.path().extension() == kPluginSuffix) return entry.path();
     }
     return {};
 }
@@ -46,9 +46,7 @@ void loadPluginsFrom(PluginHost &host,
 
     for (const auto &entry :
          std::filesystem::directory_iterator(plugin_dir, ec)) {
-        if (!entry.is_directory(ec)) {
-            continue;
-        }
+        if (!entry.is_directory(ec)) continue;
 
         UME_LOG_INFO(Plugin, "scanning directory: {}", entry.path().string());
 
@@ -80,8 +78,8 @@ void registerBuiltinPlugins(PluginHost &host,
                              plugin_dir / "proc_planet")) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'proc_planet'");
     }
-    if (!host.registerStatic("terrain", &UME_PLUGIN_ENTRY(procPlanet),
-                             plugin_dir / "proc_planet")) {
+    if (!host.registerStatic("terrain", &UME_PLUGIN_ENTRY(terrain),
+                             plugin_dir / "terrain")) {
         UME_LOG_ERROR(Plugin, "error registering plugin 'terrain'");
     }
 #else

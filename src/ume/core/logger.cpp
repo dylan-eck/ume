@@ -3,8 +3,12 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+#include <cstddef>
+#include <cstdio>
 #include <array>
 #include <memory>
+#include <string_view>
+#include <string>
 
 namespace ume::logger {
 

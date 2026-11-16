@@ -1,20 +1,36 @@
 #include "ume/shaders/post-process.slang"
 
 struct AtmosphereParams {
+    // xyz: planet center relative to the camera, w: atmosphere radius
     float4 center_and_radius;
+    // x: planet radius, y: atmosphere thickness (atmosphere radius - planet
+    // radius), z: scattering strength in 1 / m, w: unused
+    float4 planet_radius_thickness_strength;
+    float4 sun_dir;
 }
 ConstantBuffer<AtmosphereParams> params;
 
-static const float3 sun_dir = normalize(float3(1.0, 0.0, 0.0));
-
 static const int in_scattering_samples = 10;
 static const int optical_depth_samples = 10;
-static const float density_falloff = 2.0;
-static const float scattering_strength = 1e-6; // 1 / m
+static const float density_falloff = 1.0;
 
 static const float3 wavelengths = float3(700, 530, 400);
-static const float3 scattering_coefficients =
-    scattering_strength * float3(pow(400 / wavelengths, 4));
+
+float planet_radius() { return params.planet_radius_thickness_strength.x; }
+float atmosphere_thickness() {
+    return params.planet_radius_thickness_strength.y;
+}
+
+float3 scattering_coefficients() {
+    return params.planet_radius_thickness_strength.z *
+           float3(pow(400 / wavelengths, 4));
+}
+
+// Same coefficient for every wavelength: no Rayleigh color, just a grey haze.
+// Uses the strength directly, which matches the 400 nm channel above.
+float3 uniform_scattering_coefficients() {
+    return params.planet_radius_thickness_strength.zzz;
+}
 
 float2 ray_sphere_intersect(float3 center, float radius, float3 ray_origin,
                             float3 ray_dir) {
@@ -39,9 +55,9 @@ float2 ray_sphere_intersect(float3 center, float radius, float3 ray_origin,
 }
 
 float density_at_point(float3 point) {
-    float height_above_surface = length(point - params.center_and_radius.xyz) -
-                                 7e6; // TODO: pass planet radius to shader
-    float height01 = height_above_surface / (params.center_and_radius.w - 7e6);
+    float height_above_surface =
+        length(point - params.center_and_radius.xyz) - planet_radius();
+    float height01 = height_above_surface / atmosphere_thickness();
     float local_density = exp(-height01 * density_falloff) * (1.0 - height01);
     return local_density;
 }
@@ -60,7 +76,7 @@ float optical_depth(float3 ray_origin, float3 ray_dir, float ray_length) {
 }
 
 float3 calculateLight(float3 ray_origin, float3 ray_dir, float ray_length,
-                      float3 scene_color) {
+                      float3 scene_color, float3 scattering) {
     float3 curr_point = ray_origin;
     float step_size = ray_length / (in_scattering_samples - 1);
     float3 in_scattered_light = 0;
@@ -72,34 +88,33 @@ float3 calculateLight(float3 ray_origin, float3 ray_dir, float ray_length,
     for (int i = 0; i < in_scattering_samples; i++) {
         float sun_ray_length =
             ray_sphere_intersect(planet_center, atmosphere_radius, curr_point,
-                                 sun_dir)
+                                 params.sun_dir.xyz)
                 .y;
 
         float sun_ray_optical_depth =
-            optical_depth(curr_point, sun_dir, sun_ray_length);
+            optical_depth(curr_point, params.sun_dir.xyz, sun_ray_length);
 
         view_ray_optical_depth =
             optical_depth(curr_point, -ray_dir, step_size * i);
 
         float3 transmittance =
-            exp(-(sun_ray_optical_depth + view_ray_optical_depth) *
-                scattering_coefficients);
+            exp(-(sun_ray_optical_depth + view_ray_optical_depth) * scattering);
         float local_density = density_at_point(curr_point);
 
         in_scattered_light +=
-            local_density * transmittance * scattering_coefficients * step_size;
+            local_density * transmittance * scattering * step_size;
         curr_point += ray_dir * step_size;
     }
 
     float3 scene_color_transmittance =
-        exp(-view_ray_optical_depth * scattering_coefficients);
+        exp(-view_ray_optical_depth * scattering);
     return scene_color * scene_color_transmittance + in_scattered_light;
 }
 
 [shader("fragment")]
 float4 fragMain(FullscreenOutput input) : SV_Target {
     float2 uv = input.uv;
-    float4 scene = scene_color.Sample(scene_sampler, uv);
+    float4 scene_color = scene_texture.Sample(scene_sampler, uv);
 
     float3 ndc = float3(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 1.0);
     float4 p = mul(frame.inverse_projection, float4(ndc, 1.0));
@@ -113,6 +128,16 @@ float4 fragMain(FullscreenOutput input) : SV_Target {
     float3 planet_center = params.center_and_radius.xyz;
     float atmosphere_radius = params.center_and_radius.w;
 
+    // The ocean is drawn by a post effect and never writes depth, so under
+    // water the depth buffer holds the seafloor. Clip the view ray at the
+    // ocean surface (a sphere of the planet radius) so the atmosphere does not
+    // extend below the water.
+    float2 ocean_intersect = ray_sphere_intersect(
+        planet_center, planet_radius(), float3(0), ray_dir);
+    if (ocean_intersect.y > 0) {
+        scene_dist = min(scene_dist, ocean_intersect.x);
+    }
+
     float2 intersect = ray_sphere_intersect(planet_center, atmosphere_radius,
                                             float3(0), ray_dir);
 
@@ -120,14 +145,13 @@ float4 fragMain(FullscreenOutput input) : SV_Target {
     float dist_through_atmos = min(intersect.y, scene_dist - dist_to_atmos);
 
     if (dist_through_atmos <= 0) {
-        return scene;
+        return scene_color;
     }
 
     float3 point_in_atmosphere = ray_dir * dist_to_atmos;
-    float3 light = calculateLight(point_in_atmosphere, ray_dir,
-                                  dist_through_atmos, scene.rgb);
 
-    // const float atmosphere_scale = 1.0 / 20000000.0;
-    // return float4(float3(dist_through_atmos * atmosphere_scale), 1.0);
+    float3 light =
+        calculateLight(point_in_atmosphere, ray_dir, dist_through_atmos,
+                       scene_color.rgb, scattering_coefficients());
     return float4(light, 0.0);
 }

@@ -2,6 +2,8 @@
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
 
+#include <exception>
+
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 
@@ -38,9 +40,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    if (event->type == SDL_EVENT_QUIT) {
-        return SDL_APP_SUCCESS;
-    }
+    if (event->type == SDL_EVENT_QUIT) return SDL_APP_SUCCESS;
 
     auto *engine = static_cast<ume::Engine *>(appstate);
     engine->handleEvent(*event);

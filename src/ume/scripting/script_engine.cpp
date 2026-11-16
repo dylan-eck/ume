@@ -1,5 +1,9 @@
 #include "script_engine.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/core/resource_handle.hpp"
+#include "ume/renderer/camera.hpp"
+#include "ume/plugin/plugin_api.h"
+#include "ume/platform/input.hpp"
 #include "ume/renderer/renderer.hpp"
 #include "ume/core/error.hpp"
 #include "ume/plugin/plugin_params.hpp"
@@ -8,6 +12,11 @@
 #include <wren.hpp>
 #include <battery/embed.hpp>
 
+#include <vector>
+#include <cstdint>
+#include <utility>
+#include <string_view>
+#include <array>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -77,9 +86,7 @@ bool readNumberList(WrenVM *vm, int list_slot, int scratch_slot,
 
     for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
-        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
-            return false;
-        }
+        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) return false;
 
         out[static_cast<size_t>(i)] =
             static_cast<float>(wrenGetSlotDouble(vm, scratch_slot));
@@ -95,9 +102,7 @@ bool readIndexList(WrenVM *vm, int list_slot, int scratch_slot,
 
     for (int i = 0; i < count; i++) {
         wrenGetListElement(vm, list_slot, i, scratch_slot);
-        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) {
-            return false;
-        }
+        if (wrenGetSlotType(vm, scratch_slot) != WREN_TYPE_NUM) return false;
 
         out[static_cast<size_t>(i)] =
             static_cast<uint32_t>(wrenGetSlotDouble(vm, scratch_slot));
@@ -167,7 +172,10 @@ void scriptCreateMesh(WrenVM *vm) {
 
     MeshHandle handle =
         getScriptContext(vm).renderer->createMesh(MeshDescription{
-            .positions = positions, .normals = normals, .indices = indices});
+            .positions = positions,
+            .normals = normals,
+            .indices = indices,
+        });
 
     if (!handle) {
         abortWithError(vm, "createMesh: renderer failed to create mesh");
@@ -260,6 +268,18 @@ void scriptRotateCameraLocal(WrenVM *vm) {
     getScriptContext(vm).renderer->setCamera(state);
 }
 
+void scriptCameraPosition(WrenVM *vm) {
+    const CameraState state = getScriptContext(vm).renderer->getCamera();
+
+    wrenEnsureSlots(vm, 2);
+    wrenSetSlotNewList(vm, 0);
+
+    for (int i = 0; i < 3; ++i) {
+        wrenSetSlotDouble(vm, 1, state.position[i]);
+        wrenInsertInList(vm, 0, -1, 1);
+    }
+}
+
 void scriptCreateObject(WrenVM *vm) {
     if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
         abortWithError(vm, "createObject: type name must be a string");
@@ -337,14 +357,10 @@ void scriptDestroyObject(WrenVM *vm) {
 }
 
 bool readKeyCode(WrenVM *vm, int slot, KeyCode &out) {
-    if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) {
-        return false;
-    }
+    if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) return false;
 
     const double value = wrenGetSlotDouble(vm, slot);
-    if (value < 0.0 || value > static_cast<double>(kKeyCodeCount)) {
-        return false;
-    }
+    if (value < 0.0 || value > static_cast<double>(kKeyCodeCount)) return false;
 
     out = static_cast<KeyCode>(value);
     return true;
@@ -380,6 +396,17 @@ void scriptKeyQuery(WrenVM *vm) {
     wrenSetSlotBool(vm, 0, (getScriptContext(vm).input->*Method)(code));
 }
 
+void scriptSetWindowTitle(WrenVM *vm) {
+    if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+        abortWithError(vm, "setTitle: title must be a string");
+        return;
+    }
+
+    const char *title = wrenGetSlotString(vm, 1);
+
+    getScriptContext(vm).window->setTitle(title);
+}
+
 struct ForeignMethodBinding {
     std::string_view class_name;
     std::string_view signature;
@@ -401,6 +428,11 @@ constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
         .class_name = "Input",
         .signature = "keyCode(_)",
         .fn_pointer = &scriptKeyCode,
+    },
+    {
+        .class_name = "Window",
+        .signature = "setTitle(_)",
+        .fn_pointer = &scriptSetWindowTitle,
     },
     {
         .class_name = "Input",
@@ -442,19 +474,19 @@ constexpr auto kForeignMethodTable = std::to_array<ForeignMethodBinding>({
         .signature = "translateCameraLocal(_,_,_)",
         .fn_pointer = &scriptTranslateCameraLocal,
     },
+    {
+        .class_name = "Renderer",
+        .signature = "cameraPosition_()",
+        .fn_pointer = &scriptCameraPosition,
+    },
 });
 
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 // function signature is dictated by wren
 WrenForeignMethodFn bindForeignMethodFn([[maybe_unused]] WrenVM *vm,
                                         const char *module,
                                         const char *class_name, bool is_static,
                                         const char *signature) {
-    // NOLINTEND(bugprone-easily-swappable-parameters)
-
-    if (module != std::string_view("ume") || !is_static) {
-        return nullptr;
-    }
+    if (module != std::string_view("ume") || !is_static) return nullptr;
 
     for (const auto &entry : kForeignMethodTable) {
         if (entry.class_name == class_name && entry.signature == signature) {
@@ -535,11 +567,15 @@ LoadedVM loadVM(ScriptContext &context, const std::string &path) {
 } // namespace
 
 ScriptEngine::ScriptEngine(Renderer &renderer, PluginHost &plugin_host,
-                           const Input &input, std::string main_script_path)
+                           const Input &input, Window &window,
+                           std::string main_script_path)
     : main_script_path_(std::move(main_script_path)),
-      context_(ScriptContext{.renderer = &renderer,
-                             .plugin_host = &plugin_host,
-                             .input = &input}) {
+      context_(ScriptContext{
+          .window = &window,
+          .renderer = &renderer,
+          .plugin_host = &plugin_host,
+          .input = &input,
+      }) {
 
     LoadedVM loaded = loadVM(context_, main_script_path_);
 
@@ -570,9 +606,7 @@ void ScriptEngine::init() {
 }
 
 void ScriptEngine::update(float delta) {
-    if (main_script_failed_) {
-        return;
-    }
+    if (main_script_failed_) return;
 
     wrenEnsureSlots(wren_vm_.get(), 2);
     wrenSetSlotHandle(wren_vm_.get(), 0, main_class_);

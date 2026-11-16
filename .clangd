@@ -1,8 +1,23 @@
 If:
   PathMatch: include/ume/plugin/.*\.h
 CompileFlags:
-  Add: [-xc, -std=c11]
-
+  Add: [-xc-header, -std=c11]
+---
 Diagnostics:
   UnusedIncludes: Strict
   MissingIncludes: Strict
+  Includes:
+    # Third-party libraries are included through their umbrella headers;
+    # don't ask for their internal headers instead.
+    IgnoreHeader:
+      - glm/.*
+      - Metal/.*
+      - Foundation/.*
+      - QuartzCore/.*
+      - SDL3/.*
+      - spdlog/.*
+      - glaze/.*
+      - FastNoise/.*
+      - battery/.*
+      - wren\.h.*
+      - slang.*\.h

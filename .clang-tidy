@@ -1,3 +1,4 @@
+# readability-redundant-member-init is disabled because it conflicts with -Wmissing-designated-field-initializers on clang 23
 Checks: >
   -*,
   bugprone-*,
@@ -8,7 +9,12 @@ Checks: >
   -readability-identifier-length,
   -cppcoreguidelines-avoid-magic-numbers,
   modernize-*,
-  -modernize-use-trailing-return-type
+  -modernize-use-trailing-return-type,
+  -bugprone-easily-swappable-parameters,
+  -readability-redundant-member-init
+
+HeaderFilterRegex: '.*'
+ExcludeHeaderFilterRegex: '.*/(vendor|_deps)/.*'
 
 CheckOptions:
   - key: readability-identifier-naming.StructCase
@@ -62,9 +68,14 @@ CheckOptions:
   - key: readability-identifier-naming.PrivateMemberSuffix
     value: "_"
 
+  - key: readability-identifier-naming.PublicMemberCase
+    value: lower_case
+
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
 
-  - key: bugprone-easily-swappable-parameters.ModelImplicitConversions
-    value: 'false'
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
 
+  - key: bugprone-signed-bitwise.IgnorePositiveIntegerLiterals
+    value: true

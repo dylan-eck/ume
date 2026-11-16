@@ -3,6 +3,8 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_keyboard.h>
 
+#include <cstddef>
+
 namespace ume {
 static_assert(kKeyCodeCount >= static_cast<size_t>(SDL_SCANCODE_COUNT));
 

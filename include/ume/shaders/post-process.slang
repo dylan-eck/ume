@@ -7,13 +7,12 @@ struct FrameUniforms {
     float z_near;
     float fov_y;
     float aspect;
-    float3 _pad;
 };
 
-Texture2D<float4> scene_color;
-Texture2D<float> scene_depth;
-SamplerState scene_sampler;
 ConstantBuffer<FrameUniforms> frame;
+Texture2D<float4> scene_texture;
+SamplerState scene_sampler;
+Texture2D<float> depth_texture;
 
 struct FullscreenOutput {
     float4 sv_position : SV_POSITION;
@@ -33,5 +32,5 @@ float linearizeDepth(float d) { return d > 0.0 ? frame.z_near / d : INF; }
 
 float loadDepth(float2 uv) {
     int2 px = int2(uv * frame.resolution);
-    return scene_depth.Load(int3(px, 0));
+    return depth_texture.Load(int3(px, 0));
 }

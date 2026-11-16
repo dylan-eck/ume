@@ -64,6 +64,8 @@ extern "C" {
 #else
 #include <stdint.h>
 #endif
+/* C header: macros and C arrays are required */
+/* NOLINTBEGIN(modernize-macro-to-enum,modernize-avoid-c-arrays) */
 
 /* NOTE: struct_size and abi_version are the first two fields of UmePluginApi
  * and UmePluginDescription and must remain at those offsets permanently. They
@@ -105,8 +107,20 @@ typedef uint8_t UME_PLUGIN_BOOL;
 #define UME_TRUE ((UME_PLUGIN_BOOL)1)
 #define UME_FALSE ((UME_PLUGIN_BOOL)0)
 
+typedef uint32_t UmeBufferHandle;
+#define UME_BUFFER_HANDLE_INVALID ((UmeBufferHandle)0)
+
 typedef uint32_t UmeMeshHandle;
 #define UME_MESH_HANDLE_INVALID ((UmeMeshHandle)0)
+
+typedef uint32_t UmeTextureHandle;
+#define UME_TEXTURE_HANDLE_INVALID ((UmeTextureHandle)0)
+
+typedef uint32_t UmeSamplerHandle;
+#define UME_SAMPLER_HANDLE_INVALID ((UmeSamplerHandle)0)
+
+typedef uint32_t UmeShaderHandle;
+#define UME_SHADER_HANDLE_INVALID ((UmeShaderHandle)0)
 
 typedef uint32_t UmePostEffectHandle;
 #define UME_POST_EFFECT_HANDLE_INVALID ((UmePostEffectHandle)0)
@@ -116,7 +130,7 @@ typedef enum UmeLogLevel {
     UME_LOG_LEVEL_INFO = 0,
     UME_LOG_LEVEL_WARN = 1,
     UME_LOG_LEVEL_ERROR = 2,
-    UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff
+    UME_LOG_LEVEL_FORCE_U32 = 0x7fffffff,
 } UmeLogLevel;
 
 typedef struct UmeMeshDescription {
@@ -136,6 +150,8 @@ typedef struct UmeFrameContext {
     double camera_position[3];
     float camera_orientation[9];
     float fov_y, z_near, aspect, delta_time;
+    // Seconds since the engine started.
+    double elapsed_time;
 } UmeFrameContext;
 
 // Valid only for the duration of the create call.
@@ -144,6 +160,34 @@ typedef struct UmeParams {
     const void *impl;
     double (*number)(const void *impl, const char *key, double fallback);
 } UmeParams;
+
+typedef enum UmeBindingType {
+    UME_BINDING_TYPE_BUFFER = 0,
+    UME_BINDING_TYPE_TEXTURE = 1,
+    UME_BINDING_TYPE_SAMPLER = 2,
+    UME_BINDING_TYPE_FORCE_U32 = 0x7fffffff,
+} UmeBindingType;
+
+typedef struct UmeBufferBinding {
+    UmeBufferHandle handle;
+    uint64_t offset;
+} UmeBufferBinding;
+
+typedef struct UmeBinding {
+    uint32_t slot;
+    UmeBindingType type;
+    union {
+        UmeBufferBinding buffer;
+        UmeTextureHandle texture;
+        UmeSamplerHandle sampler;
+    };
+} UmeBinding;
+
+typedef struct UmeBindingSetDescription {
+    uint32_t struct_size;
+    const UmeBinding *bindings;
+    uint32_t binding_count;
+} UmeBindingSetDescription;
 
 /* The host copies everything it needs from this struct, including name, before
  * registerObjectType returns. The struct and the string need not outlive the
@@ -171,6 +215,9 @@ typedef struct UmePluginApi {
     uint32_t struct_size;
     uint32_t abi_version;
     void *context;
+    /* Function pointers are named like methods, since plugins call them as
+     * api->createMesh(...). */
+    /* NOLINTBEGIN(readability-identifier-naming) */
     UME_PLUGIN_BOOL (*registerObjectType)(void *context,
                                           const UmeObjectType *type);
     UmeMeshHandle (*createMesh)(void *context,
@@ -183,6 +230,7 @@ typedef struct UmePluginApi {
     UmePostEffectHandle (*findPostEffect)(void *context, const char *name);
     void (*submitPostEffect)(void *context, UmePostEffectHandle handle,
                              const void *params, uint32_t params_size);
+    /* NOLINTEND(readability-identifier-naming) */
 } UmePluginApi;
 
 /* The plugin description is owned by the host and is valid only during the
@@ -210,6 +258,7 @@ typedef struct UmePluginDescription {
 typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
     const UmePluginApi *api, UmePluginDescription *description);
 
+/* NOLINTEND(modernize-macro-to-enum,modernize-avoid-c-arrays) */
 #ifdef __cplusplus
 }
 #endif

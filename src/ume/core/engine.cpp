@@ -1,12 +1,16 @@
 #include "engine.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/core/error.hpp"
+#include "ume/platform/input.hpp"
+#include "ume/plugin/plugin_host.hpp"
+#include "ume/renderer/camera.hpp"
+#include "ume/plugin/plugin_api.h"
+#include "ume/platform/window.hpp"
 
 #include <glaze/toml.hpp>
-#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <wren.hpp>
 
+#include <filesystem>
 #include <string>
 #include <cstring>
 #include <thread>
@@ -18,7 +22,7 @@ Engine::Engine(const EngineConfig &config)
     : project_(loadProject(config.working_dir)),
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
-      script_engine_(renderer_, plugin_host_, input_,
+      script_engine_(renderer_, plugin_host_, input_, window_,
                      config.working_dir + "/" + project_.main_script),
       reload_key_(keyCodeFromName("R")) {
 
@@ -27,12 +31,13 @@ Engine::Engine(const EngineConfig &config)
 
     script_engine_.init();
 
-    last_frame_time_ = std::chrono::steady_clock::now();
+    start_time_ = std::chrono::steady_clock::now();
+    last_frame_time_ = start_time_;
 
     UME_LOG_INFO(Core, "application initialized");
 }
 
-Engine::~Engine() {}
+Engine::~Engine() = default;
 
 void Engine::tick() {
     frame_index_++;
@@ -69,6 +74,8 @@ void Engine::tick() {
         context.z_near = camera_state.z_near;
         context.aspect = renderer_.getAspect();
         context.delta_time = delta;
+        context.elapsed_time =
+            std::chrono::duration<double>(now - start_time_).count();
 
         plugin_host_.updateObjects(context);
         renderer_.render();
@@ -99,9 +106,11 @@ ProjectDescription Engine::loadProject(const std::string &working_dir) {
 }
 
 WindowConfig getWindowConfig(const ProjectDescription &project) {
-    return WindowConfig{.title = project.name,
-                        .width = project.window_config.width,
-                        .height = project.window_config.height};
+    return WindowConfig{
+        .title = project.name,
+        .width = project.window_config.width,
+        .height = project.window_config.height,
+    };
 }
 
 } // namespace ume

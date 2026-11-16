@@ -1,44 +1,14 @@
 #pragma once
 
 #include "ume/core/resource_handle.hpp"
+#include "ume/renderer/backend_types.hpp"
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <span>
 
 namespace ume {
-
-struct BufferDescription {
-    size_t size;
-    const void *initial_data;
-};
-
-enum class IndexType : uint8_t { UInt16, UInt32 };
-
-enum class ShaderTarget : uint8_t { Msl, SpirV };
-
-struct PipelineDescription {
-    std::span<const std::byte> shader;
-    const char *vertex_entry = "vertMain";
-    const char *fragment_entry = "fragMain";
-};
-
-struct DrawCommand {
-    BufferHandle vertex_buffer;
-    BufferHandle index_buffer;
-    uint32_t index_count = 0;
-    IndexType index_type;
-    std::span<const std::byte> push_constants;
-};
-
-struct PostProcessPass {
-    PipelineHandle pipeline;
-    std::span<const std::byte> params;
-};
-
-struct PostProcessCommand {
-    std::span<const std::byte> frame_uniforms;
-    std::span<const PostProcessPass> passes;
-};
 
 class RendererBackend {
 public:
@@ -56,16 +26,39 @@ public:
     // resize() can only be called before beginFrame() or after endFrame()
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
+    [[nodiscard]] virtual TextureHandle backbuffer() const = 0;
+
     virtual void beginFrame() = 0;
+    virtual void beginRenderPass(const RenderPassDescription &desc) = 0;
+    virtual void endRenderPass() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
-    virtual void postProcess(const PostProcessCommand &cmd) = 0;
     virtual void endFrame() = 0;
+
+    virtual void beginComputePass() = 0;
+    virtual void dispatch(const DispatchCommand &cmd) = 0;
+    virtual void endComputePass() = 0;
 
     virtual BufferHandle createBuffer(const BufferDescription &desc) = 0;
     virtual void destroyBuffer(BufferHandle handle) = 0;
+    virtual void readBuffer(BufferHandle handle, size_t offset,
+                            std::span<std::byte> out) = 0;
 
-    virtual PipelineHandle createPipeline(const PipelineDescription &desc) = 0;
-    virtual void destroyPipeline(PipelineHandle handle) = 0;
+    virtual TextureHandle createTexture(const TextureDescription &desc) = 0;
+    virtual void destroyTexture(TextureHandle handle) = 0;
+    virtual void copyTexture(TextureHandle src, TextureHandle dst) = 0;
+
+    virtual SamplerHandle createSampler(const SamplerDescription &desc) = 0;
+    virtual void destroySampler(SamplerHandle handle) = 0;
+
+    virtual ShaderHandle createShader(const ShaderDescription &desc) = 0;
+    virtual void destroyShader(ShaderHandle handle) = 0;
+
+    virtual GraphicsPipelineHandle
+    createGraphicsPipeline(const GraphicsPipelineDescription &desc) = 0;
+    virtual void destroyGraphicsPipeline(GraphicsPipelineHandle handle) = 0;
+    virtual ComputePipelineHandle
+    createComputePipeline(const ComputePipelineDescription &desc) = 0;
+    virtual void destroyComputePipeline(ComputePipelineHandle handle) = 0;
 };
 
 class Window;

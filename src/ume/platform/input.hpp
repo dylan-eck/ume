@@ -37,9 +37,7 @@ private:
     std::bitset<kKeyCodeCount> keys_released_;
 
     void onKeyDown(KeyCode code, bool repeat) {
-        if (code >= kKeyCodeCount) {
-            return;
-        }
+        if (code >= kKeyCodeCount) return;
         if (!repeat) {
             keys_pressed_.set(code);
         }
@@ -47,9 +45,7 @@ private:
     }
 
     void onKeyUp(KeyCode code) {
-        if (code >= kKeyCodeCount) {
-            return;
-        }
+        if (code >= kKeyCodeCount) return;
         keys_released_.set(code);
         keys_down_.reset(code);
     }

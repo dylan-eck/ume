@@ -38,7 +38,6 @@ void *createPlanet(void *user_data, const UmeParams *params) noexcept {
 }
 
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void destroyPlanet([[maybe_unused]] void *user_data, void *object) noexcept {
     // destructors are implicitly noexcept, so no try catch needed here
     delete static_cast<proc_planet::Planet *>(object);
@@ -46,16 +45,13 @@ void destroyPlanet([[maybe_unused]] void *user_data, void *object) noexcept {
 
 // TODO: change frame_context to const reference?
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void updatePlanet(void *user_data, void *object,
                   const UmeFrameContext *frame_context) noexcept {
 
     auto *self = static_cast<ProcPlanetPlugin *>(user_data);
     auto *planet = static_cast<proc_planet::Planet *>(object);
 
-    if (planet == nullptr) {
-        return;
-    }
+    if (planet == nullptr) return;
 
     try {
         planet->update(frame_context);
@@ -68,9 +64,7 @@ void updatePlanet(void *user_data, void *object,
 
 UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(state);
-    if (self == nullptr) {
-        return UME_FALSE;
-    }
+    if (self == nullptr) return UME_FALSE;
 
     const UmePluginApi api = self->api;
 
@@ -87,6 +81,20 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
         return UME_FALSE;
     }
 
+    self->ocean = api.findPostEffect(api.context, "ocean");
+    if (self->ocean == UME_POST_EFFECT_HANDLE_INVALID) {
+        api.log(api.context, UME_LOG_LEVEL_WARN,
+                "proc_planet: ocean effect unavailable, planets will render "
+                "without it");
+    }
+
+    self->sun = api.findPostEffect(api.context, "sun");
+    if (self->sun == UME_POST_EFFECT_HANDLE_INVALID) {
+        api.log(api.context, UME_LOG_LEVEL_WARN,
+                "proc_planet: sun effect unavailable, planets will render "
+                "without it");
+    }
+
     self->atmosphere = api.findPostEffect(api.context, "atmosphere");
     if (self->atmosphere == UME_POST_EFFECT_HANDLE_INVALID) {
         api.log(
@@ -100,9 +108,7 @@ UME_PLUGIN_BOOL initProcPlanet(void *state) noexcept {
 
 void shutdownProcPlanet(void *state) noexcept {
     auto *self = static_cast<ProcPlanetPlugin *>(state);
-    if (self == nullptr) {
-        return;
-    }
+    if (self == nullptr) return;
 
     const UmePluginApi api = self->api;
 
@@ -123,19 +129,15 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
     try {
         // if abi version doesn't match, we can't call api-log in the catch
         // because function pointer locations are not guaranteed to match
-        if (api->abi_version != UME_PLUGIN_ABI_VERSION) {
-            return UME_FALSE;
-        }
+        if (api->abi_version != UME_PLUGIN_ABI_VERSION) return UME_FALSE;
 
-        if (api->struct_size < sizeof(UmePluginApi)) {
-            return UME_FALSE;
-        }
+        if (api->struct_size < sizeof(UmePluginApi)) return UME_FALSE;
 
         if (description->struct_size < sizeof(UmePluginDescription)) {
             return UME_FALSE;
         }
 
-        self = new ProcPlanetPlugin{*api};
+        self = new ProcPlanetPlugin{.api = *api};
         description->abi_version = UME_PLUGIN_ABI_VERSION;
         description->name = "proc_planet";
         description->state = self;

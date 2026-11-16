@@ -27,20 +27,10 @@
     {
       "name": "metal-backend",
       "hidden": true,
-      "cacheVariables": {
-        "UME_RENDER_BACKEND": "metal"
-      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
-      }
-    },
-    {
-      "name": "vulkan-backend",
-      "hidden": true,
-      "cacheVariables": {
-        "UME_RENDER_BACKEND": "vulkan"
       }
     },
     {
@@ -49,30 +39,17 @@
       "cacheVariables": { "UME_PLUGIN_LINK_TYPE": "MODULE" }
     },
     { "name": "debug-metal", "inherits": ["debug-config", "metal-backend"] },
-    { "name": "debug-vulkan", "inherits": ["debug-config", "vulkan-backend"] },
     {
       "name": "debug-metal-dynamic",
       "inherits": ["debug-config", "metal-backend", "plugin-dynamic"]
-    },
-    {
-      "name": "debug-vulkan-dynamic",
-      "inherits": ["debug-config", "vulkan-backend", "plugin-dynamic"]
     },
     {
       "name": "release-metal",
       "inherits": ["release-config", "metal-backend"]
     },
     {
-      "name": "release-vulkan",
-      "inherits": ["release-config", "vulkan-backend"]
-    },
-    {
       "name": "release-metal-dynamic",
       "inherits": ["release-config", "metal-backend", "plugin-dynamic"]
-    },
-    {
-      "name": "release-vulkan-dynamic",
-      "inherits": ["release-config", "vulkan-backend", "plugin-dynamic"]
     }
   ],
   "buildPresets": [
@@ -81,32 +58,16 @@
       "configurePreset": "debug-metal"
     },
     {
-      "name": "debug-vulkan",
-      "configurePreset": "debug-vulkan"
-    },
-    {
       "name": "debug-metal-dynamic",
       "configurePreset": "debug-metal-dynamic"
-    },
-    {
-      "name": "debug-vulkan-dynamic",
-      "configurePreset": "debug-vulkan-dynamic"
     },
     {
       "name": "release-metal",
       "configurePreset": "release-metal"
     },
     {
-      "name": "release-vulkan",
-      "configurePreset": "release-vulkan"
-    },
-    {
       "name": "release-metal-dynamic",
       "configurePreset": "release-metal-dynamic"
-    },
-    {
-      "name": "release-vulkan-dynamic",
-      "configurePreset": "release-vulkan-dynamic"
     }
   ]
 }

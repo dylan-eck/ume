@@ -1,11 +1,15 @@
 #include "terrain.hpp"
+#include "ume/plugin/plugin_api.h"
 
-#include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
+#include <cstdint>
+#include <cstddef>
 #include <array>
-#include <iostream>
+#include <vector>
+#include <utility>
 
 namespace terrain {
 const uint64_t kCoordBits = 29;
@@ -87,9 +91,7 @@ void Terrain::update(const UmeFrameContext *frame_context) {
     //           "\n"
     //           << "            max lod: " << max_lod << "\n\n";
 
-    if (loaded_chunks_.size() <= kMaxLoadedChunks) {
-        return;
-    }
+    if (loaded_chunks_.size() <= kMaxLoadedChunks) return;
 
     if (visible_chunks_ids_.size() > kMaxLoadedChunks) {
         api.log(api.context, UME_LOG_LEVEL_WARN,
@@ -116,9 +118,7 @@ void Terrain::update(const UmeFrameContext *frame_context) {
                      eviction_candidates.end(), comp);
 
     for (uint32_t i = 0; i < evict_count; i++) {
-        if (i >= eviction_candidates.size()) {
-            break;
-        }
+        if (i >= eviction_candidates.size()) break;
 
         Chunk chunk = loaded_chunks_[eviction_candidates[i].first];
         loaded_chunks_.erase(eviction_candidates[i].first);
@@ -126,6 +126,8 @@ void Terrain::update(const UmeFrameContext *frame_context) {
     }
 }
 
+// restructured by the terrain LOD work
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
     uint64_t id = chunkId(level, x, y);
 
@@ -174,13 +176,9 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
 
     std::vector<float> noise_values(vertex_count);
     fractal_noise_->SetOctaveCount(static_cast<int>(level + 1));
-    FastNoise::OutputMinMax output_min_max = fractal_noise_->GenPositionArray2D(
-        noise_values.data(), vertex_count, noise_input_x.data(),
-        noise_input_z.data(), 0, 0, 0);
-
-    // std::cout << "level: " << level
-    //           << " noise output range: " << output_min_max.min << " "
-    //           << output_min_max.max << "\n";
+    fractal_noise_->GenPositionArray2D(noise_values.data(), vertex_count,
+                                       noise_input_x.data(),
+                                       noise_input_z.data(), 0, 0, 0);
 
     for (size_t i = 0; i < vertex_count; i++) {
         const float height = noise_amp * noise_values[i];
@@ -189,7 +187,7 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
     }
 
     auto p = [&](uint32_t i, uint32_t j) {
-        const size_t base_idx = (size_t(i) * grid_width + j) * 3;
+        const size_t base_idx = ((static_cast<size_t>(i) * grid_width) + j) * 3;
         return glm::vec3(positions[base_idx], positions[base_idx + 1],
                          positions[base_idx + 2]);
     };
@@ -203,7 +201,7 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
             const float len = glm::length(nrm);
             nrm = (len > 0.0f) ? nrm / len : glm::vec3(0.0f, 1.0f, 0.0f);
 
-            const size_t base = (size_t(i) * grid_width + j) * 3;
+            const size_t base = ((static_cast<size_t>(i) * grid_width) + j) * 3;
             normals[base + 0] = nrm.x;
             normals[base + 1] = nrm.y;
             normals[base + 2] = nrm.z;
@@ -216,7 +214,7 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
                 continue;
             }
 
-            const size_t base = (static_cast<size_t>(i) * grid_width + j) * 3;
+            const size_t base = ((static_cast<size_t>(i) * grid_width) + j) * 3;
 
             uint32_t ti = i;
             uint32_t tj = j;
@@ -271,10 +269,12 @@ Chunk &Terrain::getOrCreateChunk(uint64_t level, uint32_t x, uint32_t y) {
 
     const UmePluginApi &api = plugin_->api;
 
-    Chunk chunk{.level = level,
-                .x = x,
-                .y = y,
-                .mesh = api.createMesh(api.context, &desc)};
+    Chunk chunk{
+        .level = level,
+        .x = x,
+        .y = y,
+        .mesh = api.createMesh(api.context, &desc),
+    };
 
     loaded_chunks_[id] = chunk;
     return loaded_chunks_[id];

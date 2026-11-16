@@ -6,6 +6,7 @@
 #include "ume/plugin/plugin_host.hpp"
 #include "ume/scripting/script_engine.hpp"
 
+#include <cstdint>
 #include <string>
 #include <chrono>
 
@@ -46,7 +47,9 @@ private:
     ScriptEngine script_engine_;
 
     uint64_t frame_index_ = 0;
+    std::chrono::steady_clock::time_point start_time_;
     std::chrono::steady_clock::time_point last_frame_time_;
+
     static constexpr auto kMinimizedSleepDuration =
         std::chrono::milliseconds(4);
 

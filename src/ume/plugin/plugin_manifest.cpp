@@ -3,12 +3,13 @@
 
 #include <glaze/toml.hpp>
 
+#include <filesystem>
+#include <optional>
+
 namespace ume {
 std::optional<PluginManifest> loadManifest(const std::filesystem::path &dir) {
     const std::filesystem::path path = dir / "plugin.toml";
-    if (!std::filesystem::exists(path)) {
-        return std::nullopt;
-    }
+    if (!std::filesystem::exists(path)) return std::nullopt;
     PluginManifest manifest;
     glz::error_ctx err =
         glz::read_file_toml(manifest, path.string(), std::string{});

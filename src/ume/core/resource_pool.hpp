@@ -18,9 +18,7 @@ public:
             index = free_list_.back();
             free_list_.pop_back();
         } else {
-            if (slots_.size() > kHandleIndexMask) {
-                return HandleT{};
-            }
+            if (slots_.size() > kHandleIndexMask) return HandleT{};
             index = static_cast<uint32_t>(slots_.size());
             slots_.emplace_back();
         }
@@ -36,23 +34,17 @@ public:
         const uint32_t index = handle.id & kHandleIndexMask;
         const uint32_t generation = handle.id >> kHandleIndexBits;
 
-        if (index >= slots_.size()) {
-            return nullptr;
-        }
+        if (index >= slots_.size()) return nullptr;
 
         Slot &slot = slots_[index];
-        if (!slot.alive || slot.generation != generation) {
-            return nullptr;
-        }
+        if (!slot.alive || slot.generation != generation) return nullptr;
 
         return &slot.value;
     }
 
-    [[nodiscard]] std::optional<T> remove(HandleT handle) {
+    std::optional<T> remove(HandleT handle) {
         T *value = get(handle);
-        if (value == nullptr) {
-            return std::nullopt;
-        }
+        if (value == nullptr) return std::nullopt;
 
         const uint32_t index = handle.id & kHandleIndexMask;
         Slot &slot = slots_[index];
@@ -62,7 +54,7 @@ public:
         slot.alive = false;
 
         slot.generation =
-            slot.generation > kHandleMaxGeneration ? 1 : slot.generation + 1;
+            slot.generation >= kHandleMaxGeneration ? 1 : slot.generation + 1;
 
         free_list_.push_back(index);
         return out;

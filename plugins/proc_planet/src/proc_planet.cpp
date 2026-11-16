@@ -1,18 +1,23 @@
 #include "proc_planet.hpp"
+#include "ume/plugin/plugin_api.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <FastNoise/FastNoise.h>
 
+#include <cstdint>
+#include <cstddef>
 #include <cmath>
 #include <array>
+#include <vector>
 
 namespace proc_planet {
 
 Planet::Planet(const ProcPlanetPlugin *plugin, double radius,
                glm::dvec3 world_position)
     : plugin_(plugin), radius_(radius), world_position_(world_position) {
+    sun_direction_ = glm::vec3(1, 0, 0);
     generate();
 }
 
@@ -21,9 +26,7 @@ glm::dvec3 foldToCubeSurface(glm::dvec3 n, glm::dvec3 a, glm::dvec3 b, double t,
                              double u) {
     const bool t_out = std::abs(t) > 1.0;
     const bool u_out = std::abs(u) > 1.0;
-    if (!t_out && !u_out) {
-        return n + a * t + b * u;
-    }
+    if (!t_out && !u_out) return n + a * t + b * u;
 
     const bool fold_t =
         t_out && (!u_out || std::abs(t) - 1.0 >= std::abs(u) - 1.0);
@@ -66,28 +69,37 @@ glm::dvec3 cubeToSphere(glm::dvec3 p) {
                       p.z * std::sqrt(1 - (p.x * p.x / 2) - (p.y * p.y / 2) +
                                       (p.x * p.x * p.y * p.y / 3))};
 }
+
+float smoothMax(float x, float y, float k) {
+    return (1 / k) * std::log(std::exp(k * x) + std::exp(k * y));
+}
 } // namespace
 
 void Planet::generate() {
+    plugin_->api.log(plugin_->api.context, UME_LOG_LEVEL_INFO,
+                     "generating planet");
+
     chunks_.clear();
     chunks_.reserve(6);
 
-    const uint32_t resolution = 32;
+    const uint32_t resolution = 300;
     const double inv_res = 1.0 / resolution;
     const uint32_t grid_width = resolution + 3;
     const size_t vertex_count = static_cast<size_t>(grid_width) * grid_width;
 
-    const double noise_freq = 1.0 / 50000.0; // 1 / feature wavelength in meters
-    const float noise_amp = 300.0f * 1000.0f; // +/- height variation in meters
+    const double noise_freq = 1.0 / 2.0; // 1 / feature wavelength in meters
+    const float noise_amp = 20.0f;       // +/- height variation in meters
 
-    const std::array<glm::vec3, 6> face_normals{{
-        glm::vec3(0.0f, 0.0f, 1.0f),
-        glm::vec3(0.0f, 0.0f, -1.0f),
-        glm::vec3(1.0f, 0.0f, 0.0f),
-        glm::vec3(-1.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        glm::vec3(0.0f, -1.0f, 0.0f),
-    }};
+    const std::array<glm::vec3, 6> face_normals{
+        {
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f),
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(-1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, -1.0f, 0.0f),
+        },
+    };
 
     for (const auto &face_normal : face_normals) {
         const glm::dvec3 n(face_normal);
@@ -114,25 +126,25 @@ void Planet::generate() {
                 const glm::dvec3 world_pos = dir * radius_;
                 const glm::dvec3 local_pos = world_pos - face_origin;
 
-                const size_t k = (size_t(i) * grid_width) + j;
+                const size_t k = (static_cast<size_t>(i) * grid_width) + j;
                 const size_t base_idx = k * 3;
 
-                positions[base_idx + 0] = float(local_pos.x);
-                positions[base_idx + 1] = float(local_pos.y);
-                positions[base_idx + 2] = float(local_pos.z);
+                positions[base_idx + 0] = static_cast<float>(local_pos.x);
+                positions[base_idx + 1] = static_cast<float>(local_pos.y);
+                positions[base_idx + 2] = static_cast<float>(local_pos.z);
 
-                radials[base_idx + 0] = float(dir.x);
-                radials[base_idx + 1] = float(dir.y);
-                radials[base_idx + 2] = float(dir.z);
+                radials[base_idx + 0] = static_cast<float>(dir.x);
+                radials[base_idx + 1] = static_cast<float>(dir.y);
+                radials[base_idx + 2] = static_cast<float>(dir.z);
 
-                noise_input_x[k] = float(world_pos.x * noise_freq);
-                noise_input_y[k] = float(world_pos.y * noise_freq);
-                noise_input_z[k] = float(world_pos.z * noise_freq);
+                noise_input_x[k] = static_cast<float>(world_pos.x * noise_freq);
+                noise_input_y[k] = static_cast<float>(world_pos.y * noise_freq);
+                noise_input_z[k] = static_cast<float>(world_pos.z * noise_freq);
             }
         }
 
         std::vector<uint32_t> indices;
-        indices.reserve(size_t(resolution) * resolution * 6);
+        indices.reserve(static_cast<size_t>(resolution) * resolution * 6);
         for (uint32_t i = 1; i <= resolution; i++) {
             for (uint32_t j = (i * grid_width) + 1;
                  j < (i * grid_width) + resolution + 1; j++) {
@@ -148,7 +160,8 @@ void Planet::generate() {
 
         auto fractal = FastNoise::New<FastNoise::FractalFBm>();
         fractal->SetSource(simplex);
-        fractal->SetOctaveCount(4);
+        fractal->SetOctaveCount(6);
+        // fractal->SetLacunarity(0.5);
 
         std::vector<float> noise_values(vertex_count);
         fractal->GenPositionArray3D(noise_values.data(),
@@ -156,16 +169,29 @@ void Planet::generate() {
                                     noise_input_x.data(), noise_input_y.data(),
                                     noise_input_z.data(), 0, 0, 0, 0);
 
-        // for (size_t k = 0; k < vertex_count; k++) {
-        //     const float height = noise_amp * noise_values[k];
-        //     const size_t base_idx = k * 3;
-        //     positions[base_idx + 0] += height * radials[base_idx + 0];
-        //     positions[base_idx + 1] += height * radials[base_idx + 1];
-        //     positions[base_idx + 2] += height * radials[base_idx + 2];
-        // }
+        float ocean_floor_depth = 5.0f;
+        float ocean_depth_multiplier = 1.0f;
+
+        for (size_t k = 0; k < vertex_count; k++) {
+            float offset = noise_values[k];
+            offset = smoothMax(
+                offset, (-ocean_floor_depth / noise_amp) + (offset * 0.15f),
+                0.5f * noise_amp);
+
+            float below = -smoothMax(-offset, 0.0f, 0.5f * noise_amp);
+            offset += ocean_depth_multiplier * below;
+
+            offset *= noise_amp;
+
+            const size_t base_idx = k * 3;
+            positions[base_idx + 0] += offset * radials[base_idx + 0];
+            positions[base_idx + 1] += offset * radials[base_idx + 1];
+            positions[base_idx + 2] += offset * radials[base_idx + 2];
+        }
 
         auto p = [&](uint32_t i, uint32_t j) {
-            const size_t base_idx = (size_t(i) * grid_width + j) * 3;
+            const size_t base_idx =
+                ((static_cast<size_t>(i) * grid_width) + j) * 3;
             return glm::vec3(positions[base_idx], positions[base_idx + 1],
                              positions[base_idx + 2]);
         };
@@ -179,7 +205,8 @@ void Planet::generate() {
                 const float len = glm::length(nrm);
                 nrm = (len > 0.0f) ? nrm / len : glm::vec3(0.0f, 1.0f, 0.0f);
 
-                const size_t base = (size_t(i) * grid_width + j) * 3;
+                const size_t base =
+                    ((static_cast<size_t>(i) * grid_width) + j) * 3;
                 normals[base + 0] = nrm.x;
                 normals[base + 1] = nrm.y;
                 normals[base + 2] = nrm.z;
@@ -200,34 +227,64 @@ void Planet::generate() {
             plugin_->api.createMesh(plugin_->api.context, &desc);
 
         if (handle != UME_MESH_HANDLE_INVALID) {
-            chunks_.emplace_back(Chunk{.mesh = MeshRef(&plugin_->api, handle),
-                                       .local_origin = face_origin});
+            chunks_.emplace_back(Chunk{
+                .mesh = MeshRef(&plugin_->api, handle),
+                .local_origin = face_origin,
+            });
         }
     }
+
+    plugin_->api.log(plugin_->api.context, UME_LOG_LEVEL_INFO,
+                     "finished generating planet");
 }
 
 namespace {
-struct AtmosphereParams {
-    float planet_center[4];
+struct OceanParams {
+    // xyz: planet center relative to the camera, w: ocean radius
+    std::array<float, 4> center_and_radius;
+    // x: planet radius, y: atmosphere thickness, z: scattering strength (1/m)
+    std::array<float, 4> planet_radius_thickness_strength;
 };
-static_assert(sizeof(AtmosphereParams) == 16);
+static_assert(sizeof(OceanParams) == 32);
+
+struct SunParams {
+    std::array<float, 4> sun_dir;
+};
+static_assert(sizeof(SunParams) == 16);
+
+struct AtmosphereParams {
+    // xyz: planet center relative to the camera, w: atmosphere radius
+    std::array<float, 4> center_and_radius;
+    // x: planet radius, y: atmosphere thickness, z: scattering strength (1/m)
+    std::array<float, 4> planet_radius_thickness_strength;
+    std::array<float, 4> sun_dir;
+};
+static_assert(sizeof(AtmosphereParams) == 48);
+
+// Atmosphere thickness as a fraction of the planet radius, so the atmosphere
+// keeps the same proportions whatever the planet size.
+constexpr double kAtmosphereThicknessRatio = 0.4;
+
+// Dimensionless optical depth through the full atmosphere thickness at the
+// most strongly scattered (blue) wavelength. The per-meter scattering strength
+// is derived from this so the look is independent of planet scale.
+constexpr double kAtmosphereOpticalDepth = 1.0;
 } // namespace
 
 void Planet::update(const UmeFrameContext *frame_context) {
     rotation_angle_ += 0.0f * frame_context->delta_time;
     rotation_angle_ = std::fmod(rotation_angle_, glm::two_pi<float>());
 
-    const glm::dmat3 rotation{glm::rotate(
-        glm::dmat4(1.0), double(rotation_angle_), glm::dvec3(0.0, 1.0, 0.0))};
+    const glm::dmat3 rotation{glm::rotate(glm::dmat4(1.0),
+                                          static_cast<double>(rotation_angle_),
+                                          glm::dvec3(0.0, 1.0, 0.0))};
 
     const glm::mat4 local_transform = glm::rotate(
         glm::mat4(1.0f), rotation_angle_, glm::vec3(0.0f, 1.0f, 0.0f));
 
     for (const auto &chunk : chunks_) {
         const MeshRef &mesh = chunk.mesh;
-        if (mesh.getHandle() == UME_MESH_HANDLE_INVALID) {
-            continue;
-        }
+        if (mesh.getHandle() == UME_MESH_HANDLE_INVALID) continue;
 
         const glm::dvec3 world =
             world_position_ + rotation * chunk.local_origin;
@@ -237,15 +294,83 @@ void Planet::update(const UmeFrameContext *frame_context) {
                             glm::value_ptr(local_transform));
     }
 
+    const glm::dvec3 camera(frame_context->camera_position[0],
+                            frame_context->camera_position[1],
+                            frame_context->camera_position[2]);
+    const glm::dvec3 rel = world_position_ - camera;
+
+    const double atmosphere_thickness = radius_ * kAtmosphereThicknessRatio;
+    // the times two is just because the planet is very small right now;
+    const double scattering_strength =
+        kAtmosphereOpticalDepth / atmosphere_thickness * 2;
+
+    sun_direction_ =
+        glm::vec3(glm::rotate(glm::mat4(1.0f), 0.0f * frame_context->delta_time,
+                              glm::vec3(0.0f, 1.0f, 0.0f)) *
+                  glm::vec4(sun_direction_, 0.0f));
+
+    if (plugin_->ocean != UME_POST_EFFECT_HANDLE_INVALID) {
+        const OceanParams params{
+            .center_and_radius =
+                {
+                    static_cast<float>(rel.x),
+                    static_cast<float>(rel.y),
+                    static_cast<float>(rel.z),
+                    static_cast<float>(radius_),
+                },
+            .planet_radius_thickness_strength =
+                {
+                    static_cast<float>(radius_),
+                    static_cast<float>(atmosphere_thickness),
+                    static_cast<float>(scattering_strength),
+                    0.0f,
+                },
+        };
+
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->ocean,
+                                      &params, sizeof(params));
+    }
+
+    if (plugin_->sun != UME_POST_EFFECT_HANDLE_INVALID) {
+        const SunParams params{
+            .sun_dir =
+                {
+                    sun_direction_.x,
+                    sun_direction_.y,
+                    sun_direction_.z,
+                    0.0f,
+                },
+        };
+
+        plugin_->api.submitPostEffect(plugin_->api.context, plugin_->sun,
+                                      &params, sizeof(params));
+    }
+
     if (plugin_->atmosphere != UME_POST_EFFECT_HANDLE_INVALID) {
-        const glm::dvec3 camera(frame_context->camera_position[0],
-                                frame_context->camera_position[1],
-                                frame_context->camera_position[2]);
-        const glm::dvec3 rel = world_position_ - camera;
 
         const AtmosphereParams params{
-            .planet_center = {float(rel.x), float(rel.y), float(rel.z),
-                              float(radius_) + 2500000.0f}};
+            .center_and_radius =
+                {
+                    static_cast<float>(rel.x),
+                    static_cast<float>(rel.y),
+                    static_cast<float>(rel.z),
+                    static_cast<float>(radius_ + atmosphere_thickness),
+                },
+            .planet_radius_thickness_strength =
+                {
+                    static_cast<float>(radius_),
+                    static_cast<float>(atmosphere_thickness),
+                    static_cast<float>(scattering_strength),
+                    0.0f,
+                },
+            .sun_dir =
+                {
+                    sun_direction_.x,
+                    sun_direction_.y,
+                    sun_direction_.z,
+                    0.0f,
+                },
+        };
 
         plugin_->api.submitPostEffect(plugin_->api.context, plugin_->atmosphere,
                                       &params, sizeof(params));

@@ -5,6 +5,8 @@
 #include "ume/core/resource_pool.hpp"
 #include "ume/plugin/plugin_manifest.hpp"
 
+#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -24,7 +26,7 @@ public:
     };
 
     struct Plugin {
-        std::filesystem::path dir;
+        std::filesystem::path dir{};
         uint64_t id;
         void *library = nullptr;
         std::string name;
@@ -32,9 +34,9 @@ public:
         UME_PLUGIN_BOOL (*init)(void *) = nullptr;
         void (*shutdown)(void *) = nullptr;
         std::unique_ptr<PluginContext> context;
-        std::vector<std::string> registered_types;
-        std::unordered_set<UmeMeshHandle> meshes;
-        std::unordered_map<std::string, PostEffectHandle> post_effects;
+        std::vector<std::string> registered_types{};
+        std::unordered_set<UmeMeshHandle> meshes{};
+        std::unordered_map<std::string, PostEffectHandle> post_effects{};
     };
 
     struct ObjectType {

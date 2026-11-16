@@ -4,7 +4,9 @@
 
 namespace {
 
-void *createTerrain(void *user_data, const UmeParams *params) noexcept {
+// signature fixed by plugin abi
+void *createTerrain(void *user_data,
+                    [[maybe_unused]] const UmeParams *params) noexcept {
     auto *self = static_cast<TerrainPlugin *>(user_data);
 
     terrain::Terrain *terrain = nullptr;
@@ -20,23 +22,19 @@ void *createTerrain(void *user_data, const UmeParams *params) noexcept {
 }
 
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void destroyTerrain([[maybe_unused]] void *user_data, void *object) noexcept {
     delete static_cast<terrain::Terrain *>(object);
 }
 
 // TODO: change frame_context to const reference?
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void updateTerrain(void *user_data, void *object,
                    const UmeFrameContext *frame_context) noexcept {
 
     auto *self = static_cast<TerrainPlugin *>(user_data);
     auto *terrain = static_cast<terrain::Terrain *>(object);
 
-    if (terrain == nullptr) {
-        return;
-    }
+    if (terrain == nullptr) return;
 
     try {
         terrain->update(frame_context);
@@ -49,9 +47,7 @@ void updateTerrain(void *user_data, void *object,
 
 UME_PLUGIN_BOOL initTerrainPlugin(void *state) noexcept {
     auto *self = static_cast<TerrainPlugin *>(state);
-    if (self == nullptr) {
-        return UME_FALSE;
-    }
+    if (self == nullptr) return UME_FALSE;
 
     const UmePluginApi api = self->api;
 
@@ -73,9 +69,7 @@ UME_PLUGIN_BOOL initTerrainPlugin(void *state) noexcept {
 
 void shutdownTerrainPlugin(void *state) noexcept {
     auto *self = static_cast<TerrainPlugin *>(state);
-    if (self == nullptr) {
-        return;
-    }
+    if (self == nullptr) return;
 
     const UmePluginApi api = self->api;
 
@@ -96,13 +90,9 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(terrain)(
     try {
         // if abi version doesn't match, we can't call api-log in the catch
         // because function pointer locations are not guaranteed to match
-        if (api->abi_version != UME_PLUGIN_ABI_VERSION) {
-            return UME_FALSE;
-        }
+        if (api->abi_version != UME_PLUGIN_ABI_VERSION) return UME_FALSE;
 
-        if (api->struct_size < sizeof(UmePluginApi)) {
-            return UME_FALSE;
-        }
+        if (api->struct_size < sizeof(UmePluginApi)) return UME_FALSE;
 
         if (description->struct_size < sizeof(UmePluginDescription)) {
             return UME_FALSE;

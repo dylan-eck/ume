@@ -2,6 +2,7 @@
 
 #include "ume/core/logger.hpp"
 
+#include <format>
 #include <stdexcept>
 
 namespace ume {

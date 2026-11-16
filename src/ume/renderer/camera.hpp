@@ -3,6 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <cmath>
+
 namespace ume {
 struct CameraState {
     glm::dvec3 position{0.0};
@@ -19,12 +21,13 @@ inline CameraState lookAlongCamera(const glm::dvec3 &position,
     const glm::dvec3 right = glm::normalize(glm::cross(forward, up));
     const glm::dvec3 camera_up = glm::cross(right, forward);
 
-    return CameraState{.position = position,
-                       .orientation =
-                           glm::mat3(glm::vec3(right), glm::vec3(camera_up),
-                                     glm::vec3(-forward)),
-                       .fov_y = fov_y,
-                       .z_near = z_near};
+    return CameraState{
+        .position = position,
+        .orientation = glm::mat3(glm::vec3(right), glm::vec3(camera_up),
+                                 glm::vec3(-forward)),
+        .fov_y = fov_y,
+        .z_near = z_near,
+    };
 }
 
 inline CameraState lookAtCamera(const glm::dvec3 &position,

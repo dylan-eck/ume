@@ -1,6 +1,10 @@
 #include "dynamic_library.hpp"
 #include "ume/core/logger.hpp"
+
 #include <dlfcn.h>
+
+#include <filesystem>
+#include <system_error>
 
 // TODO: Everything currently in this file will not work on windows
 
@@ -30,9 +34,7 @@ void *openLibrary(const std::filesystem::path &path) {
 }
 
 void *findSymbol(void *library, const char *symbol) {
-    if (library == nullptr || symbol == nullptr) {
-        return nullptr;
-    }
+    if (library == nullptr || symbol == nullptr) return nullptr;
 
     ::dlerror();
     void *address = ::dlsym(library, symbol);
@@ -43,9 +45,7 @@ void *findSymbol(void *library, const char *symbol) {
     return address;
 }
 void closeLibrary(void *library) {
-    if (library == nullptr) {
-        return;
-    }
+    if (library == nullptr) return;
 
     ::dlerror();
     if (::dlclose(library) != 0) {

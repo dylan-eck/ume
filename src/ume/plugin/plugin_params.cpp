@@ -1,12 +1,11 @@
 #include "plugin_params.hpp"
+#include "ume/plugin/plugin_api.h"
 
 namespace ume {
 namespace {
 double numberLookup(const void *impl, const char *key,
                     double fallback) noexcept {
-    if (impl == nullptr || key == nullptr) {
-        return fallback;
-    }
+    if (impl == nullptr || key == nullptr) return fallback;
 
     const auto *values = static_cast<const NumberMap *>(impl);
 
