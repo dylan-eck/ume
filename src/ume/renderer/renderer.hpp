@@ -95,7 +95,7 @@ private:
     };
 
     struct PostSubmission {
-        GraphicsPipelineHandle pipeline;
+        PostEffectHandle effect;
         size_t param_offset;
         size_t param_size;
     };
@@ -112,19 +112,20 @@ private:
     ResourcePool<PostEffect, PostEffectHandle> post_effects_;
     std::vector<PostSubmission> post_submissions_;
     std::vector<std::byte> post_param_arena_;
-    std::vector<PostProcessPass> post_passes_;
 
     CameraState camera_state_;
-
-    ShaderHandle compute_test_shader_;
-    ComputePipelineHandle compute_test_pipeline_;
-    BufferHandle input_;
-    BufferHandle output_;
 
     ShaderHandle default_shader_;
     uint32_t draw_uniforms_slot_ = 0;
     uint32_t vertex_buffer_slot_ = 0;
     GraphicsPipelineHandle default_pipeline_;
+
+    TextureHandle scene_color_;
+    TextureHandle post_color_;
+    TextureHandle depth_;
+    SamplerHandle linear_sampler_;
+
+    bool createRenderTargets();
 
     static std::optional<Renderer::PostEffectBindings>
     resolvePostEffectBindings(const CompiledShader &shader,

@@ -31,9 +31,7 @@ public:
     virtual void beginFrame() = 0;
     virtual void beginRenderPass(const RenderPassDescription &desc) = 0;
     virtual void endRenderPass() = 0;
-    virtual void beginScenePass() = 0;
     virtual void draw(const DrawCommand &cmd) = 0;
-    virtual void postProcess(const PostProcessCommand &cmd) = 0;
     virtual void endFrame() = 0;
 
     virtual void beginComputePass() = 0;

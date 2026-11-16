@@ -216,14 +216,4 @@ struct DispatchCommand {
     std::array<uint32_t, 3> work_size = {1, 1, 1};
     ResourceBindings bindings{};
 };
-
-struct PostProcessPass {
-    GraphicsPipelineHandle pipeline;
-    std::span<const std::byte> params;
-};
-
-struct PostProcessCommand {
-    std::span<const std::byte> frame_uniforms;
-    std::span<const PostProcessPass> passes;
-};
 } // namespace ume

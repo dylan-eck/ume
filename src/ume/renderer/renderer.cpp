@@ -69,6 +69,22 @@ Renderer::Renderer(const Window &window)
           backend_->shaderTarget(),
           std::filesystem::path(UME_SOURCE_DIR) / "include")) {
 
+    if (!createRenderTargets()) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create render targets");
+    }
+
+    linear_sampler_ = backend_->createSampler({
+        .min_filter = Filter::Linear,
+        .mag_filter = Filter::Linear,
+        .address_mode = AddressMode::ClampToEdge,
+    });
+
+    if (!linear_sampler_) {
+        throw Error(logger::Category::Renderer,
+                    "failed to create linear sampler");
+    }
+
     std::optional<CompiledShader> default_comp =
         compiler_->compile(std::filesystem::path(UME_SOURCE_DIR) /
                            "src/ume/renderer/shaders/default.slang");
@@ -144,44 +160,6 @@ Renderer::Renderer(const Window &window)
         throw Error(logger::Category::Renderer,
                     "failed to build default pipeline");
     }
-
-    const auto path = std::filesystem::path(UME_SOURCE_DIR) /
-                      "src/ume/renderer/shaders/compute_test.slang";
-    std::optional<CompiledShader> comp = compiler_->compile(path);
-
-    if (comp == std::nullopt) {
-        UME_LOG_WARN(Renderer, "failed to compile compute test shader");
-        compute_test_shader_ = {};
-    } else {
-        compute_test_shader_ = backend_->createShader({
-            .code = comp->code,
-            .entry_points = comp->entry_points,
-        });
-
-        compute_test_pipeline_ = backend_->createComputePipeline({
-            .shader = compute_test_shader_,
-            .entry = "doubleArray",
-        });
-
-        std::array<float, 1000> zeroes{};
-
-        std::array<float, 1000> ramp{};
-        for (size_t i = 0; i < ramp.size(); i++) {
-            ramp[i] = static_cast<float>(i);
-        }
-
-        input_ = backend_->createBuffer({
-            .size = 1000 * sizeof(float),
-            .initial_data = ramp.data(),
-            .usage = BufferUsage::CpuToGpu,
-        });
-
-        output_ = backend_->createBuffer({
-            .size = 1000 * sizeof(float),
-            .initial_data = zeroes.data(),
-            .usage = BufferUsage::CpuToGpu,
-        });
-    }
 }
 
 Renderer::~Renderer() = default;
@@ -199,6 +177,11 @@ void Renderer::resize(uint32_t width, uint32_t height) {
     }
 
     backend_->resize(width, height);
+
+    if (width > 0 && height > 0 && !createRenderTargets()) {
+        UME_LOG_WARN(Renderer,
+                     "failed to recreate render targets during resize");
+    }
 }
 
 MeshHandle Renderer::createMesh(const MeshDescription &desc) {
@@ -382,7 +365,7 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
     post_param_arena_.insert(post_param_arena_.end(), params.begin(),
                              params.end());
     post_submissions_.push_back({
-        .pipeline = effect->pipeline,
+        .effect = handle,
         .param_offset = offset,
         .param_size = params.size(),
     });
@@ -391,29 +374,23 @@ void Renderer::submitPostEffect(PostEffectHandle handle,
 void Renderer::render() {
     if (pixel_width_ == 0 || pixel_height_ == 0) return;
 
+    backend_->beginFrame();
+    backend_->beginRenderPass({
+        .color_attachments =
+            {
+                ColorAttachment{
+                    .texture = scene_color_,
+                    .clear_value = {0, 0, 0, 1},
+                },
+            },
+        .depth_attachment = DepthAttachment{.texture = depth_},
+    });
+
     const glm::mat4 projection =
         perspectiveReverseZ(camera_state_.fov_y, aspect_, camera_state_.z_near);
 
     const auto view_rotation =
         glm::mat4(glm::transpose(camera_state_.orientation));
-
-    backend_->beginFrame();
-
-    backend_->beginComputePass();
-    const std::array<BufferBinding, 2> bindings = {
-        BufferBinding{.slot = 0, .buffer = input_},
-        BufferBinding{.slot = 1, .buffer = output_},
-    };
-
-    backend_->dispatch({
-        .pipeline = compute_test_pipeline_,
-        .work_size = {1000, 1, 1},
-        .bindings = {.buffers = bindings},
-    });
-
-    backend_->endComputePass();
-
-    backend_->beginScenePass();
 
     for (const auto &next : submissions_) {
         const auto relative =
@@ -460,6 +437,8 @@ void Renderer::render() {
     }
     submissions_.clear();
 
+    backend_->endRenderPass();
+
     const PostFrameUniforms frame_uniforms{
         .inverse_projection = glm::inverse(projection),
         .camera_to_world = glm::mat4(camera_state_.orientation),
@@ -469,19 +448,96 @@ void Renderer::render() {
         .aspect = aspect_,
     };
 
-    post_passes_.clear();
-    for (const auto &s : post_submissions_) {
-        post_passes_.push_back({
-            .pipeline = s.pipeline,
-            .params = std::span(post_param_arena_)
+    struct PostPass {
+        const PostEffect *effect;
+        std::span<const std::byte> params;
+    };
+
+    std::vector<PostPass> passes;
+    passes.reserve(post_submissions_.size());
+    for (const PostSubmission &s : post_submissions_) {
+        const PostEffect *effect = post_effects_.get(s.effect);
+        if (effect == nullptr) continue; // destroyed after it was submitted
+        passes.push_back({
+            .effect = effect,
+            .params = std::span<const std::byte>(post_param_arena_)
                           .subspan(s.param_offset, s.param_size),
         });
     }
 
-    backend_->postProcess({
-        .frame_uniforms = std::as_bytes(std::span(&frame_uniforms, 1)),
-        .passes = post_passes_,
-    });
+    if (passes.empty()) {
+        backend_->copyTexture(scene_color_, backend_->backbuffer());
+    } else {
+        TextureHandle src = scene_color_;
+
+        for (size_t i = 0; i < passes.size(); i++) {
+            const PostEffect *effect = passes[i].effect;
+
+            TextureHandle dst;
+            if (i == passes.size() - 1) {
+                dst = backend_->backbuffer();
+            } else if (src == scene_color_) {
+                dst = post_color_;
+            } else {
+                dst = scene_color_;
+            }
+
+            backend_->beginRenderPass({
+                .color_attachments = {ColorAttachment{
+                    .texture = dst, .load_action = LoadAction::DontCare}},
+            });
+
+            const PostEffectBindings &b = effect->bindings;
+
+            std::array<TextureBinding, 2> textures{};
+            size_t texture_count = 0;
+            textures[texture_count++] = {
+                .slot = b.scene_texture_slot,
+                .texture = src,
+            };
+
+            if (b.depth_texture_slot) {
+                textures[texture_count++] = {
+                    .slot = *b.depth_texture_slot,
+                    .texture = depth_,
+                };
+            }
+
+            const std::array samplers{
+                SamplerBinding{.slot = b.scene_sampler_slot,
+                               .sampler = linear_sampler_},
+            };
+
+            std::array<InlineDataBinding, 2> inline_data{};
+            size_t inline_data_count = 0;
+            inline_data[inline_data_count++] = {
+                .slot = b.frame_uniforms_slot,
+                .data = std::as_bytes(std::span(&frame_uniforms, 1)),
+            };
+
+            if (b.params_slot && !passes[i].params.empty()) {
+                inline_data[inline_data_count++] = {
+                    .slot = *b.params_slot,
+                    .data = passes[i].params,
+                };
+            }
+
+            backend_->draw({
+                .pipeline = effect->pipeline,
+                .vertex_count = 3,
+                .fragment_bindings =
+                    {
+                        .textures = std::span(textures).first(texture_count),
+                        .samplers = samplers,
+                        .inline_data =
+                            std::span(inline_data).first(inline_data_count),
+                    },
+            });
+
+            backend_->endRenderPass();
+            src = dst;
+        }
+    }
 
     post_submissions_.clear();
     post_param_arena_.clear();
@@ -491,6 +547,35 @@ void Renderer::render() {
 
 void Renderer::setCamera(const CameraState &camera_state) {
     camera_state_ = camera_state;
+}
+
+bool Renderer::createRenderTargets() {
+    backend_->destroyTexture(scene_color_);
+    backend_->destroyTexture(post_color_);
+    backend_->destroyTexture(depth_);
+
+    scene_color_ = backend_->createTexture({
+        .width = pixel_width_,
+        .height = pixel_height_,
+        .format = Format::BGRA8Unorm,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
+    });
+
+    post_color_ = backend_->createTexture({
+        .width = pixel_width_,
+        .height = pixel_height_,
+        .format = Format::BGRA8Unorm,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
+    });
+
+    depth_ = backend_->createTexture({
+        .width = pixel_width_,
+        .height = pixel_height_,
+        .format = Format::Depth32Float,
+        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
+    });
+
+    return scene_color_ && post_color_ && depth_;
 }
 
 std::optional<Renderer::PostEffectBindings>

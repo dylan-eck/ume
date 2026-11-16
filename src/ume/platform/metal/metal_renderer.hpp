@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ume/core/resource_handle.hpp"
+#include "ume/renderer/backend_types.hpp"
 #include "ume/renderer/renderer_backend.hpp"
 #include "ume/core/resource_pool.hpp"
 #include "ume/platform/window.hpp"
@@ -74,9 +75,7 @@ public:
     void beginFrame() override;
     void beginRenderPass(const RenderPassDescription &desc) override;
     void endRenderPass() override;
-    void beginScenePass() override;
     void draw(const DrawCommand &cmd) override;
-    void postProcess(const PostProcessCommand &cmd) override;
     void endFrame() override;
 
     void beginComputePass() override;
@@ -116,8 +115,6 @@ private:
     ResourcePool<MetalTexture, TextureHandle> textures_;
 
     TextureHandle backbuffer_;
-    std::array<TextureHandle, 2> color_targets_;
-    SamplerHandle linear_sampler_;
 
     ResourcePool<MetalShader, ShaderHandle> shaders_;
 
@@ -130,7 +127,6 @@ private:
 
     NS::SharedPtr<MTL::Device> device_ = nullptr;
     NS::SharedPtr<MTL::CommandQueue> command_queue_ = nullptr;
-    TextureHandle depth_texture_;
 
     NS::SharedPtr<NS::AutoreleasePool> frame_pool_ = nullptr;
     CA::MetalDrawable *drawable_ = nullptr;
@@ -156,8 +152,6 @@ private:
 
     NS::SharedPtr<MTL::ComputePipelineState>
     buildComputePipeline(MTL::Library *library, const char *entry);
-
-    void createRenderTargets(uint32_t width, uint32_t height);
 
     MTL::Buffer *getBuffer(BufferHandle handle);
     MTL::Texture *getTexture(TextureHandle handle);

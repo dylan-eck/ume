@@ -128,27 +128,15 @@ MetalRenderer::MetalRenderer(MetalSurface surface, uint32_t pixel_width,
     width_ = pixel_width;
     height_ = pixel_height;
 
-    backbuffer_ = textures_.insert({.description =
-                                        {
-                                            .width = width_,
-                                            .height = height_,
-                                            .format = Format::BGRA8Unorm,
-                                            .usage = TextureUsage::RenderTarget,
-                                        },
-                                    .texture = {}});
-
-    createRenderTargets(width_, height_);
-
-    // TODO: separate these out (do in resize too)
-    if (!color_targets_[0] || !color_targets_[1] || !depth_texture_) {
-        throw Error(logger::Category::Renderer,
-                    "failed to create on or more render targets");
-    }
-
-    linear_sampler_ = createSampler({
-        .min_filter = Filter::Linear,
-        .mag_filter = Filter::Linear,
-        .address_mode = AddressMode::ClampToEdge,
+    backbuffer_ = textures_.insert({
+        .description =
+            {
+                .width = width_,
+                .height = height_,
+                .format = Format::BGRA8Unorm,
+                .usage = TextureUsage::RenderTarget,
+            },
+        .texture = {},
     });
 
     command_queue_ = NS::TransferPtr(device_->newCommandQueue());
@@ -174,14 +162,6 @@ void MetalRenderer::resize(uint32_t width, uint32_t height) {
     MetalTexture *bb_texture = textures_.get(backbuffer_);
     bb_texture->description.width = width;
     bb_texture->description.height = height;
-
-    createRenderTargets(width_, height_);
-
-    if (!color_targets_[0] || !color_targets_[1] || !depth_texture_) {
-        UME_LOG_WARN(
-            Renderer,
-            "failed to re-create on or more render targets during resize");
-    }
 }
 
 TextureHandle MetalRenderer::backbuffer() const { return backbuffer_; }
@@ -346,20 +326,6 @@ void MetalRenderer::endRenderPass() {
     }
 }
 
-void MetalRenderer::beginScenePass() {
-    beginRenderPass({
-        .color_attachments =
-            {
-                ColorAttachment{
-                    .texture = color_targets_[0],
-                    // TODO: does it make sense to clear alpha to 1?
-                    .clear_value = {0.0f, 0.0f, 0.0f, 1.0f},
-                },
-            },
-        .depth_attachment = DepthAttachment{.texture = depth_texture_},
-    });
-}
-
 void MetalRenderer::draw(const DrawCommand &cmd) {
     if (curr_frame_failed_) return;
 
@@ -439,60 +405,6 @@ void MetalRenderer::draw(const DrawCommand &cmd) {
 
         graphics_encoder_->drawPrimitives(MTL::PrimitiveTypeTriangle,
                                           NS::UInteger{0}, cmd.vertex_count);
-    }
-}
-
-void MetalRenderer::postProcess(const PostProcessCommand &cmd) {
-    if (graphics_encoder_ == nullptr) return;
-    endRenderPass();
-
-    if (!acquireBackbuffer()) return;
-
-    if (cmd.passes.empty()) {
-        copyTexture(color_targets_[0], backbuffer_);
-        return;
-    }
-
-    int src = 0;
-    for (size_t i = 0; i < cmd.passes.size(); i++) {
-        const PostProcessPass &pass = cmd.passes[i];
-        MetalGraphicsPipeline *pipeline =
-            graphics_pipelines_.get(pass.pipeline);
-        if (pipeline == nullptr) {
-            UME_LOG_WARN(Renderer, "post pass with invalid pipeline {}",
-                         pass.pipeline.id);
-            continue;
-        }
-
-        const bool last = (i + 1 == cmd.passes.size());
-        MTL::Texture *dst = last ? getTexture(backbuffer_)
-                                 : getTexture(color_targets_[1 - src]);
-
-        auto pass_desc =
-            NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
-        auto *color = pass_desc->colorAttachments()->object(0);
-        color->setTexture(dst);
-        color->setLoadAction(MTL::LoadActionDontCare);
-        color->setStoreAction(MTL::StoreActionStore);
-
-        MTL::RenderCommandEncoder *enc =
-            command_buffer_->renderCommandEncoder(pass_desc.get());
-        enc->setRenderPipelineState(pipeline->state.get());
-        enc->setFragmentTexture(getTexture(color_targets_[src]), 0);
-        enc->setFragmentTexture(getTexture(depth_texture_), 1);
-        enc->setFragmentSamplerState(getSampler(linear_sampler_), 0);
-        enc->setFragmentBytes(cmd.frame_uniforms.data(),
-                              cmd.frame_uniforms.size(), 0);
-        if (!pass.params.empty()) {
-            enc->setFragmentBytes(pass.params.data(), pass.params.size(), 1);
-        }
-        enc->drawPrimitives(MTL::PrimitiveTypeTriangle, NS::UInteger(0),
-                            NS::UInteger(3));
-        enc->endEncoding();
-
-        if (!last) {
-            src = 1 - src;
-        }
     }
 }
 
@@ -941,33 +853,6 @@ MetalRenderer::buildComputePipeline(MTL::Library *library, const char *entry) {
                       errorString(error));
     }
     return state;
-}
-
-void MetalRenderer::createRenderTargets(uint32_t width, uint32_t height) {
-    destroyTexture(color_targets_[0]);
-    destroyTexture(color_targets_[1]);
-    destroyTexture(depth_texture_);
-
-    color_targets_[0] = createTexture({
-        .width = width,
-        .height = height,
-        .format = Format::BGRA8Unorm,
-        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
-    });
-
-    color_targets_[1] = createTexture({
-        .width = width,
-        .height = height,
-        .format = Format::BGRA8Unorm,
-        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
-    });
-
-    depth_texture_ = createTexture({
-        .width = width,
-        .height = height,
-        .format = Format::Depth32Float,
-        .usage = TextureUsage::RenderTarget | TextureUsage::ShaderRead,
-    });
 }
 
 MTL::Buffer *MetalRenderer::getBuffer(BufferHandle handle) {
