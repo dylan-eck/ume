@@ -1,6 +1,7 @@
 #include "shader_compiler.hpp"
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
+#include "ume/renderer/backend_types.hpp"
 #include "ume/renderer/renderer_backend.hpp"
 
 #include <filesystem>
@@ -257,11 +258,10 @@ ShaderCompiler::compile(const std::filesystem::path &path) {
 
 Slang::ComPtr<slang::ISession> ShaderCompiler::createSession() {
     slang::TargetDesc target_desc{};
-    if (target_ == ShaderTarget::Msl) {
+    switch (target_) {
+    case ShaderTarget::Msl:
         target_desc.format = SLANG_METAL;
-    } else {
-        target_desc.format = SLANG_SPIRV;
-        target_desc.profile = global_->findProfile("spirv_1_4");
+        break;
     }
 
     std::array<const char *, 1> search_paths = {include_dir_.c_str()};

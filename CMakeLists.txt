@@ -7,42 +7,24 @@ project(
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(APPLE)
-  set(UME_DEFAULT_RENDER_BACKEND "metal")
-else()
-  set(UME_DEFAULT_RENDER_BACKEND "vulkan")
+if(NOT APPLE)
+  message(FATAL_ERROR "ume requires macOS (Metal)")
 endif()
 
-set(UME_RENDER_BACKEND
-    "${UME_DEFAULT_RENDER_BACKEND}"
-    CACHE STRING "Renderer backend to build (metal or vulkan)")
-set_property(CACHE UME_RENDER_BACKEND PROPERTY STRINGS metal vulkan)
-
-if(NOT UME_RENDER_BACKEND STREQUAL "metal" AND NOT UME_RENDER_BACKEND STREQUAL
-                                               "vulkan")
-  message(
-    FATAL_ERROR
-      "UME_RENDER_BACKEND must be 'metal' or 'vulkan', got ${UME_RENDER_BACKEND}"
-  )
-endif()
-
-if(UME_RENDER_BACKEND STREQUAL "metal" AND NOT APPLE)
-  message(
-    FATAL_ERROR "UME_RENDER_BACKEND=metal is only supported on Apple platforms")
-endif()
-
-message(STATUS "ume: building with ${UME_RENDER_BACKEND} render backend")
-
-set(UME_COMPILER_LAUNCHER "auto"
-    CACHE STRING "Compiler cache: auto, ccache, sccache, none, or a program name")
-set_property(CACHE UME_COMPILER_LAUNCHER PROPERTY STRINGS auto sccache ccache none)
+set(UME_COMPILER_LAUNCHER
+    "auto"
+    CACHE STRING
+          "Compiler cache: auto, ccache, sccache, none, or a program name")
+set_property(CACHE UME_COMPILER_LAUNCHER PROPERTY STRINGS auto sccache ccache
+                                                  none)
 
 if(UME_COMPILER_LAUNCHER STREQUAL "none")
   set(UME_LAUNCHER_EXECUTABLE "")
 elseif(UME_COMPILER_LAUNCHER STREQUAL "auto")
   find_program(UME_LAUNCHER_EXECUTABLE NAMES ccache sccache)
 else()
-  find_program(UME_LAUNCHER_EXECUTABLE NAMES "${UME_COMPILER_LAUNCHER}" REQUIRED)
+  find_program(UME_LAUNCHER_EXECUTABLE NAMES "${UME_COMPILER_LAUNCHER}"
+                                             REQUIRED)
 endif()
 
 if(UME_LAUNCHER_EXECUTABLE)
@@ -67,8 +49,8 @@ target_link_libraries(ume_config INTERFACE glm::glm)
 add_library(ume_plugin_config INTERFACE)
 target_compile_options(
   ume_plugin_config
-  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wimplicit-fallthrough>
-            $<$<CXX_COMPILER_ID:MSVC>:/W4>)
+  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic
+            -Wimplicit-fallthrough> $<$<CXX_COMPILER_ID:MSVC>:/W4>)
 
 add_library(ume_plugin_api INTERFACE)
 target_include_directories(ume_plugin_api INTERFACE include)
@@ -102,30 +84,28 @@ target_include_directories(ume_engine PUBLIC src)
 target_link_libraries(
   ume_engine
   PUBLIC ume_config ume_plugin_api
-  PRIVATE SDL3::SDL3-static glaze spdlog::spdlog tinygltf::tinygltf wren::wren slang::slang
+  PRIVATE SDL3::SDL3-static
+          glaze
+          spdlog::spdlog
+          tinygltf::tinygltf
+          wren::wren
+          slang::slang
           ${CMAKE_DL_LIBS})
 target_compile_definitions(
-  ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}" UME_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  ume_engine PRIVATE UME_PLUGIN_SUFFIX="${CMAKE_SHARED_MODULE_SUFFIX}"
+                     UME_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 b_embed(ume_engine src/ume/scripting/ume.wren)
 
-if(UME_RENDER_BACKEND STREQUAL "metal")
-  target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
-  target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_METAL)
-  target_include_directories(ume_engine SYSTEM PRIVATE vendor/metal-cpp)
+target_sources(ume_engine PRIVATE src/ume/platform/metal/metal_renderer.cpp)
+target_include_directories(ume_engine SYSTEM PRIVATE vendor/metal-cpp)
 
-  find_library(METAL_LIB Metal REQUIRED)
-  find_library(FOUNDATION_LIB Foundation REQUIRED)
-  find_library(QUARTZCORE_LIB QuartzCore REQUIRED)
+find_library(METAL_LIB Metal REQUIRED)
+find_library(FOUNDATION_LIB Foundation REQUIRED)
+find_library(QUARTZCORE_LIB QuartzCore REQUIRED)
 
-  target_link_libraries(ume_engine PRIVATE ${METAL_LIB} ${FOUNDATION_LIB}
-                                           ${QUARTZCORE_LIB})
-else()
-  target_sources(ume_engine PRIVATE src/ume/platform/vulkan/vulkan_renderer.cpp)
-  target_compile_definitions(ume_engine PRIVATE UME_RENDER_BACKEND_VULKAN)
-  target_link_libraries(ume_engine PRIVATE Vulkan::Vulkan
-                                           vk-bootstrap::vk-bootstrap)
-endif()
+target_link_libraries(ume_engine PRIVATE ${METAL_LIB} ${FOUNDATION_LIB}
+                                         ${QUARTZCORE_LIB})
 
 set(UME_PLUGIN_LINK_TYPE
     "STATIC"
@@ -134,9 +114,8 @@ set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 
 target_sources(
   ume_engine
-  PRIVATE src/ume/plugin/plugin_manifest.cpp src/ume/plugin/plugin_host.cpp src/ume/plugin/plugin_params.cpp
-          src/ume/plugin/builtin_plugins.cpp)
-
+  PRIVATE src/ume/plugin/plugin_manifest.cpp src/ume/plugin/plugin_host.cpp
+          src/ume/plugin/plugin_params.cpp src/ume/plugin/builtin_plugins.cpp)
 
 function(ume_plugin_assets TARGET)
   set(dest "${CMAKE_SOURCE_DIR}/sandbox/plugins/${TARGET}")
@@ -149,8 +128,8 @@ function(ume_plugin_assets TARGET)
     if(ext STREQUAL ".slang")
       # shaders are hot reloaded from the sandbox path at runtime, so link them
       # back to the source tree instead of copying a snapshot that only
-      # refreshes on the next build. rm first: create_symlink does not replace
-      # a regular file left behind by an earlier copy
+      # refreshes on the next build. rm first: create_symlink does not replace a
+      # regular file left behind by an earlier copy
       add_custom_command(
         OUTPUT "${dst}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"

@@ -60,12 +60,6 @@ target_include_directories(glaze SYSTEM
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog SYSTEM)
 ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 
-if(UME_RENDER_BACKEND STREQUAL "vulkan")
-  find_package(Vulkan REQUIRED)
-  add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap SYSTEM)
-  ume_silence_vendor_warnings(${CMAKE_SOURCE_DIR}/vendor/vk-bootstrap)
-endif()
-
 find_program(
   SLANGC_EXECUTABLE
   NAMES slangc

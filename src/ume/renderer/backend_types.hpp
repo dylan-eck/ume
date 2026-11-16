@@ -42,7 +42,7 @@ constexpr size_t kMaxColorAttachments = 8;
 
 enum class IndexType : uint8_t { UInt16, UInt32 };
 
-enum class ShaderTarget : uint8_t { Msl, SpirV };
+enum class ShaderTarget : uint8_t { Msl };
 
 enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
 

@@ -11,30 +11,25 @@ distributed with a copy of this file (or its contents).
 Where a component is offered under a choice of licenses, ume uses it under the
 option named in that component's entry.
 
-Components marked *(Metal builds only)* or *(Vulkan builds only)* are present
-only in binaries built with that render backend.
-
-| Component | Location | License |
-|---|---|---|
-| SDL3 | `vendor/SDL` | zlib |
-| hidapi (bundled in SDL3) | `vendor/SDL/src/hidapi` | BSD-3-Clause (chosen from GPL-3.0 / BSD-3-Clause / original HIDAPI) |
-| yuv2rgb (bundled in SDL3) | `vendor/SDL/src/video/yuv2rgb` | BSD-3-Clause |
-| Khronos API headers (bundled in SDL3) | `vendor/SDL/src/video/khronos` | MIT (chosen from Apache-2.0 / MIT) |
-| spdlog | `vendor/spdlog` | MIT |
-| {fmt} (bundled in spdlog) | `vendor/spdlog/include/spdlog/fmt/bundled` | MIT with binary-embedding exception |
-| Glaze | `vendor/glaze` | MIT |
-| fast_float (bundled in Glaze) | `vendor/glaze/include/glaze/util/fast_float.hpp` | MIT (chosen from Apache-2.0 / MIT / BSL-1.0) |
-| zmij (bundled in Glaze) | `vendor/glaze/include/glaze/util/zmij.hpp` | MIT (chosen from MIT / BSL-1.0) |
-| TinyGLTF v3 | `vendor/tinygltf` | MIT |
-| fast_float and Dragonbox derived code (in TinyGLTF) | `vendor/tinygltf/tinygltf_json_c.h` | BSL-1.0 (chosen from the options offered by each upstream) |
-| Wren | `vendor/wren` | MIT |
-| GLM | `vendor/glm` | MIT (chosen from Happy Bunny / MIT) |
-| vk-bootstrap *(Vulkan builds only)* | `vendor/vk-bootstrap` | MIT |
-| FastNoise2 | `plugins/shared/vendor/FastNoise2` | MIT |
-| battery::embed | `vendor/embed` | Apache-2.0 |
-| metal-cpp *(Metal builds only)* | `vendor/metal-cpp` | Apache-2.0 |
-| Slang (`libslang` linked at runtime; `slangc` used at build time) | system install / Vulkan SDK | Apache-2.0 with LLVM Exceptions |
-| Vulkan headers and loader *(Vulkan builds only)* | Vulkan SDK | Apache-2.0 (headers also offered under MIT) |
+| Component                                                         | Location                                         | License                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| SDL3                                                              | `vendor/SDL`                                     | zlib                                                                |
+| hidapi (bundled in SDL3)                                          | `vendor/SDL/src/hidapi`                          | BSD-3-Clause (chosen from GPL-3.0 / BSD-3-Clause / original HIDAPI) |
+| yuv2rgb (bundled in SDL3)                                         | `vendor/SDL/src/video/yuv2rgb`                   | BSD-3-Clause                                                        |
+| Khronos API headers (bundled in SDL3)                             | `vendor/SDL/src/video/khronos`                   | MIT (chosen from Apache-2.0 / MIT)                                  |
+| spdlog                                                            | `vendor/spdlog`                                  | MIT                                                                 |
+| {fmt} (bundled in spdlog)                                         | `vendor/spdlog/include/spdlog/fmt/bundled`       | MIT with binary-embedding exception                                 |
+| Glaze                                                             | `vendor/glaze`                                   | MIT                                                                 |
+| fast_float (bundled in Glaze)                                     | `vendor/glaze/include/glaze/util/fast_float.hpp` | MIT (chosen from Apache-2.0 / MIT / BSL-1.0)                        |
+| zmij (bundled in Glaze)                                           | `vendor/glaze/include/glaze/util/zmij.hpp`       | MIT (chosen from MIT / BSL-1.0)                                     |
+| TinyGLTF v3                                                       | `vendor/tinygltf`                                | MIT                                                                 |
+| fast_float and Dragonbox derived code (in TinyGLTF)               | `vendor/tinygltf/tinygltf_json_c.h`              | BSL-1.0 (chosen from the options offered by each upstream)          |
+| Wren                                                              | `vendor/wren`                                    | MIT                                                                 |
+| GLM                                                               | `vendor/glm`                                     | MIT (chosen from Happy Bunny / MIT)                                 |
+| FastNoise2                                                        | `plugins/shared/vendor/FastNoise2`               | MIT                                                                 |
+| battery::embed                                                    | `vendor/embed`                                   | Apache-2.0                                                          |
+| metal-cpp                                                         | `vendor/metal-cpp`                               | Apache-2.0                                                          |
+| Slang (`libslang` linked at runtime; `slangc` used at build time) | system install / Vulkan SDK                      | Apache-2.0 with LLVM Exceptions                                     |
 
 The full text of the Apache License, Version 2.0 and of the Boost Software
 License 1.0 appear once each at the end of this file.
@@ -47,7 +42,7 @@ Copyright (C) 1997-2026 Sam Lantinga. zlib license.
 
 ```text
 Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
-  
+
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
 arising from the use of this software.
@@ -55,11 +50,11 @@ arising from the use of this software.
 Permission is granted to anyone to use this software for any purpose,
 including commercial applications, and to alter it and redistribute it
 freely, subject to the following restrictions:
-  
+
 1. The origin of this software must not be misrepresented; you must not
    claim that you wrote the original software. If you use this software
    in a product, an acknowledgment in the product documentation would be
-   appreciated but is not required. 
+   appreciated but is not required.
 2. Altered source versions must be plainly marked as such, and must not be
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
@@ -227,7 +222,7 @@ without including the above copyright and permission notices.
 
 Copyright (c) 2019 - present, Stephen Berry. MIT License.
 
-```text
+````text
 MIT License
 
 Copyright (c) 2019 - present, Stephen Berry
@@ -282,7 +277,7 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
-```
+````
 
 ## zmij (bundled in Glaze)
 
@@ -413,47 +408,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## vk-bootstrap (Vulkan builds only)
-
-Copyright © 2020 Charles Giessen. MIT License.
-
-```text
-Copyright © 2020 Charles Giessen (charles@lunarg.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.```
-
-## FastNoise2
-
-Copyright (c) 2020 Jordan Peck. MIT License.
-
-```text
-MIT License
-
-Copyright (c) 2020 Jordan Peck
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ## battery::embed
 
 https://github.com/batterycenter/embed. Apache License, Version 2.0 (full text at the end of this file). The generated resource sources and the battery/embed.hpp runtime header are compiled into ume. No NOTICE file accompanies this component.
@@ -472,7 +426,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## metal-cpp (Metal builds only)
+## metal-cpp
 
 Copyright © 2024 Apple Inc. Apache License, Version 2.0 (full text at the end of this file). No NOTICE file accompanies this component.
 
@@ -514,29 +468,11 @@ the License, but only in their entirety and only with respect to the Combined
 Software.
 ```
 
-## Vulkan headers and loader (Vulkan builds only)
-
-Copyright 2015-2026 The Khronos Group Inc. and contributors. Vulkan-Headers is offered under Apache-2.0 OR MIT; Vulkan-Loader under Apache-2.0. Apache License, Version 2.0 full text follows below.
-
-```text
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
-
 ---
 
 ## Apache License, Version 2.0
 
-Applies to battery::embed, metal-cpp, Slang, and the Vulkan headers and loader.
+Applies to battery::embed, metal-cpp, and Slang.
 
 ```text
                                  Apache License

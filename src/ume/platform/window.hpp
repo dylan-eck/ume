@@ -1,9 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#if defined UME_RENDER_BACKEND_VULKAN
-#include <vulkan/vulkan_core.h>
-#endif
 
 #include <string>
 #include <memory>
@@ -11,7 +8,6 @@
 struct SDL_Window;
 union SDL_Event;
 
-#if defined UME_RENDER_BACKEND_METAL
 // NOLINTBEGIN(readability-identifier-naming)
 namespace CA {
 class MetalLayer;
@@ -37,7 +33,6 @@ private:
     std::unique_ptr<void, ViewDeleter> view_;
 };
 } // namespace ume
-#endif
 
 namespace ume {
 
@@ -65,11 +60,7 @@ public:
 
     void handleEvent(const SDL_Event &event);
 
-#if defined UME_RENDER_BACKEND_METAL
     [[nodiscard]] MetalSurface createMetalSurface() const;
-#elif defined UME_RENDER_BACKEND_VULKAN
-    [[nodiscard]] VkSurfaceKHR createVulkanSurface(VkInstance instance) const;
-#endif
 
     [[nodiscard]] uint32_t getPixelWidth() const { return pixel_width_; }
     [[nodiscard]] uint32_t getPixelHeight() const { return pixel_height_; }
