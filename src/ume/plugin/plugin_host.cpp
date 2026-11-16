@@ -8,6 +8,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <exception>
 #include <filesystem>
 #include <cstdint>
 #include <algorithm>
@@ -49,8 +50,15 @@ PluginHost::PluginHost(Renderer &renderer) : renderer_(renderer) {
 }
 
 PluginHost::~PluginHost() {
-    while (!plugins_.empty()) {
-        unloadPluginAt(plugins_.size() - 1);
+    try {
+        while (!plugins_.empty()) {
+            unloadPluginAt(plugins_.size() - 1);
+        }
+    } catch (const std::exception &e) {
+        UME_LOG_ERROR(Plugin, "exception in pluginHost destructor: {}",
+                      e.what());
+    } catch (...) {
+        UME_LOG_ERROR(Plugin, "exception in pluginHost destructor");
     }
 }
 
@@ -146,7 +154,7 @@ bool PluginHost::finishRegistration(const char *name, void *library,
         return false;
     }
 
-    if (std::string(description.name).find('.') != std::string::npos) {
+    if (std::string(description.name).contains('.')) {
         UME_LOG_ERROR(Plugin, "plugin names must not contain periods");
         rollback(description, true);
         return false;
@@ -302,7 +310,8 @@ void PluginHost::reloadShaders() {
 }
 
 UmePostEffectHandle
-PluginHost::findPostEffectTrampoline(void *context, const char *name) noexcept {
+PluginHost::findPostEffectTrampoline(void *context, const char *name) noexcept
+    try {
     if (name == nullptr) return UME_POST_EFFECT_HANDLE_INVALID;
     auto *ctx = static_cast<PluginContext *>(context);
     Plugin *plugin = ctx->host->findPlugin(ctx->plugin_id);
@@ -310,6 +319,13 @@ PluginHost::findPostEffectTrampoline(void *context, const char *name) noexcept {
     const auto it = plugin->post_effects.find(name);
     return it != plugin->post_effects.end() ? it->second.id
                                             : UME_POST_EFFECT_HANDLE_INVALID;
+} catch (const std::exception &e) {
+    UME_LOG_ERROR(Plugin, "exception in findPostEffectTrampoline: {}",
+                  e.what());
+    return UME_POST_EFFECT_HANDLE_INVALID;
+} catch (...) {
+    UME_LOG_ERROR(Plugin, "exception in findPostEffectTrampoline");
+    return UME_POST_EFFECT_HANDLE_INVALID;
 }
 
 void PluginHost::submitPostEffectTrampoline(void *context,
@@ -415,7 +431,8 @@ void PluginHost::updateObjects(const UmeFrameContext &frame_context) {
 
 UME_PLUGIN_BOOL
 PluginHost::registerObjectTypeTrampoline(void *context,
-                                         const UmeObjectType *type) noexcept {
+                                         const UmeObjectType *type) noexcept
+    try {
     if (type == nullptr) {
         UME_LOG_ERROR(
             Plugin, "attempted to register object type with null type struct");
@@ -453,6 +470,7 @@ PluginHost::registerObjectTypeTrampoline(void *context,
                       "could not find owner (plugin id'{}') while registering "
                       "object type '{}'",
                       ctx->plugin_id, type->name);
+        return UME_FALSE;
     }
 
     ObjectType object{
@@ -477,10 +495,17 @@ PluginHost::registerObjectTypeTrampoline(void *context,
 
     UME_LOG_INFO(Plugin, "registered object type '{}'", it->second.name);
     return UME_TRUE;
+} catch (const std::exception &e) {
+    UME_LOG_ERROR(Plugin, "exception in registerObjectTypeTrampoline: {}",
+                  e.what());
+    return UME_FALSE;
+} catch (...) {
+    UME_LOG_ERROR(Plugin, "exception in registerObjectTypeTrampoline");
+    return UME_FALSE;
 }
 
 UmeMeshHandle PluginHost::createMeshTrampoline(
-    void *context, const UmeMeshDescription *description) noexcept {
+    void *context, const UmeMeshDescription *description) noexcept try {
 
     auto *ctx = static_cast<PluginContext *>(context);
     auto *self = ctx->host;
@@ -520,6 +545,12 @@ UmeMeshHandle PluginHost::createMeshTrampoline(
     }
 
     return UmeMeshHandle{handle.id};
+} catch (const std::exception &e) {
+    UME_LOG_ERROR(Plugin, "exception in createMeshTrampoline: {}", e.what());
+    return UME_MESH_HANDLE_INVALID;
+} catch (...) {
+    UME_LOG_ERROR(Plugin, "exception in createMeshTrampoline");
+    return UME_MESH_HANDLE_INVALID;
 }
 
 void PluginHost::destroyMeshTrampoline(void *context,

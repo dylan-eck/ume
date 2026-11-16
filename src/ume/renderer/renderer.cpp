@@ -483,8 +483,13 @@ void Renderer::render() {
             }
 
             backend_->beginRenderPass({
-                .color_attachments = {ColorAttachment{
-                    .texture = dst, .load_action = LoadAction::DontCare}},
+                .color_attachments =
+                    {
+                        ColorAttachment{
+                            .texture = dst,
+                            .load_action = LoadAction::DontCare,
+                        },
+                    },
             });
 
             const PostEffectBindings &b = effect->bindings;
@@ -504,8 +509,10 @@ void Renderer::render() {
             }
 
             const std::array samplers{
-                SamplerBinding{.slot = b.scene_sampler_slot,
-                               .sampler = linear_sampler_},
+                SamplerBinding{
+                    .slot = b.scene_sampler_slot,
+                    .sampler = linear_sampler_,
+                },
             };
 
             std::array<InlineDataBinding, 2> inline_data{};

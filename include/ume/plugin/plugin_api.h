@@ -64,6 +64,8 @@ extern "C" {
 #else
 #include <stdint.h>
 #endif
+/* C header: macros and C arrays are required */
+/* NOLINTBEGIN(modernize-macro-to-enum,modernize-avoid-c-arrays) */
 
 /* NOTE: struct_size and abi_version are the first two fields of UmePluginApi
  * and UmePluginDescription and must remain at those offsets permanently. They
@@ -256,6 +258,7 @@ typedef struct UmePluginDescription {
 typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
     const UmePluginApi *api, UmePluginDescription *description);
 
+/* NOLINTEND(modernize-macro-to-enum,modernize-avoid-c-arrays) */
 #ifdef __cplusplus
 }
 #endif

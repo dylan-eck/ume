@@ -55,7 +55,8 @@ public:
     bool reloadPostEffect(PostEffectHandle handle);
     void destroyPostEffect(PostEffectHandle handle);
 
-    void submitPostEffect(PostEffectHandle, std::span<const std::byte> params);
+    void submitPostEffect(PostEffectHandle handle,
+                          std::span<const std::byte> params);
 
     void setCamera(const CameraState &camera_state);
     [[nodiscard]] CameraState getCamera() const { return camera_state_; };
@@ -145,8 +146,7 @@ private:
         h ^= h >> 16;
 
         const float hue = static_cast<float>(h) * (1.0f / 4294967296.0f);
-        return glm::vec4(glm::rgbColor(glm::vec3(hue * 360.0f, 0.75f, 0.8f)),
-                         1.0f);
+        return {glm::rgbColor(glm::vec3(hue * 360.0f, 0.75f, 0.8f)), 1.0f};
     }
 };
 } // namespace ume

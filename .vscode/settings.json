@@ -1,4 +1,5 @@
 {
   "wren.additionalModuleDirectories": ["src/ume/scripting"],
-  "slang.additionalSearchPaths": ["${workspaceFolder}/include/ume/shaders"]
+  "slang.additionalSearchPaths": ["${workspaceFolder}/include/ume/shaders"],
+  "clangd.path": "/usr/bin/clangd"
 }

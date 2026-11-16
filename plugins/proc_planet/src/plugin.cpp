@@ -137,7 +137,7 @@ extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
             return UME_FALSE;
         }
 
-        self = new ProcPlanetPlugin{*api};
+        self = new ProcPlanetPlugin{.api = *api};
         description->abi_version = UME_PLUGIN_ABI_VERSION;
         description->name = "proc_planet";
         description->state = self;

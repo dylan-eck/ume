@@ -2,7 +2,6 @@
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
 #include "ume/renderer/backend_types.hpp"
-#include "ume/renderer/renderer_backend.hpp"
 
 #include <filesystem>
 #include <cstdint>
@@ -90,6 +89,108 @@ ShaderCompiler::ShaderCompiler(ShaderTarget target,
     }
 }
 
+std::vector<ShaderBinding> reflectBindings(slang::ProgramLayout *layout,
+                                           const std::filesystem::path &path) {
+
+    const unsigned param_count = layout->getParameterCount();
+    std::vector<ShaderBinding> bindings;
+    bindings.reserve(param_count);
+
+    for (unsigned i = 0; i < param_count; i++) {
+        slang::VariableLayoutReflection *param = layout->getParameterByIndex(i);
+        const char *name = nameOr(param->getName(), "<unnamed>");
+
+        if (kLogReflection) {
+            UME_LOG_INFO(
+                Renderer, "  '{}' parameter '{}' category {} binding {}",
+                path.string(), name, static_cast<int>(param->getCategory()),
+                param->getBindingIndex());
+        }
+
+        std::optional<BindingType> type = toBindingType(param->getTypeLayout());
+        if (!type) {
+            UME_LOG_WARN(Renderer,
+                         "'{}': ignoring parameter '{}', unsupported type",
+                         path.string(), name);
+            continue;
+        }
+
+        // uniform blocks are declared at module scope and shared by every
+        // entry point, so their size belongs here rather than on an entry point
+        uint32_t size = 0;
+        const slang::TypeReflection::Kind kind =
+            param->getTypeLayout()->getKind();
+        if (kind == slang::TypeReflection::Kind::ConstantBuffer ||
+            kind == slang::TypeReflection::Kind::ParameterBlock) {
+            size = static_cast<uint32_t>(
+                param->getTypeLayout()->getElementTypeLayout()->getSize());
+        }
+
+        bindings.push_back({
+            .name = name,
+            .type = *type,
+            .slot = param->getBindingIndex(),
+            .size = size,
+        });
+    }
+
+    return bindings;
+}
+
+std::vector<EntryPoint> reflectEntryPoints(slang::ProgramLayout *layout,
+                                           const std::filesystem::path &path) {
+    const SlangUInt entry_point_count = layout->getEntryPointCount();
+    std::vector<EntryPoint> entry_points;
+    entry_points.reserve(entry_point_count);
+
+    for (SlangUInt i = 0; i < entry_point_count; i++) {
+        slang::EntryPointReflection *ep = layout->getEntryPointByIndex(i);
+        const char *name = nameOr(ep->getName(), "<unnamed>");
+
+        std::optional<ShaderStage> stage = toShaderStage(ep->getStage());
+        if (!stage) {
+            UME_LOG_WARN(Renderer,
+                         "'{}': ignoring entry point '{}', unsupported stage",
+                         path.string(), name);
+            continue;
+        }
+
+        EntryPoint entry_point;
+        entry_point.name = name;
+        entry_point.stage = *stage;
+
+        if (*stage == ShaderStage::Compute) {
+            std::array<SlangUInt, 3> workgroup_size = {1, 1, 1};
+            ep->getComputeThreadGroupSize(workgroup_size.size(),
+                                          workgroup_size.data());
+            entry_point.workgroup_size = {
+                static_cast<uint32_t>(workgroup_size[0]),
+                static_cast<uint32_t>(workgroup_size[1]),
+                static_cast<uint32_t>(workgroup_size[2]),
+            };
+        }
+
+        if (kLogReflection) {
+            const unsigned entry_param_count = ep->getParameterCount();
+            for (unsigned j = 0; j < entry_param_count; j++) {
+                slang::VariableLayoutReflection *param =
+                    ep->getParameterByIndex(j);
+                UME_LOG_INFO(Renderer,
+                             "  '{}' entry point '{}' parameter '{}' "
+                             "category {} binding {}",
+                             path.string(), name,
+                             nameOr(param->getName(), "<unnamed>"),
+                             static_cast<int>(param->getCategory()),
+                             param->getBindingIndex());
+            }
+        }
+
+        entry_points.push_back(std::move(entry_point));
+    }
+
+    return entry_points;
+}
+
 std::optional<CompiledShader>
 ShaderCompiler::compile(const std::filesystem::path &path) {
     std::ifstream file(path, std::ios::binary);
@@ -145,94 +246,8 @@ ShaderCompiler::compile(const std::filesystem::path &path) {
 
     CompiledShader out;
 
-    const unsigned param_count = layout->getParameterCount();
-    out.bindings.reserve(param_count);
-
-    for (unsigned i = 0; i < param_count; i++) {
-        slang::VariableLayoutReflection *param = layout->getParameterByIndex(i);
-        const char *name = nameOr(param->getName(), "<unnamed>");
-
-        if (kLogReflection) {
-            UME_LOG_INFO(
-                Renderer, "  '{}' parameter '{}' category {} binding {}",
-                path.string(), name, static_cast<int>(param->getCategory()),
-                param->getBindingIndex());
-        }
-
-        std::optional<BindingType> type = toBindingType(param->getTypeLayout());
-        if (!type) {
-            UME_LOG_WARN(Renderer,
-                         "'{}': ignoring parameter '{}', unsupported type",
-                         path.string(), name);
-            continue;
-        }
-
-        // uniform blocks are declared at module scope and shared by every
-        // entry point, so their size belongs here rather than on an entry point
-        uint32_t size = 0;
-        const slang::TypeReflection::Kind kind =
-            param->getTypeLayout()->getKind();
-        if (kind == slang::TypeReflection::Kind::ConstantBuffer ||
-            kind == slang::TypeReflection::Kind::ParameterBlock) {
-            size = static_cast<uint32_t>(
-                param->getTypeLayout()->getElementTypeLayout()->getSize());
-        }
-
-        out.bindings.push_back({
-            .name = name,
-            .type = *type,
-            .slot = param->getBindingIndex(),
-            .size = size,
-        });
-    }
-
-    const SlangUInt entry_point_count = layout->getEntryPointCount();
-    out.entry_points.reserve(entry_point_count);
-
-    for (SlangUInt i = 0; i < entry_point_count; i++) {
-        slang::EntryPointReflection *ep = layout->getEntryPointByIndex(i);
-        const char *name = nameOr(ep->getName(), "<unnamed>");
-
-        std::optional<ShaderStage> stage = toShaderStage(ep->getStage());
-        if (!stage) {
-            UME_LOG_WARN(Renderer,
-                         "'{}': ignoring entry point '{}', unsupported stage",
-                         path.string(), name);
-            continue;
-        }
-
-        EntryPoint entry_point;
-        entry_point.name = name;
-        entry_point.stage = *stage;
-
-        if (*stage == ShaderStage::Compute) {
-            std::array<SlangUInt, 3> workgroup_size = {1, 1, 1};
-            ep->getComputeThreadGroupSize(workgroup_size.size(),
-                                          workgroup_size.data());
-            entry_point.workgroup_size = {
-                static_cast<uint32_t>(workgroup_size[0]),
-                static_cast<uint32_t>(workgroup_size[1]),
-                static_cast<uint32_t>(workgroup_size[2]),
-            };
-        }
-
-        if (kLogReflection) {
-            const unsigned entry_param_count = ep->getParameterCount();
-            for (unsigned j = 0; j < entry_param_count; j++) {
-                slang::VariableLayoutReflection *param =
-                    ep->getParameterByIndex(j);
-                UME_LOG_INFO(Renderer,
-                             "  '{}' entry point '{}' parameter '{}' "
-                             "category {} binding {}",
-                             path.string(), name,
-                             nameOr(param->getName(), "<unnamed>"),
-                             static_cast<int>(param->getCategory()),
-                             param->getBindingIndex());
-            }
-        }
-
-        out.entry_points.push_back(std::move(entry_point));
-    }
+    out.bindings = reflectBindings(layout, path);
+    out.entry_points = reflectEntryPoints(layout, path);
 
     if (out.entry_points.empty()) {
         UME_LOG_ERROR(Renderer,
@@ -258,10 +273,8 @@ ShaderCompiler::compile(const std::filesystem::path &path) {
 
 Slang::ComPtr<slang::ISession> ShaderCompiler::createSession() {
     slang::TargetDesc target_desc{};
-    switch (target_) {
-    case ShaderTarget::Msl:
+    if (target_ == ShaderTarget::Msl) {
         target_desc.format = SLANG_METAL;
-        break;
     }
 
     std::array<const char *, 1> search_paths = {include_dir_.c_str()};

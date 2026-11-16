@@ -19,6 +19,7 @@
 #include <expected>
 #include <format>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <span>
@@ -174,7 +175,11 @@ void MetalRenderer::beginFrame() {
 
 std::expected<void, std::string>
 MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
-    if (desc.color_attachments.empty() && !desc.depth_attachment.has_value()) {
+    const bool has_color = std::ranges::any_of(
+        desc.color_attachments,
+        [](const ColorAttachment &c) { return static_cast<bool>(c.texture); });
+
+    if (!has_color && !desc.depth_attachment.has_value()) {
         return std::unexpected("render pass must have at least one attachment");
     }
 
@@ -193,11 +198,6 @@ MetalRenderer::validateRenderPass(const RenderPassDescription &desc) {
         if (is_depth && texture->description.format != Format::Depth32Float) {
             return std::unexpected(
                 std::format("{} format is not a depth format", kind));
-        }
-
-        if (is_depth && handle == backbuffer_) {
-            return std::unexpected(
-                "backbuffer cannot be bound as a depth texture");
         }
 
         if (!is_depth && texture->description.format == Format::Depth32Float) {

@@ -37,7 +37,7 @@ Engine::Engine(const EngineConfig &config)
     UME_LOG_INFO(Core, "application initialized");
 }
 
-Engine::~Engine() {}
+Engine::~Engine() = default;
 
 void Engine::tick() {
     frame_index_++;
