@@ -16,12 +16,20 @@
 #include <ranges>
 #include <cstddef>
 #include <optional>
+#include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 #include <span>
 
+#ifndef UME_PLUGIN_SUFFIX
+#define UME_PLUGIN_SUFFIX ".so"
+#endif
+
 namespace ume {
 namespace {
+constexpr std::string_view kPluginSuffix = UME_PLUGIN_SUFFIX;
+
 // this function's signature is fixed by the plugin ABI (plugin_api.h)
 double alwaysFallback([[maybe_unused]] const void *impl,
                       [[maybe_unused]] const char *key,
@@ -75,6 +83,19 @@ bool PluginHost::registerStatic(const char *name,
     return finishRegistration(name, nullptr, register_function, dir);
 }
 
+std::filesystem::path
+PluginHost::findPluginLibrary(const std::filesystem::path &plugin_dir) {
+    std::error_code ec;
+
+    for (const auto &entry :
+         std::filesystem::directory_iterator(plugin_dir, ec)) {
+        if (!entry.is_regular_file(ec)) continue;
+
+        if (entry.path().extension() == kPluginSuffix) return entry.path();
+    }
+    return {};
+}
+
 bool PluginHost::loadPlugin(const std::filesystem::path &path) {
     void *library = openLibrary(path);
     if (library == nullptr) {
@@ -97,6 +118,41 @@ bool PluginHost::loadPlugin(const std::filesystem::path &path) {
         return false;
     }
     return true;
+}
+
+void PluginHost::loadPluginsFrom(const std::filesystem::path &plugin_dir) {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(plugin_dir, ec)) {
+        UME_LOG_INFO(Plugin, "no plugin directory at '{}'",
+                     plugin_dir.string());
+        return;
+    }
+
+    for (const auto &entry :
+         std::filesystem::directory_iterator(plugin_dir, ec)) {
+        if (!entry.is_directory(ec)) continue;
+
+        UME_LOG_INFO(Plugin, "scanning directory: {}", entry.path().string());
+
+        const std::filesystem::path library_path =
+            findPluginLibrary(entry.path());
+        if (library_path.empty()) {
+            UME_LOG_WARN(Plugin, "no plugin library found in '{}",
+                         entry.path().string());
+            continue;
+        }
+
+        if (!loadPlugin(library_path)) {
+            UME_LOG_ERROR(Plugin, "failed to load plugin from '{}'",
+                          library_path.string());
+            continue;
+        }
+    }
+
+    if (ec) {
+        UME_LOG_ERROR(Plugin, "error while scanning plugin directory: {}",
+                      ec.message());
+    }
 }
 
 bool PluginHost::finishRegistration(const char *name, void *library,

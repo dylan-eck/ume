@@ -121,7 +121,7 @@ void shutdownProcPlanet(void *state) noexcept {
 }
 } // namespace
 
-extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(procPlanet)(
+extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL umePluginRegister(
     const UmePluginApi *api, UmePluginDescription *description) noexcept {
 
     ProcPlanetPlugin *self = nullptr;

@@ -67,7 +67,10 @@ public:
                    UmePluginRegisterFunction register_function,
                    const std::filesystem::path &dir);
 
+    [[nodiscard]] static std::filesystem::path
+    findPluginLibrary(const std::filesystem::path &plugin_dir);
     [[nodiscard]] bool loadPlugin(const std::filesystem::path &path);
+    void loadPluginsFrom(const std::filesystem::path &plugin_dir);
     [[nodiscard]] bool unloadPlugin(uint64_t id);
     [[nodiscard]] Plugin *findPlugin(uint64_t id);
 
@@ -123,8 +126,4 @@ private:
     static void logTrampoline(void *context, UmeLogLevel log_level,
                               const char *message) noexcept;
 };
-
-// TODO: why is this declared here?
-void registerBuiltinPlugins(PluginHost &host,
-                            const std::filesystem::path &plugin_dir);
 } // namespace ume

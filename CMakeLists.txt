@@ -110,7 +110,7 @@ set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
 target_sources(
   ume_engine
   PRIVATE src/ume/plugin/plugin_manifest.cpp src/ume/plugin/plugin_host.cpp
-          src/ume/plugin/plugin_params.cpp src/ume/plugin/builtin_plugins.cpp)
+          src/ume/plugin/plugin_params.cpp)
 
 function(ume_plugin_assets TARGET)
   set(dest "${CMAKE_SOURCE_DIR}/sandbox/plugins/${TARGET}")

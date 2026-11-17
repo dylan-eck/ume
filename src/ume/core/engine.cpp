@@ -26,8 +26,7 @@ Engine::Engine(const EngineConfig &config)
                      config.working_dir + "/" + project_.main_script),
       reload_key_(keyCodeFromName("R")) {
 
-    registerBuiltinPlugins(
-        plugin_host_, std::filesystem::path(config.working_dir) / "plugins");
+    plugin_host_.loadPluginsFrom(config.working_dir + "/plugins");
 
     script_engine_.init();
 

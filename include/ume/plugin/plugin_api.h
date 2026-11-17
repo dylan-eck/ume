@@ -90,17 +90,11 @@ extern "C" {
  */
 
 #define UME_PLUGIN_ABI_VERSION 0
-
-#ifdef UME_PLUGIN_STATIC
-#define UME_PLUGIN_EXPORT
-#else
 #define UME_PLUGIN_EXPORT __attribute__((visibility("default")))
-#endif
-
-#ifdef UME_PLUGIN_STATIC
-#define UME_PLUGIN_ENTRY(name) name##PluginRegister
+#ifdef __cplusplus
+#define UME_PLUGIN_NOEXCEPT noexcept
 #else
-#define UME_PLUGIN_ENTRY(name) umePluginRegister
+#define UME_PLUGIN_NOEXCEPT
 #endif
 
 typedef uint8_t UME_PLUGIN_BOOL;
@@ -257,6 +251,10 @@ typedef struct UmePluginDescription {
  */
 typedef UME_PLUGIN_BOOL (*UmePluginRegisterFunction)(
     const UmePluginApi *api, UmePluginDescription *description);
+
+UME_PLUGIN_EXPORT UME_PLUGIN_BOOL
+umePluginRegister(const UmePluginApi *api,
+                  UmePluginDescription *description) UME_PLUGIN_NOEXCEPT;
 
 /* NOLINTEND(modernize-macro-to-enum,modernize-avoid-c-arrays) */
 #ifdef __cplusplus

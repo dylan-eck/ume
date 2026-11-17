@@ -82,7 +82,7 @@ void shutdownTerrainPlugin(void *state) noexcept {
 }
 } // namespace
 
-extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL UME_PLUGIN_ENTRY(terrain)(
+extern "C" UME_PLUGIN_EXPORT UME_PLUGIN_BOOL umePluginRegister(
     const UmePluginApi *api, UmePluginDescription *description) noexcept {
 
     TerrainPlugin *self = nullptr;
