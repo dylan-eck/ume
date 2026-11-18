@@ -24,7 +24,6 @@ option named in that component's entry.
 | zmij (bundled in Glaze)               | `vendor/glaze/include/glaze/util/zmij.hpp`       | MIT (chosen from MIT / BSL-1.0)                                     |
 | Wren                                  | `vendor/wren`                                    | MIT                                                                 |
 | GLM                                   | `vendor/glm`                                     | MIT (chosen from Happy Bunny / MIT)                                 |
-| FastNoise2                            | `plugins/shared/vendor/FastNoise2`               | MIT                                                                 |
 | battery::embed                        | `vendor/embed`                                   | Apache-2.0                                                          |
 | metal-cpp                             | `vendor/metal-cpp`                               | Apache-2.0                                                          |
 | Slang (`libslang` linked)             | system install / Vulkan SDK                      | Apache-2.0 with LLVM Exceptions                                     |

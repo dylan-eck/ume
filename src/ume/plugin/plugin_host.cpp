@@ -16,6 +16,7 @@
 #include <ranges>
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -68,19 +69,6 @@ PluginHost::~PluginHost() {
     } catch (...) {
         UME_LOG_ERROR(Plugin, "exception in pluginHost destructor");
     }
-}
-
-bool PluginHost::registerStatic(const char *name,
-                                UmePluginRegisterFunction register_function,
-                                const std::filesystem::path &dir) {
-    if (name == nullptr || register_function == nullptr) {
-        UME_LOG_ERROR(
-            Plugin,
-            "attempted to register plugin with null name or register function");
-        return false;
-    }
-
-    return finishRegistration(name, nullptr, register_function, dir);
 }
 
 std::filesystem::path

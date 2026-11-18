@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(pwd)"
-target_name="ume"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 run_after_build=false
 force_configure=false
-preset=""
+target="all"
+config=""
+positional=()
 run_args=()
 
 usage() {
-  echo "Usage: $0 [-r|--run] [-c|--configure] <preset> [-- <args passed to the executable>]" >&2
+  echo "Usage: $0 [-r|--run] [-c|--configure] [engine|examples|all] <debug|release> [-- <args passed to ume>]" >&2
   exit 1
 }
 
@@ -33,49 +34,61 @@ while [[ $# -gt 0 ]]; do
       usage
       ;;
     *)
-      if [[ -n "$preset" ]]; then
-        echo "error: unexpected argument: $1" >&2
-        usage
-      fi
-      preset="$1"
+      positional+=("$1")
       shift
       ;;
   esac
 done
 
-[[ -n "$preset" ]] || usage
+case "${#positional[@]}" in
+  1) config="${positional[0]}" ;;
+  2) target="${positional[0]}"; config="${positional[1]}" ;;
+  *) usage ;;
+esac
 
-rel_build_dir="build/$preset"
-build_dir="$repo_root/$rel_build_dir"
+case "$target" in engine|examples|all) ;; *) usage ;; esac
+case "$config" in debug|release) ;; *) usage ;; esac
 
-if "$force_configure" || [[ ! -f "$build_dir/CMakeCache.txt" ]]; then
-  cmake --preset "$preset"
+engine_preset="${config}-metal"
+examples_preset="$config"
+
+# configure if needed, build, and point <src>/compile_commands.json at the
+# build. subshells keep the caller's working directory unchanged, so relative
+# paths in run_args still resolve against where the script was invoked
+build_project() {
+  local src="$1" preset="$2"
+  local rel_build_dir="build/$preset"
+
+  if "$force_configure" || [[ ! -f "$src/$rel_build_dir/CMakeCache.txt" ]]; then
+    (cd "$src" && cmake --preset "$preset")
+  fi
+  (cd "$src" && cmake --build --preset "$preset")
+
+  local cc_link="$src/compile_commands.json"
+  local cc_target="$rel_build_dir/compile_commands.json"
+  if [[ -e "$src/$cc_target" ]]; then
+    local current
+    current="$(readlink "$cc_link" 2>/dev/null || true)"
+    if [[ "$current" != "$cc_target" ]]; then
+      ln -sfn "$cc_target" "$cc_link"
+    fi
+  fi
+}
+
+if [[ "$target" == engine || "$target" == all ]]; then
+  build_project "$repo_root" "$engine_preset"
 fi
 
-cmake --build --preset "$preset"
-
-cc_link="$repo_root/compile_commands.json"
-cc_target="$rel_build_dir/compile_commands.json"
-if [[ -e "$build_dir/compile_commands.json" ]]; then
-  current="$(readlink "$cc_link" 2>/dev/null || true)"
-  if [[ "$current" != "$cc_target" ]]; then
-    ln -sfn "$cc_target" "$cc_link"
-  fi
+if [[ "$target" == examples || "$target" == all ]]; then
+  build_project "$repo_root/examples" "$examples_preset"
 fi
 
 if "$run_after_build"; then
-  binary="$build_dir/$target_name"
+  binary="$repo_root/build/$engine_preset/ume"
   if [[ ! -x "$binary" ]]; then
     echo "error: expected executable at $binary but it wasn't found" >&2
     exit 1
   fi
 
-  sandbox_dir="$repo_root/sandbox"
-  if [[ ! -d "$sandbox_dir" ]]; then
-    echo "error: sandbox directory not found at $sandbox_dir" >&2
-    exit 1
-  fi
-
-  cd "$sandbox_dir"
   exec "$binary" "${run_args[@]+"${run_args[@]}"}"
 fi

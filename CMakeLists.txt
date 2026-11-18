@@ -5,8 +5,6 @@ project(
   VERSION 0.1.0
   LANGUAGES C CXX)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 if(NOT APPLE)
   message(FATAL_ERROR "ume requires macOS (Metal)")
 endif()
@@ -46,14 +44,7 @@ target_compile_definitions(
             GLM_ENABLE_EXPERIMENTAL $<$<CONFIG:Debug>:UME_ENABLE_LOGGING>)
 target_link_libraries(ume_config INTERFACE glm::glm)
 
-add_library(ume_plugin_config INTERFACE)
-target_compile_options(
-  ume_plugin_config
-  INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic
-            -Wimplicit-fallthrough> $<$<CXX_COMPILER_ID:MSVC>:/W4>)
-
-add_library(ume_plugin_api INTERFACE)
-target_include_directories(ume_plugin_api INTERFACE include)
+include(cmake/UmePlugin.cmake)
 
 add_library(ume_plugin_api_c_check STATIC src/ume/plugin/plugin_api.c)
 target_link_libraries(ume_plugin_api_c_check PRIVATE ume_plugin_api)
@@ -102,79 +93,20 @@ find_library(QUARTZCORE_LIB QuartzCore REQUIRED)
 target_link_libraries(ume_engine PRIVATE ${METAL_LIB} ${FOUNDATION_LIB}
                                          ${QUARTZCORE_LIB})
 
-set(UME_PLUGIN_LINK_TYPE
-    "STATIC"
-    CACHE STRING "STATIC or MODULE")
-set_property(CACHE UME_PLUGIN_LINK_TYPE PROPERTY STRINGS STATIC MODULE)
-
 target_sources(
   ume_engine
   PRIVATE src/ume/plugin/plugin_manifest.cpp src/ume/plugin/plugin_host.cpp
           src/ume/plugin/plugin_params.cpp)
 
-function(ume_plugin_assets TARGET)
-  set(dest "${CMAKE_SOURCE_DIR}/sandbox/plugins/${TARGET}")
-  set(outputs "")
-  foreach(asset IN LISTS ARGN)
-    set(src "${CMAKE_CURRENT_SOURCE_DIR}/${asset}")
-    set(dst "${dest}/${asset}")
-    get_filename_component(dst_dir "${dst}" DIRECTORY)
-    get_filename_component(ext "${asset}" LAST_EXT)
-    if(ext STREQUAL ".slang")
-      # shaders are hot reloaded from the sandbox path at runtime, so link them
-      # back to the source tree instead of copying a snapshot that only
-      # refreshes on the next build. rm first: create_symlink does not replace a
-      # regular file left behind by an earlier copy
-      add_custom_command(
-        OUTPUT "${dst}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
-        COMMAND ${CMAKE_COMMAND} -E rm -f "${dst}"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink "${src}" "${dst}"
-        DEPENDS "${src}"
-        COMMENT "Linking plugin shader: ${TARGET}/${asset}"
-        VERBATIM)
-    else()
-      add_custom_command(
-        OUTPUT "${dst}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${dst_dir}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${src}" "${dst}"
-        DEPENDS "${src}"
-        COMMENT "Copying plugin asset: ${TARGET}/${asset}"
-        VERBATIM)
-    endif()
-    list(APPEND outputs "${dst}")
-  endforeach()
-  add_custom_target(${TARGET}_assets ALL DEPENDS ${outputs})
-  add_dependencies(${TARGET} ${TARGET}_assets)
-endfunction()
-
-add_subdirectory(plugins/shared)
-add_subdirectory(plugins/proc_planet)
-add_subdirectory(plugins/terrain)
-
 add_executable(ume src/main.cpp)
 
 if(CMAKE_GENERATOR STREQUAL "Xcode")
   set_target_properties(
-    ume
-    PROPERTIES XCODE_GENERATE_SCHEME TRUE
-               XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/sandbox"
-               XCODE_SCHEME_ENVIRONMENT "MTL_DEBUG_LAYER=1")
-endif()
-
-if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
-  target_compile_definitions(ume_engine PRIVATE UME_PLUGIN_STATIC)
-else()
-  add_dependencies(ume proc_planet)
-  add_dependencies(ume terrain)
+    ume PROPERTIES XCODE_GENERATE_SCHEME TRUE XCODE_SCHEME_ENVIRONMENT
+                                              "MTL_DEBUG_LAYER=1")
 endif()
 
 target_link_libraries(ume PRIVATE ume_engine SDL3::Headers)
-if(UME_PLUGIN_LINK_TYPE STREQUAL "STATIC")
-  target_link_libraries(ume PRIVATE proc_planet)
-  target_link_libraries(ume PRIVATE terrain)
-endif()
-
 include(GNUInstallDirs)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")

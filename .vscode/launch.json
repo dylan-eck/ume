@@ -2,20 +2,41 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug",
+      "name": "Planet (Debug)",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/debug-metal-dynamic/ume",
-      "cwd": "${workspaceFolder}/sandbox",
+      "program": "${workspaceFolder}/build/debug-metal/ume",
+      "args": ["${workspaceFolder}/examples/planet"],
+      "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build Debug",
       "env": { "MTL_DEBUG_LAYER": "1" }
     },
     {
-      "name": "Release",
+      "name": "Planet (Release)",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/release-metal/ume",
-      "cwd": "${workspaceFolder}/sandbox",
+      "args": ["${workspaceFolder}/examples/planet"],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Release"
+    },
+    {
+      "name": "Terrain (Debug)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug-metal/ume",
+      "args": ["${workspaceFolder}/examples/terrain"],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Debug",
+      "env": { "MTL_DEBUG_LAYER": "1" }
+    },
+    {
+      "name": "Terrain (Release)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/release-metal/ume",
+      "args": ["${workspaceFolder}/examples/terrain"],
+      "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build Release"
     }
   ]

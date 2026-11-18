@@ -21,7 +21,7 @@ struct ProjectDescription {
 };
 
 struct EngineConfig {
-    std::string working_dir;
+    std::string project_root;
 };
 
 class Engine {

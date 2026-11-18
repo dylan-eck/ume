@@ -20,5 +20,5 @@
 	path = vendor/wren
 	url = https://github.com/wren-lang/wren.git
 [submodule "plugins/shared/vendor/FastNoise2"]
-	path = plugins/shared/vendor/FastNoise2
+	path = examples/plugins/shared/vendor/FastNoise2
 	url = https://github.com/Auburn/FastNoise2.git

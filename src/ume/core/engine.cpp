@@ -19,14 +19,14 @@
 namespace ume {
 
 Engine::Engine(const EngineConfig &config)
-    : project_(loadProject(config.working_dir)),
+    : project_(loadProject(config.project_root)),
       window_(getWindowConfig(project_)), renderer_(window_),
       plugin_host_(renderer_),
       script_engine_(renderer_, plugin_host_, input_, window_,
-                     config.working_dir + "/" + project_.main_script),
+                     config.project_root + "/" + project_.main_script),
       reload_key_(keyCodeFromName("R")) {
 
-    plugin_host_.loadPluginsFrom(config.working_dir + "/plugins");
+    plugin_host_.loadPluginsFrom(config.project_root + "/plugins");
 
     script_engine_.init();
 

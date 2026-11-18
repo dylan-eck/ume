@@ -5,7 +5,8 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}"
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": { "CMAKE_EXPORT_COMPILE_COMMANDS": "ON" }
     },
     {
       "name": "debug-config",
@@ -33,23 +34,10 @@
         "rhs": "Darwin"
       }
     },
-    {
-      "name": "plugin-dynamic",
-      "hidden": true,
-      "cacheVariables": { "UME_PLUGIN_LINK_TYPE": "MODULE" }
-    },
     { "name": "debug-metal", "inherits": ["debug-config", "metal-backend"] },
-    {
-      "name": "debug-metal-dynamic",
-      "inherits": ["debug-config", "metal-backend", "plugin-dynamic"]
-    },
     {
       "name": "release-metal",
       "inherits": ["release-config", "metal-backend"]
-    },
-    {
-      "name": "release-metal-dynamic",
-      "inherits": ["release-config", "metal-backend", "plugin-dynamic"]
     }
   ],
   "buildPresets": [
@@ -58,16 +46,8 @@
       "configurePreset": "debug-metal"
     },
     {
-      "name": "debug-metal-dynamic",
-      "configurePreset": "debug-metal-dynamic"
-    },
-    {
       "name": "release-metal",
       "configurePreset": "release-metal"
-    },
-    {
-      "name": "release-metal-dynamic",
-      "configurePreset": "release-metal-dynamic"
     }
   ]
 }

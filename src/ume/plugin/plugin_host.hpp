@@ -62,11 +62,6 @@ public:
     PluginHost(PluginHost &&) = delete;
     PluginHost &operator=(PluginHost &&) = delete;
 
-    [[nodiscard]] bool
-    registerStatic(const char *name,
-                   UmePluginRegisterFunction register_function,
-                   const std::filesystem::path &dir);
-
     [[nodiscard]] static std::filesystem::path
     findPluginLibrary(const std::filesystem::path &plugin_dir);
     [[nodiscard]] bool loadPlugin(const std::filesystem::path &path);

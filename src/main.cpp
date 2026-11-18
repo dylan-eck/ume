@@ -2,18 +2,52 @@
 #include "ume/core/error.hpp"
 #include "ume/core/logger.hpp"
 
-#include <exception>
-
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 
+#include <exception>
 #include <filesystem>
 #include <memory>
+#include <system_error>
+
+namespace {
+std::filesystem::path resolveProjectRoot(int argc, char **argv) {
+    using ume::logger::Category;
+
+    if (argc > 2) {
+        throw ume::Error(Category::Core, "usage: {} [project_dir]", argv[0]);
+    }
+
+    const std::filesystem::path requested =
+        argc == 2 ? std::filesystem::path(argv[1])
+                  : std::filesystem::current_path();
+
+    std::error_code ec;
+    std::filesystem::path root = std::filesystem::canonical(requested, ec);
+    if (ec) {
+        throw ume::Error(Category::Core, "invalid project directory '{}': {}",
+                         std::filesystem::absolute(requested).string(),
+                         ec.message());
+    }
+
+    if (!std::filesystem::is_directory(root, ec)) {
+        throw ume::Error(Category::Core, "'{}' is not a directory",
+                         root.string());
+    }
+
+    if (!std::filesystem::is_regular_file(root / "project.toml", ec)) {
+        throw ume::Error(Category::Core, "no project.toml in '{}'",
+                         root.string());
+    }
+
+    return root;
+}
+} // namespace
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     try {
-        std::filesystem::path working_dir = std::filesystem::current_path();
-        auto config = ume::EngineConfig{.working_dir = working_dir.string()};
+        auto config =
+            ume::EngineConfig{.project_root = resolveProjectRoot(argc, argv)};
         auto engine = std::make_unique<ume::Engine>(config);
         *appstate = engine.release();
     } catch (const ume::Error &err) {

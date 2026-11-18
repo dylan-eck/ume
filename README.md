@@ -50,7 +50,7 @@ Ume is a work-in-progress graphics engine written in C++.
   - optionally ccache or sccache.
 
 To build the project, first clone the repo and all submodules by running `git clone --recursive https://github.com/dylan-eck/ume.git`.
-Then run `./build.sh -r debug-metal-dynamic` to build and run the project.
+Then run `./build.sh -r debug -- examples/planet` to build and run the project.
 
 ## License
 
