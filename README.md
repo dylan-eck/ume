@@ -1,5 +1,8 @@
 # Ume
 
+![3D render of a planet viewed from space](docs/images/planet_space_sun.jpg)
+![3D render above the surface of a planet viewing sunset over the ocean](docs/images/planet_ocean_sunset.jpg)
+
 ## About
 
 Ume is a work-in-progress graphics engine written in C++.
